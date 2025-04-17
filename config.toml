@@ -1,0 +1,4 @@
+[model_config]
+base_url = "http://192.168.2.29:8000/v1"
+api_key = "none"
+model_name = "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4"

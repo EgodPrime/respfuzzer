@@ -1,0 +1,47 @@
+[project]
+name = "mplfuzz"
+version = "0.1.0"
+description = "Fuzz Python Libraries as MCP services"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fire>=0.7.0",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "mcp[cli]>=1.6.0",
+    "openai>=1.75.0",
+    "pydantic>=2.11.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "pytest>=8.3.5",
+]
+
+[tool.pytest.ini_options]
+
+# 改变用例的查找路径规则，当前目录的testcase文件夹
+testpaths = ["tests"]
+
+# 模块名的规则，配置测试搜索的模块文件名称
+python_files = ["test_*.py"]
+
+# 类名的规则，配置测试搜索的测试类名
+python_classes = ["Test_*"]
+
+# 方法名的规则，配置测试搜索的测试函数名
+python_functions = ["test_*"]
+
+[tool.black]
+line-length = 102
+target-version = ["py312"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+
+[[tool.uv.index]]
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+default = true
