@@ -273,3 +273,11 @@ print("Result 3:", result3)
 print("Result 4:", result4)
 print("Result 5:", result5)
 ```
+
+### 案例2：不同库的API调用生成成功率
+|库名称|公开函数数量|成功数量|成功率|
+|-|-|-|-|
+|difflib|8|8|100.00%|
+|re|12|12|100.00%|
+|locale|11|9|81.82%|
+|ast|13|12|92.31%|

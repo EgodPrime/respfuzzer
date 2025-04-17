@@ -55,17 +55,20 @@ class Solution(BaseModel):
         return self.__repr__()
 
 def to_mcp_code(api: API) -> str:
+    source = api.source.replace("'''", r"\'\'\'").replace('"""', r'\"\"\"')
+    source = "\n".join("    "+line for line in source.split('\n'))
+
     code = f"""
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP()
+mcp = FastMCP(log_level="WARNING")
 
 @mcp.tool()
 def {"__".join(api.name.split('.'))}({", ".join([arg.name for arg in api.args])}) -> dict:
-    \'''
+    r\'''
     This tool is a warrper for the following API:
 
-    {api.source}
+    {source}
 
     Args:
 {"\n".join([f"        {arg.name} (str): a string expression representing the argument `{arg.name}`, will be converted to Python object by `eval`." for arg in api.args])}

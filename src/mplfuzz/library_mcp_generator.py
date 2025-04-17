@@ -3,7 +3,7 @@ from pathlib import Path
 from mplfuzz.library_visitor import LibraryVisitor
 from mplfuzz.models import MCPAPI
 from mplfuzz.utils.result import Result, Ok, Err
-
+from loguru import logger
 
 class LibraryMCPGenerator(LibraryVisitor):
     def __init__(self, library_name: str):
