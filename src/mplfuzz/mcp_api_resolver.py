@@ -1,23 +1,22 @@
 import asyncio
 import json
-from contextlib import AsyncExitStack
-from pathlib import Path
 from typing import Optional
 
-from loguru import logger
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp import ClientSession
 from mcp.types import CallToolResult, TextContent, Tool
 from openai import AsyncOpenAI
 
 from mplfuzz.models import API, ArgumentExpr, Solution
 from mplfuzz.utils.result import Err, Ok, Result
+from mplfuzz.utils.config import get_config
+from loguru import logger
 
 
 class MCPAPIResolver:
     def __init__(self):
         self.openai_client: Optional[AsyncOpenAI] = None
         self.model_name: Optional[str] = None
+        self.config = get_config("mcp_api_resolver").value
 
     async def setup_llm(self, model_config: dict[str, str]) -> Result[None, str]:
         try:
@@ -42,49 +41,65 @@ class MCPAPIResolver:
     async def solve_api(self, api: API, mcp_session: ClientSession) -> Result[list[Solution], str]:
         if not self.openai_client:
             return Err("OpenAI client not initialized. Call setup_llm first.")
-        
-        response = await mcp_session.list_tools()
-        tools = [{
-            "type": "function",
-            "function": {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": tool.inputSchema
+
+        completion = await mcp_session.list_tools()
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.inputSchema,
+                },
             }
-        } for tool in response.tools]
+            for tool in completion.tools
+        ]
 
         tool_name = "__".join(api.name.split("."))
-        query = f'请探索出工具{tool_name}的正确使用方法，使用成功时你会得到`{{"success": True, "msg": "..."}}`，否则得到错误信息`{{"success":False, "msg":"..."}}`。如果得到错误信息，则根据错误信息中的`msg`进行重试直到成功。请尽可能多的探索各种类型的输入。'
+        query = f'/no_think请探索出工具{tool_name}的正确使用方法，使用成功时你会得到`{{"success": True, "msg": "..."}}`，否则得到错误信息`{{"success":False, "msg":"..."}}`。如果得到错误信息，则根据错误信息中的`msg`进行重试直到成功。请尽可能多的探索各种类型的输入。'
+        #logger.debug(f"query llm with {query}")
 
-        history = [{"role": "user", "content": query}]
+        history = []
+        history.append({"role": "user", "content": query})
+
+        max_failure = self.config.get("max_failure", 10)
+        history_length_limit = self.config.get("history_length_limit", 14000)
+        output_length_limit = self.config.get("output_length_limit", 2000)
 
         solutions: list[Solution] = []
-        max_failure = 10
-        while True:
-            if len(json.dumps(history)) > 16000:
-                if len(solutions) > 0:
+        while max_failure > 0:
+
+            if len(json.dumps(history)) > history_length_limit:
+
+                if len(solutions) > 0:  # break if any solutions are found
+
                     break
                 else:
-                    if max_failure > 0:
+
+                    if max_failure > 0:  # else if no solutions are found, reset history and retry
+
                         history = history[:1]
                         max_failure -= 1
                         continue
-                    else:
+                    else:  # if max_failure is 0, return error
+
                         return Err(f"拼尽全力，无法战胜{api.name}")
+
+            # Ask llm to create tool call
+            logger.debug(f"Query llm for {api.name}")
             try:
-                response = await self.openai_client.chat.completions.create(
-                    model=self.model_name, messages=history, tools=tools
+                completion = await self.openai_client.chat.completions.create(
+                    messages=history,
+                    model=self.model_name,
+                    tools=tools,
+                    max_completion_tokens=output_length_limit,
                 )
             except Exception as e:
-                return Err(f"Error occurred while creating chat completion: {e}")
-            message = response.choices[0].message
-
-            # If this is neccessary? 
-            if message.content:
-                history.append({"role": "assistant", "content": message.content})
+                return Err(f"Error occurred while creating completion: {e}")
+            #logger.debug(f"llm generate tool call: {completion.choices[0].message.tool_calls}")
 
             # terminate condition
-            if len(message.tool_calls) == 0:
+            if completion.choices[0].message.tool_calls is None or len(completion.choices[0].message.tool_calls) == 0 :
                 if len(solutions) == 0:
                     if max_failure > 0:
                         history = history[:1]
@@ -95,22 +110,27 @@ class MCPAPIResolver:
                 else:
                     break
 
+            history.append(completion.choices[0].message.to_dict())
+
             # call each tool
-            for tool_call in message.tool_calls:
+            for tool_call in completion.choices[0].message.tool_calls:
+
                 tool_name = tool_call.function.name
                 tool_args: dict[str, str] = json.loads(tool_call.function.arguments)
                 try:
+                    logger.debug(f"Try call {api.name} with {tool_args}")
                     result: CallToolResult = await asyncio.wait_for(
-                        mcp_session.call_tool(tool_name, tool_args),
-                        10.0
+                        mcp_session.call_tool(tool_name, tool_args), 10.0
                     )
+                    result_content: list[TextContent] = result.content
+                    result_text: str = result_content[0].text
+                    if result.isError:
+                        result_text = json.dumps({"success": False, "msg": f"{result_text}"})
                 except asyncio.TimeoutError:
                     return Err(f"Tool {tool_name} timed out after 10 seconds")
-                result_content: list[TextContent] = result.content
-                result_text: str = result_content[0].text
-                if result.isError:
-                    # return Err(f"Error occurred while calling tool {tool_name}: {result_text}")
-                    result_text = json.dumps({"success": False, "msg":f"{result_text}"})
+                except Exception as e:
+                    result_text = json.dumps({"success": False, "msg": f"{e}"})
+                #logger.debug(f"Tool {tool_name} returned: {result_text}")
 
                 try:
                     result_dict: dict = json.loads(result_text)
@@ -118,29 +138,14 @@ class MCPAPIResolver:
                     return Err(f"Invalid JSON response from tool {tool_name}:\n{result_text}")
 
                 if result_dict["success"]:
-                    api_exprs = [ArgumentExpr(name=k, expr=v) for k, v in tool_args.items()]
+                    api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
                     solutions.append(
                         Solution(
                             api_name=api.name, api_exprs=api_exprs, expect_result=result_dict["msg"]
                         )
                     )
+                    logger.info(f"Found a solution for {api.name}")
 
-                history.append(
-                    {
-                        "role": "assistant",
-                        "tool_calls": [
-                            {
-                                "id": tool_call.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tool_name,
-                                    "arguments": tool_call.function.arguments,
-                                },
-                            }
-                        ],
-                    }
-                )
                 history.append({"role": "tool", "tool_call_id": tool_call.id, "content": result_text})
 
         return Ok(solutions)
-    

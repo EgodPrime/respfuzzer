@@ -54,9 +54,10 @@ class Solution(BaseModel):
     def __str__(self):
         return self.__repr__()
 
+
 def to_mcp_code(api: API) -> str:
-    source = api.source.replace("'''", r"\'\'\'").replace('"""', r'\"\"\"')
-    source = "\n".join("    "+line for line in source.split('\n'))
+    source = api.source.replace("'''", r"\'\'\'").replace('"""', r"\"\"\"")
+    source = "\n".join("    " + line for line in source.split("\n"))
 
     code = f"""
 from mcp.server.fastmcp import FastMCP
@@ -64,21 +65,21 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP(log_level="WARNING")
 
 @mcp.tool()
-def {"__".join(api.name.split('.'))}({", ".join([arg.name for arg in api.args])}) -> dict:
+def {"__".join(api.name.split('.'))}({", ".join([arg.name for arg in api.args if not arg.name.startswith('_')])}) -> dict:
     r\'''
     This tool is a warrper for the following API:
 
     {source}
 
     Args:
-{"\n".join([f"        {arg.name} (str): a string expression representing the argument `{arg.name}`, will be converted to Python object by `eval`." for arg in api.args])}
+{"\n".join([f"        {arg.name} (str): a string expression representing the argument `{arg.name}`, will be converted to Python object by `eval`." for arg in api.args if not arg.name.startswith('_')])}
     Returns:
         dict: A dictionary containing the whether the operation was successful or not and the result( or error message).
     \'''
     {f"import {api.name.split('.')[0]}" if "." in api.name else ""}
     try:
-{"\n".join([f"        {arg.name} = eval({arg.name})" for arg in api.args])}
-        result = {api.name}({", ".join([arg.name if arg.pos_type==PosType.PositionalOnly else f"{arg.name}={arg.name}" for arg in api.args])})
+{"\n".join([f"        {arg.name} = eval({arg.name})" for arg in api.args if not arg.name.startswith('_')])}
+        result = {api.name}({", ".join([arg.name if arg.pos_type==PosType.PositionalOnly else f"{arg.name}={arg.name}" for arg in api.args if not arg.name.startswith('_')])})
         return {{"success": True, "msg": str(result)}}
     except Exception as e:
         return {{"success": False, "msg": str(e)}}

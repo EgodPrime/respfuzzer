@@ -1,4 +1,17 @@
 [model_config]
 base_url = "http://192.168.2.29:8000/v1"
 api_key = "none"
-model_name = "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4"
+model_name = "qwen3-32b-awq"
+
+[db_config]
+db_name = "mplfuzz"
+table_name = "mplfuzz"
+
+[mcp_api_resolver]
+max_failure = 10
+# history_length_limit + output_length_limit <= context_length
+history_length_limit = 14000
+output_length_limit = 2000
+
+[library_api_resolver]
+batch_size = 10

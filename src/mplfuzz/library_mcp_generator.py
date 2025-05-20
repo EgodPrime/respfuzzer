@@ -3,7 +3,9 @@ from pathlib import Path
 from mplfuzz.library_visitor import LibraryVisitor
 from mplfuzz.models import MCPAPI
 from mplfuzz.utils.result import Result, Ok, Err
+from mplfuzz.utils.db import create_api
 from loguru import logger
+
 
 class LibraryMCPGenerator(LibraryVisitor):
     def __init__(self, library_name: str):
@@ -12,16 +14,19 @@ class LibraryMCPGenerator(LibraryVisitor):
     def find_api(self) -> list[MCPAPI]:
         res = []
         for api in self.visit():
-            res.append(MCPAPI.model_validate(api, from_attributes=True))
+            mcpapi = MCPAPI.model_validate(api, from_attributes=True)
+            result = create_api(mcpapi)
+            if result.is_err():
+                logger.warning(f"Error save API {api.name} to db: {result.error}")
+            res.append(mcpapi)
         return res
 
-    def to_mcp(self, mcp_dir: Path | str, api:MCPAPI) -> Result[Path,str]:
+    def to_mcp(self, mcp_dir: Path | str, api: MCPAPI) -> Result[Path, str]:
         if isinstance(mcp_dir, str):
             mcp_dir = Path(mcp_dir)
         mcp_dir.mkdir(parents=True, exist_ok=True)
 
-
-        mcp_file_name = "__".join(api.name.split("."))+".py"
+        mcp_file_name = "__".join(api.name.split(".")) + ".py"
         mcp_file_path = mcp_dir.joinpath(mcp_file_name)
         try:
             with open(mcp_file_path, "w") as f:
