@@ -1,10 +1,12 @@
 from pathlib import Path
 
+import fire
+from loguru import logger
+
 from mplfuzz.library_visitor import LibraryVisitor
 from mplfuzz.models import MCPAPI
-from mplfuzz.utils.result import Result, Ok, Err
 from mplfuzz.utils.db import create_api
-from loguru import logger
+from mplfuzz.utils.result import Err, Ok, Result
 
 
 class LibraryMCPGenerator(LibraryVisitor):
@@ -35,3 +37,17 @@ class LibraryMCPGenerator(LibraryVisitor):
             return Err(f"Failed to write MCP file {mcp_file_path}: {e}")
 
         return Ok(mcp_file_path)
+
+
+def _main(library_name: str):
+    logger.info(f"Parse library {library_name} and generate MCP codes ...")
+    lmcpg = LibraryMCPGenerator(library_name)
+    lmcpg.find_api()
+
+
+def main():
+    fire.Fire(_main)
+
+
+if __name__ == "__main__":
+    main()

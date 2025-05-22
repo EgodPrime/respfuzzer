@@ -11,16 +11,18 @@ class PosType(Flag):
 
 class Argument(BaseModel):
     name: str
-    pos_type: PosType
+    type: str = "unknown"
+    pos_type: int
 
 
 class API(BaseModel):
     name: str
     source: str
     args: list[Argument]
+    ret_type: str = "unknown"
 
     def __repr__(self):
-        return f"{self.name}({", ".join(f"{arg.name}[{arg.pos_type.value}]" for arg in self.args)})"
+        return f"{self.name}({", ".join(f"{arg.name}[{arg.pos_type}]" for arg in self.args)})->{self.ret_type}"
 
     def __str__(self):
         return self.__repr__()

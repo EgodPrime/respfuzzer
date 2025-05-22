@@ -35,7 +35,7 @@ python_classes = ["Test_*"]
 python_functions = ["test_*"]
 
 [tool.black]
-line-length = 102
+line-length = 122
 target-version = ["py312"]
 include = '\.pyi?$'
 
@@ -47,4 +47,5 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 default = true
 
 [project.scripts]
+library_mcp_generator = "mplfuzz.library_mcp_generator:main"
 library_api_resolver = "mplfuzz.library_api_resolver:main"

@@ -1,15 +1,15 @@
-import asyncio
 import json
+from datetime import timedelta
 from typing import Optional
 
+from loguru import logger
 from mcp import ClientSession
 from mcp.types import CallToolResult, TextContent, Tool
 from openai import AsyncOpenAI
 
 from mplfuzz.models import API, ArgumentExpr, Solution
-from mplfuzz.utils.result import Err, Ok, Result
 from mplfuzz.utils.config import get_config
-from loguru import logger
+from mplfuzz.utils.result import Err, Ok, Result
 
 
 class MCPAPIResolver:
@@ -57,7 +57,7 @@ class MCPAPIResolver:
 
         tool_name = "__".join(api.name.split("."))
         query = f'/no_think请探索出工具{tool_name}的正确使用方法，使用成功时你会得到`{{"success": True, "msg": "..."}}`，否则得到错误信息`{{"success":False, "msg":"..."}}`。如果得到错误信息，则根据错误信息中的`msg`进行重试直到成功。请尽可能多的探索各种类型的输入。'
-        #logger.debug(f"query llm with {query}")
+        # logger.debug(f"query llm with {query}")
 
         history = []
         history.append({"role": "user", "content": query})
@@ -86,7 +86,7 @@ class MCPAPIResolver:
                         return Err(f"拼尽全力，无法战胜{api.name}")
 
             # Ask llm to create tool call
-            logger.debug(f"Query llm for {api.name}")
+            # logger.debug(f"Query llm for {api.name}")
             try:
                 completion = await self.openai_client.chat.completions.create(
                     messages=history,
@@ -96,10 +96,10 @@ class MCPAPIResolver:
                 )
             except Exception as e:
                 return Err(f"Error occurred while creating completion: {e}")
-            #logger.debug(f"llm generate tool call: {completion.choices[0].message.tool_calls}")
+            # logger.debug(f"llm generate tool call: {completion.choices[0].message.tool_calls}")
 
             # terminate condition
-            if completion.choices[0].message.tool_calls is None or len(completion.choices[0].message.tool_calls) == 0 :
+            if completion.choices[0].message.tool_calls is None or len(completion.choices[0].message.tool_calls) == 0:
                 if len(solutions) == 0:
                     if max_failure > 0:
                         history = history[:1]
@@ -119,18 +119,15 @@ class MCPAPIResolver:
                 tool_args: dict[str, str] = json.loads(tool_call.function.arguments)
                 try:
                     logger.debug(f"Try call {api.name} with {tool_args}")
-                    result: CallToolResult = await asyncio.wait_for(
-                        mcp_session.call_tool(tool_name, tool_args), 10.0
-                    )
+                    result: CallToolResult = await mcp_session.call_tool(tool_name, tool_args, timedelta(seconds=10))
+
                     result_content: list[TextContent] = result.content
                     result_text: str = result_content[0].text
                     if result.isError:
                         result_text = json.dumps({"success": False, "msg": f"{result_text}"})
-                except asyncio.TimeoutError:
-                    return Err(f"Tool {tool_name} timed out after 10 seconds")
                 except Exception as e:
                     result_text = json.dumps({"success": False, "msg": f"{e}"})
-                #logger.debug(f"Tool {tool_name} returned: {result_text}")
+                # logger.debug(f"Tool {tool_name} returned: {result_text}")
 
                 try:
                     result_dict: dict = json.loads(result_text)
@@ -139,11 +136,7 @@ class MCPAPIResolver:
 
                 if result_dict["success"]:
                     api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
-                    solutions.append(
-                        Solution(
-                            api_name=api.name, api_exprs=api_exprs, expect_result=result_dict["msg"]
-                        )
-                    )
+                    solutions.append(Solution(api_name=api.name, api_exprs=api_exprs, expect_result=result_dict["msg"]))
                     logger.info(f"Found a solution for {api.name}")
 
                 history.append({"role": "tool", "tool_call_id": tool_call.id, "content": result_text})

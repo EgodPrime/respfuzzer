@@ -1,5 +1,6 @@
 import tomllib
 from typing import Optional
+
 from mplfuzz.utils.paths import CONFIG_PATH
 from mplfuzz.utils.result import Err, Ok, Result
 
