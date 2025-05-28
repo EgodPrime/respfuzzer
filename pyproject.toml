@@ -47,5 +47,6 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 default = true
 
 [project.scripts]
+library_visitor = "mplfuzz.library_visitor:main"
 library_mcp_generator = "mplfuzz.library_mcp_generator:main"
 library_api_resolver = "mplfuzz.library_api_resolver:main"

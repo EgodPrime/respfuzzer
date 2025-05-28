@@ -1,4 +1,4 @@
-from mplfuzz.utils.db import get_all_library_names, get_status_of_library
+from mplfuzz.utils.db import get_all_library_names, get_all_unsolved_apis, get_status_of_library
 import pytest
 
 def test_get_all_library_names():
@@ -17,7 +17,7 @@ def test_get_status_of_all():
     for library_name in library_names:
         try:
             status = get_status_of_library(library_name)
-            if status.is_err():
+            if status.is_err:
                 print(f"Error getting status of library {library_name}: {status.error}")
                 continue
             status = status.value
@@ -27,3 +27,21 @@ def test_get_status_of_all():
         except Exception as e:
             print(f"Error getting status of library {library_name}: {str(e)}")
     print(res)
+
+def test_get_all_unmcped_apis():
+    from mplfuzz.utils.db import get_all_unmcped_apis
+    res = get_all_unmcped_apis().value
+    print(f"Number of unmcped APIs: {len(res)}")
+
+def test_get_all_unsolved_apis():
+    res = get_all_library_names().value
+    for library_name in res:
+        unsolved_apis = get_all_unsolved_apis()
+        if unsolved_apis.is_err:
+            assert False, f"Error getting unsolved APIs for library {library_name}: {unsolved_apis.error}"
+            continue
+        unsolved_apis = unsolved_apis.value
+        print(f"Library {library_name} contains {len(unsolved_apis)} unsolved APIs.")
+
+
+            

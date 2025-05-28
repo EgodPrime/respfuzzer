@@ -1,10 +1,10 @@
-from enum import Flag
+from enum import IntEnum
 from typing import override
 
 from pydantic import BaseModel
 
 
-class PosType(Flag):
+class PosType(IntEnum):
     PositionalOnly = 1
     KeywordOnly = 2
 
@@ -57,6 +57,11 @@ class Solution(BaseModel):
         return self.__repr__()
 
 
+def clean_arg_name(arg_name:str) -> str:
+    if arg_name.startswith("*"):
+        return arg_name.replace("*","")
+    return arg_name
+
 def to_mcp_code(api: API) -> str:
     source = api.source.replace("'''", r"\'\'\'").replace('"""', r"\"\"\"")
     source = "\n".join("    " + line for line in source.split("\n"))
@@ -80,8 +85,8 @@ def {"__".join(api.name.split('.'))}({", ".join([arg.name for arg in api.args if
     \'''
     {f"import {api.name.split('.')[0]}" if "." in api.name else ""}
     try:
-{"\n".join([f"        {arg.name} = eval({arg.name})" for arg in api.args if not arg.name.startswith('_')])}
-        result = {api.name}({", ".join([arg.name if arg.pos_type==PosType.PositionalOnly else f"{arg.name}={arg.name}" for arg in api.args if not arg.name.startswith('_')])})
+{"\n".join([f"        {clean_arg_name(arg.name)} = eval({arg.name})" for arg in api.args if not arg.name.startswith('_')])}
+        result = {api.name}({", ".join([clean_arg_name(arg.name) if arg.pos_type==PosType.PositionalOnly else f"{clean_arg_name(arg.name)}={clean_arg_name(arg.name)}" for arg in api.args if not arg.name.startswith('_')])})
         return {{"success": True, "msg": str(result)}}
     except Exception as e:
         return {{"success": False, "msg": str(e)}}

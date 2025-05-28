@@ -3,14 +3,15 @@ from pathlib import Path
 import fire
 from loguru import logger
 
+from mplfuzz.library_visitor import LibraryVisitor
 from mplfuzz.models import MCPAPI
 from mplfuzz.utils.db import create_api
 from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 
-class LibraryMCPGenerator():
+class LibraryMCPGenerator(LibraryVisitor):
     def __init__(self, library_name: str):
-        self.library_name = library_name
+        super().__init__(library_name)
 
     def find_api(self) -> list[MCPAPI]:
         res = []

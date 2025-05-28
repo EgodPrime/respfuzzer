@@ -1,7 +1,10 @@
-from typing import Generic, TypeVar, Union
+from typing import Generic, Type, TypeVar, Union, Callable
+from functools import wraps
 
 T = TypeVar("T")  # 成功值的类型
 E = TypeVar("E")  # 错误值的类型
+U = TypeVar("U")  
+V = TypeVar("V") 
 
 
 class Result(Generic[T, E]):
@@ -21,11 +24,36 @@ class Result(Generic[T, E]):
             raise ValueError("Cannot get error from Ok")
         return self._value
 
-    def is_ok(self) -> bool:
-        return self.is_ok
-
+    @property
     def is_err(self) -> bool:
         return not self.is_ok
+    
+    def unwrap(self) -> T :
+        return self.value
+    
+    def unwrap_or(self, default: T) -> T:
+        return self._value if self.is_ok else default
+    
+    def unwrap_or_else(self, generator: Callable[[E], T]) -> T:
+        return self._value if self.is_ok else generator(E)
+    
+    def map(self, func: Callable[[T], U]) -> "Result[U, E]":
+        if self.is_ok:
+            return Ok(func(self._value))
+        else:
+            return self
+
+    def map_err(self, func: Callable[[E], U]) -> "Result[T, U]":
+        if self.is_err:
+            return Err(func(self._value))
+        else:
+            return self
+
+    def and_then(self: "Result[T,E]", func: Callable[[T], "Result[U, V]"]) -> "Result[U, V]":
+        if self.is_ok:
+            return func(self._value)
+        else:
+            return self
 
     @classmethod
     def Ok(cls, value: T = None) -> "Result[T, E]":
@@ -41,4 +69,19 @@ class Result(Generic[T, E]):
 
 Ok = Result.Ok
 Err = Result.Err
-__all__ = ["Result", "Ok", "Err"]
+
+
+def resultify(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            res = func(*args, **kwargs)
+            if isinstance(res, Result):
+                return res
+            else:
+                return Ok(res)
+        except Exception as e:
+            return Err(e)
+    return wrapper
+
+__all__ = ["Result", "Ok", "Err", "resultify"]

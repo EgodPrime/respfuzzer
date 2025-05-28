@@ -6,77 +6,141 @@ import re
 from types import BuiltinFunctionType, FunctionType, ModuleType
 from typing import Dict, Iterator, List, Optional, Set
 
+import fire
 from loguru import logger
 
+from mplfuzz.utils.db import create_api
 from mplfuzz.models import API, Argument, PosType
+from mplfuzz.utils.result import Ok, Err, Result, resultify
 
+@resultify
+def _compactify_arg_list_str(raw_arg_list_str: str) -> Result[str, Exception]:
+    """
+    删除所有的行注释，并将字符串中的所有空格和换行符删除以转换为方便后续处理的紧凑格式。
+    Args:
+        raw_args_str (str): 包含原始参数列表的字符串。
+    Returns:
+        str: 清理后的紧凑参数列表字符串。
+    """
+    compact_arg_list_str = re.sub(r"#.*", "", raw_arg_list_str).strip()
+    compact_arg_list_str = compact_arg_list_str.replace("\n", "")
+    compact_arg_list_str = compact_arg_list_str.replace(" ", "")
+    return compact_arg_list_str
 
-def _clean_args_str(raw_args_str: str) -> str:
-    clean_args_str = re.sub(r"#.*", "", raw_args_str).strip()
-    clean_args_str = clean_args_str.replace("\n", "")
-    clean_args_str = clean_args_str.replace(" ", "")
-    return clean_args_str
+@resultify
+def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], Exception]:
+    """
+    将紧凑的参数列表字符串拆分为单独的参数字符串列表。
+    Args:
+        compact_arg_list_str (str): 包含紧凑参数列表的字符串。
+    Returns:
+        List[str]: 包含拆分后的参数字符串的列表。
+    """
+    arg_str_list = []
+    parentheses_stack = 0
+    brackets_stack = 0
+    braces_stack = 0
+    s = 0
+    for i, ch in enumerate(compact_arg_list_str + ","):
+        match ch:
+            case "[":
+                brackets_stack += 1
+            case "]":
+                brackets_stack -= 1
+            case "(":
+                parentheses_stack += 1
+            case ")":
+                parentheses_stack -= 1
+            case "{":
+                braces_stack += 1
+            case "}":
+                braces_stack -= 1
+            case ",":
+                if sum([parentheses_stack, brackets_stack, braces_stack]) == 0:
+                    arg_str_list.append(compact_arg_list_str[s:i])
+                    s = i + 1
+    while "" in arg_str_list:
+        arg_str_list.remove("")
+    return arg_str_list
 
+@resultify
+def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
+    """
+    解析参数字符串，返回参数对象。
+    需要考虑这些情况：
+    a
+    a:int
+    a:List[int]
+    a:Dict[str,int]
+    a:int=2
+    a={2:3}
+    a:Dict[str,int]={"2":3}
+    a:List[int]=[1,2,3,4,5]
+    a:Tuple=(1,2,3)
+    a:Set={1,2,3}
+    a:X=X(a=1,b=2)
+    Args:
+        arg_str (str): 参数字符串。
+    Returns:
+        Argument: 参数对象。
+    """
+    if '=' in arg_str:
+        arg_def, arg_default = arg_str.split('=', 1)
+    else:
+        arg_def = arg_str
+        arg_default = "none"
+    if ':' in arg_def:
+        arg_name, arg_type = arg_def.split(':')
+    else:
+        arg_name = arg_def
+        arg_type = "unknown"
+    return Argument(name=arg_name, type=arg_type, pos_type=0)  # pos_type默认为0，后续根据实际情况修改
 
-def _parse_clean_args_str(clean_args_str: str) -> List[Argument]:
-    def split_args(arg_list_str: str):
-        r_arg_strs = []
-        stack = 0
-        s = 0
-        for i, ch in enumerate(arg_list_str + ","):
-            match ch:
-                case "[":
-                    stack += 1
-                case "]":
-                    stack -= 1
-                case ",":
-                    if stack == 0:
-                        r_arg_strs.append(arg_list_str[s:i])
-                        s = i + 1
-        while "" in r_arg_strs:
-            r_arg_strs.remove("")
-        return r_arg_strs
-
-    # 拆分参数
-    arg_strs = split_args(clean_args_str)
-
+@resultify
+def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Exception]:
+    """
+    解析参数字符串列表，返回参数对象列表。
+    Args:
+        arg_str_list (List[str]): 包含拆分后的参数字符串的列表。
+    Returns:
+        List[Argument]: 包含解析后的参数对象的列表。
+    """
     posonly_arg_strs = []
     kwonly_arg_strs = []
     # 检查positional-only, keyword-only
-    if "/" in arg_strs:
-        posonly_flag_idx = arg_strs.index("/")
-        posonly_arg_strs = arg_strs[:posonly_flag_idx]
-        arg_strs = arg_strs[posonly_flag_idx + 1 :]
-    if "*" in arg_strs:
-        kwonly_flag_idx = arg_strs.index("*")
-        kwonly_arg_strs = arg_strs[kwonly_flag_idx + 1 :]
-        arg_strs = arg_strs[:kwonly_flag_idx]
+    if "/" in arg_str_list:
+        posonly_flag_idx = arg_str_list.index("/")
+        posonly_arg_strs = arg_str_list[:posonly_flag_idx]
+        arg_str_list = arg_str_list[posonly_flag_idx + 1 :]
+    if "*" in arg_str_list:
+        kwonly_flag_idx = arg_str_list.index("*")
+        kwonly_arg_strs = arg_str_list[kwonly_flag_idx + 1 :]
+        arg_str_list = arg_str_list[:kwonly_flag_idx]
 
-    final_arg_dicts = []
-    for i, arg_str in enumerate(posonly_arg_strs + arg_strs):
-        if ":" in arg_str:
-            arg_name, arg_type = arg_str.split(":")
-            arg_name = arg_name.strip()
-            arg_type = arg_type.strip()
-        else:
-            arg_name = arg_str
-            arg_type = "unknown"
-        final_arg_dicts.append({"name": arg_name, "type": arg_type, "pos_type": PosType.PositionalOnly})
+    arg_list = []
+    
+    for i, arg_str in enumerate(posonly_arg_strs + arg_str_list):
+        arg = _parse_arg_str(arg_str)
+        if arg.is_err:
+            logger.warning(str(arg.error))
+            continue
+        arg = arg.value
+        arg.pos_type = PosType.PositionalOnly
+        arg_list.append(arg)
 
     for i, arg_str in enumerate(kwonly_arg_strs):
-        if ":" in arg_str:
-            arg_name, arg_type = arg_str.split(":")
-            arg_name = arg_name.strip()
-            arg_type = arg_type.strip()
-        else:
-            arg_name = arg_str
-            arg_type = "unknown"
-        final_arg_dicts.append({"name": arg_name, "type": arg_type, "pos_type": PosType.KeywordOnly})
+        arg = _parse_arg_str(arg_str)
+        if arg.is_err:
+            logger.warning(str(arg.error))
+            continue
+        arg = arg.value
+        arg.pos_type = PosType.KeywordOnly
+        arg_list.append(arg)
 
-    return [Argument.model_validate(arg_dict) for arg_dict in final_arg_dicts]
+    return arg_list
 
-
-def from_function_type(obj: FunctionType) -> API:
+@resultify
+def from_function_type(obj: FunctionType) -> Result[API, Exception]:
     """
     convert a `FunctionType` to an `API` object
     """
@@ -91,19 +155,33 @@ def from_function_type(obj: FunctionType) -> API:
         source = str(inspect.signature(obj))
 
     source = re.sub(r"#.*", "", source)  # 删除注释
-    match_str = r"def\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(([\w\d\s_:=,*./\"'\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:"
+    match_str = r"def\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(([\w\d\s_:\-\+=,*./\\\"'|\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:"
     function_def_pattern = re.compile(match_str)
     matches = function_def_pattern.findall(source)
-    match = matches[0]
-    raw_args_str = match[0]
-    ret_type_str = match[1] if match[1] else "unknown"
+    try:
+        match = matches[0]
+    except Exception as e:
+        print(source)
+        print(match_str)
+        raise e
+    raw_args_str: str = match[0]
+    ret_type_str: str = match[1] if match[1] else "unknown"
 
-    args = _parse_clean_args_str(_clean_args_str(raw_args_str))
+    args = _compactify_arg_list_str(
+        raw_args_str
+    ).and_then(
+        _split_compact_arg_list_str
+    ).and_then(
+        _parse_arg_str_list
+    )
 
-    return API(name=name, source=source, args=args, ret_type=ret_type_str)
+    if args.is_ok:
+        return API(name=name, source=source, args=args.value, ret_type=ret_type_str)
+    else:
+        return args
 
-
-def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionType) -> API:
+@resultify
+def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionType) -> Result[API, Exception]:
     name = f"{obj.__module__}.{obj.__name__}"
     return API(name=name, source=pyi_dict["source"], args=pyi_dict["args"], ret_type=pyi_dict["ret_type_str"])
 
@@ -111,7 +189,7 @@ def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionTy
 class LibraryVisitor:
     def __init__(self, library_name: str):
         self.library_name = library_name
-        self.pyi_cache: Dict[str, str] = {}
+        self.pyi_cache: Dict[str, Dict] = {}
 
     def visit(self) -> Iterator[API]:
         """
@@ -134,11 +212,11 @@ class LibraryVisitor:
             indent=2,
             default=lambda x: x.model_dump(),
         )
-        # sys.exit(0)
 
         mod_has_been_seen = set()
         for api in self._visit(library, self.library_name, mod_has_been_seen):
             yield api
+        
 
     def _get_library_root_path(self) -> Optional[str]:
         """
@@ -149,7 +227,8 @@ class LibraryVisitor:
             return None
         return os.path.dirname(spec.origin)
 
-    def _parse_pyi_file(self, file_path: str) -> None:
+    @resultify
+    def _parse_pyi_file(self, file_path: str) -> Result[None, Exception]:
         """
         解析 .pyi 文件，提取其中的函数
         """
@@ -158,7 +237,7 @@ class LibraryVisitor:
 
         # 使用正则表达式匹配函数定义
         function_def_pattern = re.compile(
-            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\(([\w\d\s_:=,*./\"'\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:\s*..."
+            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\(([\w\d\s_:\-\+=,*./\\\"'|\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:\s*..."
         )
         matches = function_def_pattern.finditer(content)
 
@@ -168,18 +247,19 @@ class LibraryVisitor:
             ret_type_str = match.group(3) if match.group(3) else "unknown"
 
             if raw_args_str is None:
-                clean_args_str = ""
-                final_args = []
+                compat_arg_list_str = ""
+                args = []
             else:
                 # 一些字符串清洗处理
                 try:
-                    clean_args_str = _clean_args_str(raw_args_str)
-                    final_args = _parse_clean_args_str(clean_args_str)
+                    compat_arg_list_str = _compactify_arg_list_str(raw_args_str).unwrap()
+                    arg_str_list = _split_compact_arg_list_str(compat_arg_list_str).unwrap()
+                    args = _parse_arg_str_list(arg_str_list).unwrap()
                 except Exception as e:
                     print(raw_args_str)
                     raise e
 
-            func_str = f"def {func_name}({clean_args_str})"
+            func_str = f"def {func_name}({compat_arg_list_str})"
             if match.group(3):
                 func_str += f" -> {ret_type_str}"
             func_str += ":..."
@@ -187,12 +267,13 @@ class LibraryVisitor:
             self.pyi_cache[func_name] = {
                 "name": func_name,
                 "source": func_str,
-                "args": final_args,
+                "args": args,
                 "ret_type_str": ret_type_str,
                 "file_path": file_path,
             }
 
-    def _find_all_pyi_files(self, dir_path: str, visited_files: Set[str]):
+    @resultify
+    def _find_all_pyi_files(self, dir_path: str, visited_files: Set[str]) -> Result[None, Exception]:
         """
         递归遍历指定目录下的所有 .pyi 文件，并将文件路径存入 visited_files 集合中
         """
@@ -203,9 +284,9 @@ class LibraryVisitor:
                     if file_path in visited_files:
                         continue
                     visited_files.add(file_path)
-                    self._parse_pyi_file(file_path)
+                    self._parse_pyi_file(file_path).map_err(lambda e: logger.warning(f"Error parsing {file_path}: {e}"))
             for dir_name in dirs:
-                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files)
+                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).map_err(lambda e: logger.warning(f"Error finding pyi files in {dir_path}: {e}"))
 
     def find_all_pyi_functions(self):
         # 先根据库名找到库的根目录，然后递归遍历找出所有的pyi文件，再找出pyi文件中所有的函数，存入self.pyi_cache中
@@ -214,7 +295,7 @@ class LibraryVisitor:
             return
 
         visited_files: Set[str] = set()
-        self._find_all_pyi_files(root_path, visited_files)
+        self._find_all_pyi_files(root_path, visited_files).map_err(lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}"))
 
     def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[API]:
         # Skip if the module has already been seen.
@@ -249,7 +330,11 @@ class LibraryVisitor:
                 if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
                     continue
                 if obj.__module__.startswith(root_mod_name):
-                    yield from_function_type(obj)
+                    api = from_function_type(obj)
+                    if api.is_err:
+                        logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
+                        continue
+                    yield api.value
 
             elif isinstance(obj, BuiltinFunctionType):
                 if obj.__module__ is None:
@@ -258,7 +343,11 @@ class LibraryVisitor:
                 if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
                     continue
                 if obj.__module__.startswith(root_mod_name) and name in self.pyi_cache:
-                    yield from_builtin_function_type(self.pyi_cache[name], obj)
+                    api = from_builtin_function_type(self.pyi_cache[name], obj)
+                    if api.is_err:
+                        logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
+                        continue
+                    yield api.value
 
             # Recursively visit the submodule.
             elif isinstance(obj, ModuleType):
@@ -274,3 +363,20 @@ class LibraryVisitor:
                 if obj_full_name.startswith(root_mod_name):
                     for api in self._visit(obj, root_mod_name, mod_has_been_seen):
                         yield api
+
+def _main(library_name: str, verbose:bool=False):
+    logger.info(f"Parsing APIs in library {library_name}")
+    lv = LibraryVisitor(library_name)
+    cnt = 0
+    for api in lv.visit():
+        create_api(api).map_err(lambda e: logger.error(f"Error saving  API {api.name}: {e}"))
+        cnt += 1
+        if verbose:
+            logger.info(f"API {api.name} parsed and saved to db")
+    logger.info(f"Finished parsing {cnt} APIs in library {library_name}")
+
+def main():
+    fire.Fire(_main)
+
+if __name__ == "__main__":
+    main()

@@ -4,7 +4,7 @@ from typing import Optional
 
 from loguru import logger
 from mcp import ClientSession
-from mcp.types import CallToolResult, TextContent, Tool
+from mcp.types import CallToolResult, TextContent
 from openai import AsyncOpenAI
 
 from mplfuzz.models import API, ArgumentExpr, Solution
