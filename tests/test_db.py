@@ -36,7 +36,7 @@ def test_get_all_unmcped_apis():
 def test_get_all_unsolved_apis():
     res = get_all_library_names().value
     for library_name in res:
-        unsolved_apis = get_all_unsolved_apis()
+        unsolved_apis = get_all_unsolved_apis(library_name)
         if unsolved_apis.is_err:
             assert False, f"Error getting unsolved APIs for library {library_name}: {unsolved_apis.error}"
             continue

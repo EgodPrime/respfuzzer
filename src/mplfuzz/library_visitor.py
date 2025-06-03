@@ -13,6 +13,7 @@ from mplfuzz.utils.db import create_api
 from mplfuzz.models import API, Argument, PosType
 from mplfuzz.utils.result import Ok, Err, Result, resultify
 
+
 @resultify
 def _compactify_arg_list_str(raw_arg_list_str: str) -> Result[str, Exception]:
     """
@@ -26,6 +27,7 @@ def _compactify_arg_list_str(raw_arg_list_str: str) -> Result[str, Exception]:
     compact_arg_list_str = compact_arg_list_str.replace("\n", "")
     compact_arg_list_str = compact_arg_list_str.replace(" ", "")
     return compact_arg_list_str
+
 
 @resultify
 def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], Exception]:
@@ -63,6 +65,7 @@ def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], 
         arg_str_list.remove("")
     return arg_str_list
 
+
 @resultify
 def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
     """
@@ -84,17 +87,18 @@ def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
     Returns:
         Argument: 参数对象。
     """
-    if '=' in arg_str:
-        arg_def, arg_default = arg_str.split('=', 1)
+    if "=" in arg_str:
+        arg_def, arg_default = arg_str.split("=", 1)
     else:
         arg_def = arg_str
         arg_default = "none"
-    if ':' in arg_def:
-        arg_name, arg_type = arg_def.split(':')
+    if ":" in arg_def:
+        arg_name, arg_type = arg_def.split(":")
     else:
         arg_name = arg_def
         arg_type = "unknown"
     return Argument(name=arg_name, type=arg_type, pos_type=0)  # pos_type默认为0，后续根据实际情况修改
+
 
 @resultify
 def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Exception]:
@@ -118,7 +122,7 @@ def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Excep
         arg_str_list = arg_str_list[:kwonly_flag_idx]
 
     arg_list = []
-    
+
     for i, arg_str in enumerate(posonly_arg_strs + arg_str_list):
         arg = _parse_arg_str(arg_str)
         if arg.is_err:
@@ -138,6 +142,7 @@ def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Excep
         arg_list.append(arg)
 
     return arg_list
+
 
 @resultify
 def from_function_type(obj: FunctionType) -> Result[API, Exception]:
@@ -167,18 +172,13 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
     raw_args_str: str = match[0]
     ret_type_str: str = match[1] if match[1] else "unknown"
 
-    args = _compactify_arg_list_str(
-        raw_args_str
-    ).and_then(
-        _split_compact_arg_list_str
-    ).and_then(
-        _parse_arg_str_list
-    )
+    args = _compactify_arg_list_str(raw_args_str).and_then(_split_compact_arg_list_str).and_then(_parse_arg_str_list)
 
     if args.is_ok:
         return API(name=name, source=source, args=args.value, ret_type=ret_type_str)
     else:
         return args
+
 
 @resultify
 def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionType) -> Result[API, Exception]:
@@ -216,7 +216,6 @@ class LibraryVisitor:
         mod_has_been_seen = set()
         for api in self._visit(library, self.library_name, mod_has_been_seen):
             yield api
-        
 
     def _get_library_root_path(self) -> Optional[str]:
         """
@@ -286,7 +285,9 @@ class LibraryVisitor:
                     visited_files.add(file_path)
                     self._parse_pyi_file(file_path).map_err(lambda e: logger.warning(f"Error parsing {file_path}: {e}"))
             for dir_name in dirs:
-                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).map_err(lambda e: logger.warning(f"Error finding pyi files in {dir_path}: {e}"))
+                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).map_err(
+                    lambda e: logger.warning(f"Error finding pyi files in {dir_path}: {e}")
+                )
 
     def find_all_pyi_functions(self):
         # 先根据库名找到库的根目录，然后递归遍历找出所有的pyi文件，再找出pyi文件中所有的函数，存入self.pyi_cache中
@@ -295,7 +296,9 @@ class LibraryVisitor:
             return
 
         visited_files: Set[str] = set()
-        self._find_all_pyi_files(root_path, visited_files).map_err(lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}"))
+        self._find_all_pyi_files(root_path, visited_files).map_err(
+            lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}")
+        )
 
     def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[API]:
         # Skip if the module has already been seen.
@@ -364,7 +367,8 @@ class LibraryVisitor:
                     for api in self._visit(obj, root_mod_name, mod_has_been_seen):
                         yield api
 
-def _main(library_name: str, verbose:bool=False):
+
+def _main(library_name: str, verbose: bool = False):
     logger.info(f"Parsing APIs in library {library_name}")
     lv = LibraryVisitor(library_name)
     cnt = 0
@@ -375,8 +379,10 @@ def _main(library_name: str, verbose:bool=False):
             logger.info(f"API {api.name} parsed and saved to db")
     logger.info(f"Finished parsing {cnt} APIs in library {library_name}")
 
+
 def main():
     fire.Fire(_main)
+
 
 if __name__ == "__main__":
     main()

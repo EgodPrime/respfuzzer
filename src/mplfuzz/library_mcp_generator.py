@@ -3,45 +3,70 @@ from pathlib import Path
 import fire
 from loguru import logger
 
-from mplfuzz.models import MCPAPI
-from mplfuzz.utils.db import create_api
+from mplfuzz.models import API, PosType
+from mplfuzz.utils.db import get_all_unmcped_apis, save_mcp_code_to_api
 from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 
-class LibraryMCPGenerator():
-    def __init__(self, library_name: str):
-        self.library_name = library_name
-
-    def find_api(self) -> list[MCPAPI]:
-        res = []
-        for api in self.visit():
-            mcpapi = MCPAPI.model_validate(api, from_attributes=True)
-            result = create_api(mcpapi)
-            if result.is_err:
-                logger.warning(f"Error save API {api.name} to db: {result.error}")
-            res.append(mcpapi)
-        return res
-
-    def to_mcp(self, mcp_dir: Path | str, api: MCPAPI) -> Result[Path, str]:
-        if isinstance(mcp_dir, str):
-            mcp_dir = Path(mcp_dir)
-        mcp_dir.mkdir(parents=True, exist_ok=True)
-
-        mcp_file_name = "__".join(api.name.split(".")) + ".py"
-        mcp_file_path = mcp_dir.joinpath(mcp_file_name)
-        try:
-            with open(mcp_file_path, "w") as f:
-                f.write(api.to_mcp_code())
-        except Exception as e:
-            return Err(f"Failed to write MCP file {mcp_file_path}: {e}")
-
-        return Ok(mcp_file_path)
+def clean_arg_name(arg_name: str) -> str:
+    if arg_name.startswith("*"):
+        return arg_name.replace("*", "")
+    return arg_name
 
 
-def _main(library_name: str):
+def to_mcp_code(api: API) -> str:
+    source = api.source.replace("'''", r"\'\'\'").replace('"""', r"\"\"\"")
+    source = "\n".join("    " + line for line in source.split("\n"))
+
+    code = f"""
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP(log_level="WARNING")
+
+@mcp.tool()
+def {"__".join(api.name.split('.'))}({", ".join([arg.name for arg in api.args if not arg.name.startswith('_')])}) -> dict:
+    r\'''
+    This tool is a warrper for the following API:
+
+    {source}
+
+    Args:
+{"\n".join([f"        {arg.name} (str): a string expression representing the argument `{arg.name}`, will be converted to Python object by `eval`." for arg in api.args if not arg.name.startswith('_')])}
+    Returns:
+        dict: A dictionary containing the whether the operation was successful or not and the result( or error message).
+    \'''
+    {f"import {api.name.split('.')[0]}" if "." in api.name else ""}
+    try:
+{"\n".join([f"        {clean_arg_name(arg.name)} = eval({arg.name})" for arg in api.args if not arg.name.startswith('_')])}
+        result = {api.name}({", ".join([clean_arg_name(arg.name) if arg.pos_type==PosType.PositionalOnly else f"{clean_arg_name(arg.name)}={clean_arg_name(arg.name)}" for arg in api.args if not arg.name.startswith('_')])})
+        return {{"success": True, "msg": str(result)}}
+    except Exception as e:
+        return {{"success": False, "msg": str(e)}}
+
+if __name__ == "__main__":
+    mcp.run()
+"""
+    return code
+
+
+def _main(library_name: str, force_update: bool = False):
     logger.info(f"Parse library {library_name} and generate MCP codes ...")
-    lmcpg = LibraryMCPGenerator(library_name)
-    lmcpg.find_api()
+    apis = get_all_unmcped_apis(library_name, force_update)
+    if apis.is_err:
+        logger.error(f"Failed to get unmcped APIs of {library_name}: {apis.error}")
+        return
+    oks = 0
+    errs = 0
+    for api in apis.value:
+        mcp_code = to_mcp_code(api)
+        res = save_mcp_code_to_api(api, mcp_code)
+        if res.is_ok:
+            oks += 1
+            logger.debug(f"Generated MCP code for {api.name} successfully.")
+        else:
+            errs += 1
+            logger.error(f"Failed to save MCP code for {api.name}: {res.error}")
+    logger.info(f"Successfully generated MCP codes for {oks} APIs, failed for {errs} APIs.")
 
 
 def main():

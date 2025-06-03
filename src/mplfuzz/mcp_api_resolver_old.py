@@ -10,7 +10,6 @@ from openai import AsyncOpenAI
 from mplfuzz.models import API, ArgumentExpr, Solution
 from mplfuzz.utils.config import get_config
 from mplfuzz.utils.result import Err, Ok, Result
-from mplfuzz.api_call_executor import async_execute_api_call, ExecutionResultType
 
 
 class MCPAPIResolver:
@@ -118,29 +117,27 @@ class MCPAPIResolver:
 
                 tool_name = tool_call.function.name
                 tool_args: dict[str, str] = json.loads(tool_call.function.arguments)
-                logger.debug(f"Try call {api.name} with {tool_args}")
-                result = await async_execute_api_call(api, tool_args)
-                # logger.debug(f"Tool {tool_name} returned: {result}")
+                try:
+                    logger.debug(f"Try call {api.name} with {tool_args}")
+                    result: CallToolResult = await mcp_session.call_tool(tool_name, tool_args, timedelta(seconds=10))
 
-                match result["result_type"]:
-                    case ExecutionResultType.OK:
-                        api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
-                        solutions.append(Solution(api_name=api.name, api_exprs=api_exprs, expect_result=result["stdout"]))
-                        logger.info(f"Found a solution for {api.name}")
-                        result_text = json.dumps({
-                            "sucess": True,
-                            "msg": result["stdout"]
-                        })
-                    case ExecutionResultType.TIMEOUT:
-                        result_text = json.dumps({
-                            "sucess": False,
-                            "msg": "Tool called timed out"
-                        })
-                    case ExecutionResultType.ABNORMAL | ExecutionResultType.CALLFAIL:
-                        result_text = json.dumps({
-                            "sucess": False,
-                            "msg": result["stderr"]
-                        })
+                    result_content: list[TextContent] = result.content
+                    result_text: str = result_content[0].text
+                    if result.isError:
+                        result_text = json.dumps({"success": False, "msg": f"{result_text}"})
+                except Exception as e:
+                    result_text = json.dumps({"success": False, "msg": f"{e}"})
+                # logger.debug(f"Tool {tool_name} returned: {result_text}")
+
+                try:
+                    result_dict: dict = json.loads(result_text)
+                except json.JSONDecodeError:
+                    return Err(f"Invalid JSON response from tool {tool_name}:\n{result_text}")
+
+                if result_dict["success"]:
+                    api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
+                    solutions.append(Solution(api_name=api.name, api_exprs=api_exprs, expect_result=result_dict["msg"]))
+                    logger.info(f"Found a solution for {api.name}")
 
                 history.append({"role": "tool", "tool_call_id": tool_call.id, "content": result_text})
 

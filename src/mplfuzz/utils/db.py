@@ -2,7 +2,10 @@ import json
 import sqlite3
 from typing import List
 
-from mplfuzz.models import API, MCPAPI, Solution
+import fire
+from loguru import logger
+
+from mplfuzz.models import API, Solution
 from mplfuzz.utils.config import get_config
 from mplfuzz.utils.paths import RUNDATA_DIR
 from mplfuzz.utils.result import Err, Ok, Result, resultify
@@ -14,7 +17,10 @@ db_path = RUNDATA_DIR.joinpath(db_name)
 
 conn = sqlite3.connect(db_path)
 cur = conn.cursor()
-cur.execute(f"CREATE TABLE IF NOT EXISTS {table_name} (name TEXT PRIMARY KEY, source TEXT, args TEXT, ret_type TEXT, mcp_code TEXT, solutions TEXT)")
+cur.execute(
+    f"CREATE TABLE IF NOT EXISTS {table_name} (name TEXT PRIMARY KEY, source TEXT, args TEXT, ret_type TEXT, mcp_code TEXT, solutions TEXT)"
+)
+
 
 @resultify
 def create_api(api: API) -> Result[None, str]:
@@ -24,33 +30,39 @@ def create_api(api: API) -> Result[None, str]:
     """
     name = api.name
     args = json.dumps([arg.model_dump() for arg in api.args])
+    solutions = json.dumps([s.model_dump() for s in api.solutions])
     cur.execute(
-        f"INSERT OR IGNORE INTO {table_name} (name, source, args, ret_type) VALUES (?, ?, ?, ?)",
-        (
-            name,
-            api.source,
-            args,
-            api.ret_type
-        ),
+        f"INSERT OR IGNORE INTO {table_name} (name, source, args, ret_type, mcp_code, solutions) VALUES (?, ?, ?, ?, ?, ?)",
+        (name, api.source, args, api.ret_type, api.mcp_code, solutions),
     )
     conn.commit()
 
+
 @resultify
-def save_mcp_code_to_api(api: API, mcp_code: str) -> Result[None, str]:
+def save_mcp_code_to_api(api: API, mcp_code: str) -> Result[None, Exception]:
     """
     Save the MCP code for the given API in the database.
     """
     cur.execute(f"UPDATE {table_name} SET mcp_code = ? WHERE name = ?", (mcp_code, api.name))
     conn.commit()
 
+
 @resultify
-def get_all_unmcped_apis(library_name: str = None) -> Result[List[API], str]:
-    filter = "WHERE mcp_code IS NULL"
+def get_all_unmcped_apis(library_name: str = None, force_update=False) -> Result[List[API], Exception]:
+    if force_update:
+        filter = "WHERE 1 "
+    else:
+        filter = "WHERE mcp_code IS ''"
     if library_name:
-        filter += f" AND name LIKE '%{library_name}%'"
+        filter += f" AND name LIKE '{library_name}.%'"
     cur.execute(f"SELECT name, source, args, ret_type FROM {table_name} {filter}")
     records = cur.fetchall()
-    return Ok([API(name = record[0], source = record[1], args = json.loads(record[2]), ret_type = record[3]) for record in records]) if records else Ok([])
+    return (
+        Ok([API(name=record[0], source=record[1], args=json.loads(record[2]), ret_type=record[3]) for record in records])
+        if records
+        else Ok([])
+    )
+
 
 def if_api_has_solution(api_name: str) -> Result[bool, str]:
     try:
@@ -63,91 +75,94 @@ def if_api_has_solution(api_name: str) -> Result[bool, str]:
         return Err(f"Error checking if API {api_name} has solutions: {str(e)}")
 
 
-def save_solutions_to_api(api: MCPAPI, solutions: list[Solution]) -> Result[None, str]:
+@resultify
+def save_solutions_to_api(api: API, solutions: list[Solution]) -> Result[None, Exception]:
     """
     Save the solutions for the given API in the database.
-    If the record does not exist, it will be created.
     """
-    try:
-        name = api.name
-        solutions_str = json.dumps([str(s) for s in solutions])
-        res = cur.execute(f"SELECT * FROM {table_name} WHERE name = ?", (name,)).fetchone()
-        if res:
-            cur.execute(f"UPDATE {table_name} SET solutions = ? WHERE name = ?", (solutions_str, name))
-        else:
-            args = json.dumps([arg.model_dump() for arg in api.args])
-            code = api.to_mcp_code()
-            cur.execute(
-                f"INSERT INTO {table_name} (name, args, mcp_code, ret_type, solutions) VALUES (?, ?, ?, ?, ?)",
-                (name, args, api.ret_type, code, solutions_str),
-            )
-        conn.commit()
-        return Ok()
-    except Exception as e:
-        return Err(f"Error saving solutions for API {name}: {str(e)}")
+    solutions_str = json.dumps([s.model_dump() for s in solutions])
+    cur.execute(f"UPDATE {table_name} SET solutions = ? WHERE name = ?", (solutions_str, api.name))
+    conn.commit()
+       
 
-
-def get_all_library_names() -> Result[list[str], str]:
+@resultify
+def get_all_library_names() -> Result[list[str], Exception]:
     """
     Returns a list of all unique library names from the database.
     """
-    try:
-        res = cur.execute(
-            f"""
-            SELECT DISTINCT substr(name, 1, instr(name, '.') - 1) 
-            FROM {table_name}
-        """
-        ).fetchall()
-        return Ok([r[0] for r in res])
-    except Exception as e:
-        return Err(f"Error getting all library names: {str(e)}")
+    res = cur.execute(
+        f"""
+        SELECT DISTINCT substr(name, 1, instr(name, '.') - 1) 
+        FROM {table_name}
+    """
+    ).fetchall()
+    return Ok([r[0] for r in res])
 
 
-def get_status_of_library(library_name: str) -> Result[dict[str, str], str]:
+@resultify
+def get_status_of_library(library_name: str) -> Result[dict[str, str], Exception]:
     """
     Returns the status of a library from the database.
     """
-    try:
-        res = cur.execute(
-            f"""
-            SELECT name, solutions
-            FROM {table_name} 
-            WHERE name LIKE ? AND args != '[]'
-        """,
-            (f"{library_name}.%",),
-        ).fetchall()
-        if len(res) == 0:
-            return Err(f"Library {library_name} not found")
-        raw1 = {r[0]: r[1] for r in res}
-        for k, v in raw1.items():
-            try:
-                raw1[k] = json.loads(v)
-            except:
-                raw1[k] = []
-        for k, v in raw1.items():
-            raw1[k] = len(v)
-        return Ok(raw1)
-    except Exception as e:
-        return Err(f"Error getting status of library {library_name}: {str(e)}")
+    res = cur.execute(
+        f"""
+        SELECT name, solutions
+        FROM {table_name} 
+        WHERE name LIKE ? AND args != '[]'
+    """,
+        (f"{library_name}.%",),
+    ).fetchall()
+    if len(res) == 0:
+        return Err(f"Library {library_name} not found")
+    raw1 = {r[0]: r[1] for r in res}
+    for k, v in raw1.items():
+        try:
+            raw1[k] = json.loads(v)
+        except:
+            raw1[k] = []
+    for k, v in raw1.items():
+        raw1[k] = len(v)
+    return Ok(raw1)
 
-def get_all_unsolved_apis(library_name:str|None = None) -> Result[list[API], str]:
+@resultify
+def get_all_unsolved_apis(library_name: str | None = None) -> Result[list[API], Exception]:
     """
     Returns a list of all unsolved APIs from the database.
     """
+    fields = "name, source, args, ret_type, mcp_code"
+    filter = "args != '[]' AND solutions IS '[]'"
+    if library_name:
+        filter += f" AND name LIKE '{library_name}.%'"
+    records = cur.execute(f"SELECT {fields} FROM {table_name} WHERE {filter}").fetchall()
+
+    res = []
+    for r in records:
+        res.append(API(name=r[0], source=r[1], args=json.loads(r[2]), ret_type=r[3], mcp_code=r[4]))
+
+    return Ok(res)
+
+@resultify
+def get_all_apis(library_name: str | None=None) -> Result[list[API], Exception]:
+    fields = "name, source, args, ret_type, mcp_code, solutions"
+    filter = "1"
+    if library_name:
+        filter += f" AND name LIKE '{library_name}.%'"
+    records = cur.execute(f"SELECT {fields} FROM {table_name} WHERE {filter}").fetchall()
+    res = []
+    
+    for r in records:
+        solution_str_list = json.loads(r[5])
+        print(solution_str_list)
+        solutions = [Solution.model_validate(ss) for ss in solution_str_list]
+        res.append(API(name=r[0], source=r[1], args=json.loads(r[2]), ret_type=r[3], mcp_code=r[4], solutions=solutions))
+
+
+def _clear_solutions(library_name: str):
     try:
-        fields = "name, source, args, ret_type"
-        filter = "args != '[]' AND solutions IS NULL"
-        if library_name:
-            filter += f" AND name LIKE '{library_name}.%'"
-        records = cur.execute(
-            f"SELECT {fields} FROM {table_name} WHERE {filter}"
-        ).fetchall()
-
-        res = []
-        for r in records:
-            res.append(API(name=r[0], source=r[1], args=json.loads(r[2]), ret_type=r[3]))
-
-        return Ok(res)
+        cur.execute(f"UPDATE {table_name} SET solutions = '[]' WHERE name LIKE '{library_name}.%'")
+        conn.commit()
     except Exception as e:
-        return Err(f"Error getting unsolved APIs: {str(e)}")
-        
+        logger.error(f"Error clearing solutions: {e}")
+
+def clear_solutions():
+    fire.Fire(_clear_solutions)

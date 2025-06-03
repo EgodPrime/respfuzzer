@@ -3,8 +3,8 @@ from functools import wraps
 
 T = TypeVar("T")  # 成功值的类型
 E = TypeVar("E")  # 错误值的类型
-U = TypeVar("U")  
-V = TypeVar("V") 
+U = TypeVar("U")
+V = TypeVar("V")
 
 
 class Result(Generic[T, E]):
@@ -15,7 +15,7 @@ class Result(Generic[T, E]):
     @property
     def value(self) -> T:
         if not self.is_ok:
-            raise ValueError("Cannot get value from Err")
+            raise ValueError(f"Cannot get value from Err : {self._value}")
         return self._value
 
     @property
@@ -27,16 +27,16 @@ class Result(Generic[T, E]):
     @property
     def is_err(self) -> bool:
         return not self.is_ok
-    
-    def unwrap(self) -> T :
+
+    def unwrap(self) -> T:
         return self.value
-    
+
     def unwrap_or(self, default: T) -> T:
         return self._value if self.is_ok else default
-    
+
     def unwrap_or_else(self, generator: Callable[[E], T]) -> T:
         return self._value if self.is_ok else generator(E)
-    
+
     def map(self, func: Callable[[T], U]) -> "Result[U, E]":
         if self.is_ok:
             return Ok(func(self._value))
@@ -82,6 +82,8 @@ def resultify(func):
                 return Ok(res)
         except Exception as e:
             return Err(e)
+
     return wrapper
+
 
 __all__ = ["Result", "Ok", "Err", "resultify"]

@@ -1,18 +1,14 @@
 import asyncio
-import tomllib
-from multiprocessing import Pool
 from pathlib import Path
 
 import fire
 from loguru import logger
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
-from mplfuzz.library_mcp_generator import LibraryMCPGenerator
 from mplfuzz.mcp_api_resolver import MCPAPIResolver
-from mplfuzz.models import MCPAPI
+from mplfuzz.models import API
 from mplfuzz.utils.config import get_config
 from mplfuzz.utils.db import save_solutions_to_api, get_all_unsolved_apis
-from mplfuzz.utils.paths import CONFIG_PATH
 from mplfuzz.utils.result import Err, Ok, Result
 
 
@@ -34,12 +30,10 @@ class LibraryAPIResolver:
         apis = get_all_unsolved_apis(self.library_name)
         if apis.is_err:
             return apis
-        
+
         apis = apis.value
         if len(apis) == 0:
             return Err(f"No unsolved APIs found in {self.library_name}")
-
-        apis = [MCPAPI.model_validate(api, from_attributes=True) for api in apis]
 
         batch_size = self.config.get("batch_size", 10)
 
@@ -48,13 +42,11 @@ class LibraryAPIResolver:
 
         return Ok()
 
-    async def solve_one(self, api: MCPAPI, sem: asyncio.Semaphore) -> None:
+    async def solve_one(self, api: API, sem: asyncio.Semaphore) -> None:
         async with sem:
-            result = self.mcp_generator.to_mcp(self.mcp_dir, api)
-            if result.is_err:
-                logger.warning(f"Failed to generate MCP for {api.name}: {result.error}")
-                return
-            mcp_path = result.value
+            mcp_path = self.mcp_dir.joinpath(f"{api.name.replace('.', '___')}.py")
+            with open(mcp_path, 'w') as f:
+                f.write(api.mcp_code)
             server_params = StdioServerParameters(command="python", args=[str(mcp_path)], env=None)
             async with stdio_client(server_params) as (reads, writes):
                 async with ClientSession(reads, writes) as mcp_session:
