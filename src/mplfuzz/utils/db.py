@@ -152,10 +152,11 @@ def get_all_apis(library_name: str | None=None) -> Result[list[API], Exception]:
     
     for r in records:
         solution_str_list = json.loads(r[5])
-        print(solution_str_list)
+        # print(solution_str_list)
         solutions = [Solution.model_validate(ss) for ss in solution_str_list]
         res.append(API(name=r[0], source=r[1], args=json.loads(r[2]), ret_type=r[3], mcp_code=r[4], solutions=solutions))
 
+    return res
 
 def _clear_solutions(library_name: str):
     try:

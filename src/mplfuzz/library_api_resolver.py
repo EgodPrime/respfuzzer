@@ -37,9 +37,9 @@ class LibraryAPIResolver:
 
         batch_size = self.config.get("batch_size", 10)
 
-        sem = asyncio.Semaphore(batch_size)  # TODO: 改造成`batch_size`大小的进程池，但是又不能破坏每个进程内自己想玩异步
-        await asyncio.gather(*[self.solve_one(api, sem) for api in apis])
-
+        sem = asyncio.Semaphore(batch_size)
+        tasks = [self.solve_one(api, sem) for api in apis]
+        await asyncio.gather(*tasks, return_exceptions=True)
         return Ok()
 
     async def solve_one(self, api: API, sem: asyncio.Semaphore) -> None:
