@@ -1,10 +1,9 @@
 import asyncio
-import json
 import fire
 from loguru import logger
-from mplfuzz.models import API, Solution
+from mplfuzz.models import Solution
 from mplfuzz.utils.config import get_config
-from mplfuzz.utils.db import get_all_apis
+from mplfuzz.utils.db import get_all_apis, save_mutants
 from mplfuzz.utils.result import Err, Ok, Result
 import openai
 
@@ -16,6 +15,7 @@ aclient = openai.AsyncOpenAI(
 )
 
 model_name = model_config.get("model_name")
+assert isinstance(model_name, str), "model_name must be a valid string"
 
 mutation_limiter = asyncio.Semaphore(20)
 
@@ -46,9 +46,6 @@ async def mutate_apicall(apicall: str) -> Result[list[str], Exception]:
         except Exception as e:
             return Err(e)
 
-def validate_mutant(mutant:str):
-    logger.info(f"Validating mutant: {mutant}")
-    pass
     
 async def batch_mutate(solution_list: list[Solution]) -> Result[None, Exception]:
     for solution in solution_list:
@@ -57,8 +54,9 @@ async def batch_mutate(solution_list: list[Solution]) -> Result[None, Exception]
         if mutants.is_err:
             logger.error(f"Failed to mutate apicall {apicall}: {mutants.error }")
         else:
-            for mutant in mutants.unwrap():
-                validate_mutant(mutant)
+            mutants = mutants.value
+            api_name = mutants[0].split('(')[0].strip()
+            save_mutants(api_name, mutants).unwrap()
     return Ok()
     
 async def async_main(library_name:str|None):

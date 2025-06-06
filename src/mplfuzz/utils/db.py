@@ -20,7 +20,9 @@ cur = conn.cursor()
 cur.execute(
     f"CREATE TABLE IF NOT EXISTS {table_name} (name TEXT PRIMARY KEY, source TEXT, args TEXT, ret_type TEXT, mcp_code TEXT, solutions TEXT)"
 )
-
+cur.execute(
+    f"CREATE TABLE IF NOT EXISTS mutants (api_name TEXT, mutants TEXT, cosumed TEXT)"
+)
 
 @resultify
 def create_api(api: API) -> Result[None, str]:
@@ -167,3 +169,8 @@ def _clear_solutions(library_name: str):
 
 def clear_solutions():
     fire.Fire(_clear_solutions)
+
+@resultify
+def save_mutants(api_name: str, mutants: list[str]) -> Result[None, Exception]:
+    cur.execute(f"INSERT OR REPLACE INTO mutants (api_name, mutants, 0) VALUES (?, ?)", (api_name, json.dumps(mutants)))
+    conn.commit()
