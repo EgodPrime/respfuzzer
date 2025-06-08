@@ -172,5 +172,5 @@ def clear_solutions():
 
 @resultify
 def save_mutants(api_name: str, mutants: list[str]) -> Result[None, Exception]:
-    cur.execute(f"INSERT OR REPLACE INTO mutants (api_name, mutants, 0) VALUES (?, ?)", (api_name, json.dumps(mutants)))
+    cur.execute(f"INSERT OR REPLACE INTO mutants (api_name, mutants) VALUES (?, ?)", (api_name, json.dumps(mutants)))
     conn.commit()
