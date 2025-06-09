@@ -44,26 +44,26 @@ class LibraryAPIResolver:
 
     async def solve_one(self, api: API, sem: asyncio.Semaphore) -> None:
         async with sem:
-            mcp_path = self.mcp_dir.joinpath(f"{api.name.replace('.', '___')}.py")
-            with open(mcp_path, 'w') as f:
+            mcp_path = self.mcp_dir.joinpath(f"{api.api_name.replace('.', '___')}.py")
+            with open(mcp_path, "w") as f:
                 f.write(api.mcp_code)
             server_params = StdioServerParameters(command="python", args=[str(mcp_path)], env=None)
             async with stdio_client(server_params) as (reads, writes):
                 async with ClientSession(reads, writes) as mcp_session:
                     await mcp_session.initialize()
-                    logger.info(f"Start solving API {api.name}")
+                    logger.info(f"Start solving API {api.api_name}")
                     result = await self.api_resolver.solve_api(api, mcp_session)
                     if result.is_err:
-                        logger.warning(f"Failed to solve API {api.name}: {result.error}")
+                        logger.warning(f"Failed to solve API {api.api_name}: {result.error}")
                         return
                     solutions = result.value
-                    logger.info(f"Solved API {api.name} with {len(result.value)} solutions")
+                    logger.info(f"Solved API {api.api_name} with {len(result.value)} solutions")
 
             result = save_solutions_to_api(api, solutions)
             if result.is_err:
-                logger.warning(f"Failed to save solutions for API {api.name}: {result.error}")
+                logger.warning(f"Failed to save solutions for API {api.api_name}: {result.error}")
                 return
-            logger.info(f"Saved solutions for API {api.name}")
+            logger.info(f"Saved solutions for API {api.api_name}")
 
 
 async def async_main(library_name: str, mcp_dir: str):

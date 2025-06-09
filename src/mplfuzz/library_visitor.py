@@ -9,9 +9,9 @@ from typing import Dict, Iterator, List, Optional, Set
 import fire
 from loguru import logger
 
-from mplfuzz.utils.db import create_api
 from mplfuzz.models import API, Argument, PosType
 from mplfuzz.utils.result import Ok, Err, Result, resultify
+from mplfuzz.db.api_parse_record_table import create_api
 
 
 @resultify
@@ -97,7 +97,7 @@ def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
     else:
         arg_name = arg_def
         arg_type = "unknown"
-    return Argument(name=arg_name, type=arg_type, pos_type=0)  # pos_type默认为0，后续根据实际情况修改
+    return Argument(arg_name=arg_name, type=arg_type, pos_type=0)  # pos_type默认为0，后续根据实际情况修改
 
 
 @resultify
@@ -175,7 +175,7 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
     args = _compactify_arg_list_str(raw_args_str).and_then(_split_compact_arg_list_str).and_then(_parse_arg_str_list)
 
     if args.is_ok:
-        return API(name=name, source=source, args=args.value, ret_type=ret_type_str)
+        return API(api_name=name, source=source, args=args.value, ret_type=ret_type_str)
     else:
         return args
 
@@ -183,7 +183,7 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
 @resultify
 def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionType) -> Result[API, Exception]:
     name = f"{obj.__module__}.{obj.__name__}"
-    return API(name=name, source=pyi_dict["source"], args=pyi_dict["args"], ret_type=pyi_dict["ret_type_str"])
+    return API(api_name=name, source=pyi_dict["source"], args=pyi_dict["args"], ret_type=pyi_dict["ret_type_str"])
 
 
 class LibraryVisitor:
@@ -373,10 +373,10 @@ def _main(library_name: str, verbose: bool = False):
     lv = LibraryVisitor(library_name)
     cnt = 0
     for api in lv.visit():
-        create_api(api).map_err(lambda e: logger.error(f"Error saving  API {api.name}: {e}"))
+        create_api(api).map_err(lambda e: logger.error(f"Error saving  API {api.api_name}: {e}"))
         cnt += 1
         if verbose:
-            logger.info(f"API {api.name} parsed and saved to db")
+            logger.info(f"API {api.api_name} parsed and saved to db")
     logger.info(f"Finished parsing {cnt} APIs in library {library_name}")
 
 

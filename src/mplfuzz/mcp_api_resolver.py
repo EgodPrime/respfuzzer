@@ -56,7 +56,7 @@ class MCPAPIResolver:
             for tool in completion.tools
         ]
 
-        tool_name = "__".join(api.name.split("."))
+        tool_name = "__".join(api.api_name.split("."))
         query = f'/no_think请探索出工具{tool_name}的正确使用方法，使用成功时你会得到`{{"success": True, "msg": "..."}}`，否则得到错误信息`{{"success":False, "msg":"..."}}`。如果得到错误信息，则根据错误信息中的`msg`进行重试直到成功。请尽可能多的探索各种类型的输入。'
         # logger.debug(f"query llm with {query}")
 
@@ -84,7 +84,7 @@ class MCPAPIResolver:
                         continue
                     else:  # if max_failure is 0, return error
 
-                        return Err(f"拼尽全力，无法战胜{api.name}")
+                        return Err(f"拼尽全力，无法战胜{api.api_name}")
 
             # Ask llm to create tool call
             # logger.debug(f"Query llm for {api.name}")
@@ -107,7 +107,7 @@ class MCPAPIResolver:
                         max_failure -= 1
                         continue
                     else:
-                        return Err(f"拼尽全力，无法战胜{api.name}")
+                        return Err(f"拼尽全力，无法战胜{api.api_name}")
                 else:
                     break
 
@@ -118,29 +118,22 @@ class MCPAPIResolver:
 
                 tool_name = tool_call.function.name
                 tool_args: dict[str, str] = json.loads(tool_call.function.arguments)
-                logger.debug(f"Try call {api.name} with {tool_args}")
+                logger.debug(f"Try call {api.api_name} with {tool_args}")
                 result = await async_execute_api_call(api, tool_args)
                 # logger.debug(f"Tool {tool_name} returned: {result}")
 
                 match result["result_type"]:
                     case ExecutionResultType.OK:
                         api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
-                        solutions.append(Solution(api_name=api.name, api_exprs=api_exprs, expect_result=result["stdout"]))
-                        logger.info(f"Found a solution for {api.name}")
-                        result_text = json.dumps({
-                            "sucess": True,
-                            "msg": result["stdout"]
-                        })
+                        solutions.append(
+                            Solution(api_name=api.api_name, api_exprs=api_exprs, expect_result=result["stdout"])
+                        )
+                        logger.info(f"Found a solution for {api.api_name}")
+                        result_text = json.dumps({"sucess": True, "msg": result["stdout"]})
                     case ExecutionResultType.TIMEOUT:
-                        result_text = json.dumps({
-                            "sucess": False,
-                            "msg": "Tool called timed out"
-                        })
+                        result_text = json.dumps({"sucess": False, "msg": "Tool called timed out"})
                     case ExecutionResultType.ABNORMAL | ExecutionResultType.CALLFAIL:
-                        result_text = json.dumps({
-                            "sucess": False,
-                            "msg": result["stderr"]
-                        })
+                        result_text = json.dumps({"sucess": False, "msg": result["stderr"]})
 
                 history.append({"role": "tool", "tool_call_id": tool_call.id, "content": result_text})
 

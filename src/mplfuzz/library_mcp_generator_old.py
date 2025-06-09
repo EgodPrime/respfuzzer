@@ -19,7 +19,7 @@ class LibraryMCPGenerator(LibraryVisitor):
             mcpapi = MCPAPI.model_validate(api, from_attributes=True)
             result = create_api(mcpapi)
             if result.is_err:
-                logger.warning(f"Error save API {api.name} to db: {result.error}")
+                logger.warning(f"Error save API {api.api_name} to db: {result.error}")
             res.append(mcpapi)
         return res
 
