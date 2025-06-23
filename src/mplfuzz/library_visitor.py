@@ -13,6 +13,8 @@ from mplfuzz.models import API, Argument, PosType
 from mplfuzz.utils.result import Ok, Err, Result, resultify
 from mplfuzz.db.api_parse_record_table import create_api
 
+logger.level("INFO")
+
 
 @resultify
 def _compactify_arg_list_str(raw_arg_list_str: str) -> Result[str, Exception]:
@@ -23,7 +25,7 @@ def _compactify_arg_list_str(raw_arg_list_str: str) -> Result[str, Exception]:
     Returns:
         str: 清理后的紧凑参数列表字符串。
     """
-    compact_arg_list_str = re.sub(r"#.*", "", raw_arg_list_str).strip()
+    compact_arg_list_str = re.sub(r"\ #.*\n", "", raw_arg_list_str).strip()
     compact_arg_list_str = compact_arg_list_str.replace("\n", "")
     compact_arg_list_str = compact_arg_list_str.replace(" ", "")
     return compact_arg_list_str
@@ -42,8 +44,11 @@ def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], 
     parentheses_stack = 0
     brackets_stack = 0
     braces_stack = 0
+    dquote_stack = 0
+    squote_stack = 0
     s = 0
-    for i, ch in enumerate(compact_arg_list_str + ","):
+    # logger.debug(compact_arg_list_str)
+    for i, ch in enumerate(compact_arg_list_str):
         match ch:
             case "[":
                 brackets_stack += 1
@@ -57,18 +62,22 @@ def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], 
                 braces_stack += 1
             case "}":
                 braces_stack -= 1
+            case '"':
+                dquote_stack = 1 - dquote_stack
+            case "'":
+                squote_stack = 1 - squote_stack
             case ",":
-                if sum([parentheses_stack, brackets_stack, braces_stack]) == 0:
+                if sum([parentheses_stack, brackets_stack, braces_stack, dquote_stack, squote_stack])==0:
                     arg_str_list.append(compact_arg_list_str[s:i])
                     s = i + 1
-    while "" in arg_str_list:
-        arg_str_list.remove("")
+    # while "" in arg_str_list:
+    #     arg_str_list.remove("")
     return arg_str_list
 
 
 @resultify
 def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
-    """
+    r"""
     解析参数字符串，返回参数对象。
     需要考虑这些情况：
     a
@@ -82,20 +91,15 @@ def _parse_arg_str(arg_str: str) -> Result[Argument, Exception]:
     a:Tuple=(1,2,3)
     a:Set={1,2,3}
     a:X=X(a=1,b=2)
+    pat=re.compile(r"\s*(?:#\s*)?$").match
     Args:
         arg_str (str): 参数字符串。
     Returns:
         Argument: 参数对象。
     """
-    if "=" in arg_str:
-        arg_def, arg_default = arg_str.split("=", 1)
-    else:
-        arg_def = arg_str
-        arg_default = "none"
-    if ":" in arg_def:
-        arg_name, arg_type = arg_def.split(":")
-    else:
-        arg_name = arg_def
+    pattern = re.compile(r"([a-zA-Z0-9_\*]+)(?:\:([^\=]+))?(?:\=(.+))?", re.DOTALL)
+    arg_name, arg_type, arg_default = pattern.match(arg_str).groups()
+    if not arg_type:
         arg_type = "unknown"
     return Argument(arg_name=arg_name, type=arg_type, pos_type=0)  # pos_type默认为0，后续根据实际情况修改
 
@@ -124,11 +128,8 @@ def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Excep
     arg_list = []
 
     for i, arg_str in enumerate(posonly_arg_strs + arg_str_list):
-        arg = _parse_arg_str(arg_str)
-        if arg.is_err:
-            logger.warning(str(arg.error))
-            continue
-        arg = arg.value
+        # logger.debug(arg_str)
+        arg = _parse_arg_str(arg_str).unwrap()
         arg.pos_type = PosType.PositionalOnly
         arg_list.append(arg)
 
@@ -136,6 +137,9 @@ def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Excep
         arg = _parse_arg_str(arg_str)
         if arg.is_err:
             logger.warning(str(arg.error))
+            # logger.debug(kwonly_arg_strs)
+            # logger.debug(arg_str)
+            raise Exception("Invalid keyword-only argument")
             continue
         arg = arg.value
         arg.pos_type = PosType.KeywordOnly
@@ -159,18 +163,31 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
         # a pure Python function always has a signature
         source = str(inspect.signature(obj))
 
-    source = re.sub(r"#.*", "", source)  # 删除注释
-    match_str = r"def\s+[a-zA-Z][a-zA-Z0-9_]*\s*\(([\w\d\s_:\-\+=,*./\\\"'|\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:"
-    function_def_pattern = re.compile(match_str)
-    matches = function_def_pattern.findall(source)
+    source = re.sub(r"\ #.*\n", "", source)  # 删除注释
+    # logger.debug(f"Function name:{name}\nSource code:\n{source}")
+    # match_str = r"def\s+[a-zA-Z][a-zA-Z0-9_]*\s*\((.*?)\)\s*(?:->\s*([^:]+))?:"
+    match_str = r"""
+    def\s+
+    ([a-zA-Z][a-zA-Z0-9_]*)\s*
+    \((.*?)\)\s*
+    (?:->\s*([^:]+))?:\s*
+    (?:
+    (?:r?)?
+    ('''|\"\"\"|\"\"\"|'''|'|\"|\"|')
+    (.*?)
+    \4
+    )?
+"""
+    re_flags = re.DOTALL|re.VERBOSE
+    match = re.search(match_str, source, re_flags)
     try:
-        match = matches[0]
+        _name, raw_args_str, ret_type_str, _ , docstring = match.groups()
+        ret_type_str = "unknown" if ret_type_str is None else ret_type_str
+        logger.debug(f"Parsing function {_name}({name})")
     except Exception as e:
         print(source)
         print(match_str)
         raise e
-    raw_args_str: str = match[0]
-    ret_type_str: str = match[1] if match[1] else "unknown"
 
     args = _compactify_arg_list_str(raw_args_str).and_then(_split_compact_arg_list_str).and_then(_parse_arg_str_list)
 
@@ -236,13 +253,15 @@ class LibraryVisitor:
 
         # 使用正则表达式匹配函数定义
         function_def_pattern = re.compile(
-            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\(([\w\d\s_:\-\+=,*./\\\"'|\[\]\(\)]*?)\)\s*(?:->\s*([^:]+))?\s*:\s*..."
+            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\((.*?)\)\s*(?:->\s*([^:]+))?:\s*...",
+            re.DOTALL
         )
         matches = function_def_pattern.finditer(content)
 
         for match in matches:
             func_name = match.group(1)
             raw_args_str = match.group(2)
+            logger.debug(f"Parsing builtin function {func_name}")
             ret_type_str = match.group(3) if match.group(3) else "unknown"
 
             if raw_args_str is None:
@@ -253,6 +272,7 @@ class LibraryVisitor:
                 try:
                     compat_arg_list_str = _compactify_arg_list_str(raw_args_str).unwrap()
                     arg_str_list = _split_compact_arg_list_str(compat_arg_list_str).unwrap()
+                    # logger.debug(arg_str_list)
                     args = _parse_arg_str_list(arg_str_list).unwrap()
                 except Exception as e:
                     print(raw_args_str)
@@ -283,11 +303,13 @@ class LibraryVisitor:
                     if file_path in visited_files:
                         continue
                     visited_files.add(file_path)
-                    self._parse_pyi_file(file_path).map_err(lambda e: logger.warning(f"Error parsing {file_path}: {e}"))
+                    self._parse_pyi_file(file_path).unwrap()
+                    # self._parse_pyi_file(file_path).map_err(lambda e: logger.warning(f"Error parsing {file_path}: {e}"))
             for dir_name in dirs:
-                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).map_err(
-                    lambda e: logger.warning(f"Error finding pyi files in {dir_path}: {e}")
-                )
+                self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).unwrap()
+                # self._find_all_pyi_files(os.path.join(root, dir_name), visited_files).map_err(
+                #     lambda e: logger.warning(f"Error finding pyi files in {dir_path}: {e}")
+                # )
 
     def find_all_pyi_functions(self):
         # 先根据库名找到库的根目录，然后递归遍历找出所有的pyi文件，再找出pyi文件中所有的函数，存入self.pyi_cache中
@@ -296,9 +318,10 @@ class LibraryVisitor:
             return
 
         visited_files: Set[str] = set()
-        self._find_all_pyi_files(root_path, visited_files).map_err(
-            lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}")
-        )
+        self._find_all_pyi_files(root_path, visited_files).unwrap()
+        # self._find_all_pyi_files(root_path, visited_files).map_err(
+        #     lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}")
+        # )
 
     def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[API]:
         # Skip if the module has already been seen.

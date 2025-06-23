@@ -8,7 +8,9 @@ from mcp import ClientSession, StdioServerParameters, stdio_client
 from mplfuzz.mcp_api_resolver import MCPAPIResolver
 from mplfuzz.models import API
 from mplfuzz.utils.config import get_config
-from mplfuzz.utils.db import save_solutions_to_api, get_all_unsolved_apis
+from mplfuzz.db.api_parse_record_table import get_apis
+from mplfuzz.db.mcpcode_generation_record_table import get_mcpcode_by_api_id
+from mplfuzz.db.apicall_solution_record_table import create_solutions, get_solution_by_api_id
 from mplfuzz.utils.result import Err, Ok, Result
 
 
@@ -27,26 +29,27 @@ class LibraryAPIResolver:
         return result
 
     async def solve(self) -> Result[None, str]:
-        apis = get_all_unsolved_apis(self.library_name)
-        if apis.is_err:
-            return apis
-
-        apis = apis.value
-        if len(apis) == 0:
-            return Err(f"No unsolved APIs found in {self.library_name}")
-
+        apis = get_apis(self.library_name).unwrap()
+        tasks = []
         batch_size = self.config.get("batch_size", 10)
-
         sem = asyncio.Semaphore(batch_size)
-        tasks = [self.solve_one(api, sem) for api in apis]
+        for api in apis:
+            solution = get_solution_by_api_id(api.id).unwrap()
+            if solution:
+                continue
+            tasks.append(self.solve_one(api, sem))
+        
         await asyncio.gather(*tasks, return_exceptions=True)
         return Ok()
 
     async def solve_one(self, api: API, sem: asyncio.Semaphore) -> None:
         async with sem:
             mcp_path = self.mcp_dir.joinpath(f"{api.api_name.replace('.', '___')}.py")
+            mcpcode = get_mcpcode_by_api_id(api.id).unwrap()
+            if not mcpcode:
+                return Err()
             with open(mcp_path, "w") as f:
-                f.write(api.mcp_code)
+                f.write(mcpcode.mcpcode)
             server_params = StdioServerParameters(command="python", args=[str(mcp_path)], env=None)
             async with stdio_client(server_params) as (reads, writes):
                 async with ClientSession(reads, writes) as mcp_session:
@@ -59,7 +62,8 @@ class LibraryAPIResolver:
                     solutions = result.value
                     logger.info(f"Solved API {api.api_name} with {len(result.value)} solutions")
 
-            result = save_solutions_to_api(api, solutions)
+            result = create_solutions(solutions)
+            # result = save_solutions_to_api(api, solutions)
             if result.is_err:
                 logger.warning(f"Failed to save solutions for API {api.api_name}: {result.error}")
                 return

@@ -2,9 +2,10 @@ import asyncio
 import json
 import fire
 from loguru import logger
-from mplfuzz.models import Solution
+from mplfuzz.models import Solution, Mutant
 from mplfuzz.utils.config import get_config
-from mplfuzz.utils.db import get_all_apis, save_mutants
+from mplfuzz.db.apicall_solution_record_table import get_solutions
+from mplfuzz.db.apicall_mutatation_record_table import create_mutant
 from mplfuzz.utils.result import Err, Ok, Result
 import openai
 
@@ -51,25 +52,33 @@ Your output:
 
 async def batch_mutate(solution_list: list[Solution]) -> Result[None, Exception]:
     for solution in solution_list:
-        apicall = str(solution)
+        apicall_expr_ori = solution.apicall_expr
         real_api_name = solution.api_name
-        mutants = await mutate_apicall(apicall)
+        mutants = await mutate_apicall(apicall_expr_ori)
         if mutants.is_err:
-            logger.error(f"Failed to mutate apicall {apicall}: {mutants.error }")
+            logger.error(f"Failed to mutate apicall {apicall_expr_ori}: {mutants.error }")
         else:
             mutants = mutants.value
-            api_name = mutants[0].split("(")[0].strip()
-            if api_name == real_api_name:
-                save_mutants(api_name, mutants).unwrap()
+            for mutant in mutants:
+                api_name = mutant.split("(")[0].strip()
+                if api_name == real_api_name:
+                    mutant = Mutant(
+                        solution_id=solution.id,
+                        library_name=solution.library_name,
+                        api_name=solution.api_name,
+                        apicall_expr_ori=solution.apicall_expr,
+                        apicall_expr_new=mutant
+                    )
+                    create_mutant(mutant).unwrap()
     return Ok()
 
 
 async def async_main(library_name: str | None):
-    apis = get_all_apis(library_name).unwrap()
-    for api in apis:
-        logger.info(f"Processing API: {api.api_name}")
-        res = await batch_mutate(api.solutions)
-        res.map_err(lambda e: logger.error(f"Failed to process API: {api.api_name}, error: {e}"))
+    solutions = get_solutions(library_name).unwrap()
+    # for solution in solutions:
+    #     logger.info(f"Processing API: {solution.api_name}")
+    res = await batch_mutate(solutions)
+    res.map_err(lambda e: logger.error(f"Failed to process API: {api.api_name}, error: {e}"))
 
 
 def _main(library_name: str | None = None):

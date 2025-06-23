@@ -34,7 +34,13 @@ def get_api(api_name: str) -> Result[API | None, Exception]:
         cur.execute(f"SELECT * FROM api WHERE api_name = ?", (api_name,))
         row = cur.fetchone()
         if row:
-            return API(api_name=row[0], library_name=row[1], source=row[2], args=json.loads(row[3]), ret_type=row[4])
+            return API(
+                id=row[0], 
+                api_name=row[1], 
+                library_name=row[2], 
+                source=row[3], 
+                args=json.loads(row[4]), 
+                ret_type=row[5])
         else:
             return None
 
@@ -42,16 +48,17 @@ def get_api(api_name: str) -> Result[API | None, Exception]:
 @resultify
 def get_apis(library_name: str | None) -> Result[List[API], Exception]:
     if library_name:
-        filter = f"WHERE name LIKE '{library_name}.%'"
+        filter = f"WHERE api_name LIKE '{library_name}.%'"
     else:
         filter = ""
     with get_db_cursor() as cur:
         cur.execute(f"SELECT * FROM api {filter}")
         rows = cur.fetchall()
         api_list = [API(
-            api_name=row[0], 
-            library_name=row[1], 
-            source=row[2], 
-            args=json.loads(row[3]), 
-            ret_type=row[4]) for row in rows]
+                id=row[0], 
+                api_name=row[1], 
+                library_name=row[2], 
+                source=row[3], 
+                args=json.loads(row[4]), 
+                ret_type=row[5]) for row in rows]
         return api_list

@@ -45,33 +45,60 @@ def get_mutant(mutant_id: str) -> Result[Mutant | None, Exception]:
         row = cur.fetchone()
         if row:
             return Mutant(
-                solution_id=row[0],
-                library_name=row[1],
-                api_name=row[2],
-                apicall_expr_ori=row[3],
-                apicall_expr_new=row[4],
+                id=row[0],
+                solution_id=row[1],
+                library_name=row[2],
+                api_name=row[3],
+                apicall_expr_ori=row[4],
+                apicall_expr_new=row[5],
             )
         else:
             return None
 
 
 @resultify
-def get_mutants(solution_id: Optional[str] = None) -> Result[List[Mutant], Exception]:
+def get_mutants(library_name: Optional[str] = None) -> Result[List[Mutant], Exception]:
     with get_db_cursor() as cur:
-        if solution_id:
+        if library_name:
             cur.execute(
-                "SELECT * FROM mutant WHERE solution_id = ?", (solution_id,)
+                "SELECT * FROM mutant WHERE library_name = ?", (library_name,)
             )
         else:
             cur.execute("SELECT * FROM mutant")
         rows = cur.fetchall()
         mutants = [
             Mutant(
-                solution_id=row[0],
-                library_name=row[1],
-                api_name=row[2],
-                apicall_expr_ori=row[3],
-                apicall_expr_new=row[4],
+                id=row[0],
+                solution_id=row[1],
+                library_name=row[2],
+                api_name=row[3],
+                apicall_expr_ori=row[4],
+                apicall_expr_new=row[5],
+            )
+            for row in rows
+        ]
+    return Ok(mutants)
+
+@resultify
+def get_mutants_unexecuted(library_name: Optional[str] = None) -> Result[List[Mutant], Exception]:
+    query = f"""
+    SELECT m.*
+    FROM mutant m
+    LEFT JOIN mutant_execution me ON m.id = me.mutant_id
+    WHERE me.mutant_id IS NULL
+    {f"AND m.library_name = '{library_name}'" if library_name else ""}
+    """
+    with get_db_cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
+        mutants = [
+            Mutant(
+                id=row[0],
+                solution_id=row[1],
+                library_name=row[2],
+                api_name=row[3],
+                apicall_expr_ori=row[4],
+                apicall_expr_new=row[5],
             )
             for row in rows
         ]

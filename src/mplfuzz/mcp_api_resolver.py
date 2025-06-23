@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 
 from mplfuzz.models import API, ArgumentExpr, Solution
 from mplfuzz.utils.config import get_config
-from mplfuzz.utils.result import Err, Ok, Result
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 from mplfuzz.api_call_executor import async_execute_api_call, ExecutionResultType
 
 
@@ -38,7 +38,7 @@ class MCPAPIResolver:
             return Err(f"Model {self.model_name} not found. Available models: {model_names}")
 
         return Ok()
-
+    
     async def solve_api(self, api: API, mcp_session: ClientSession) -> Result[list[Solution], str]:
         if not self.openai_client:
             return Err("OpenAI client not initialized. Call setup_llm first.")
@@ -125,9 +125,17 @@ class MCPAPIResolver:
                 match result["result_type"]:
                     case ExecutionResultType.OK:
                         api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
-                        solutions.append(
-                            Solution(api_name=api.api_name, api_exprs=api_exprs, expect_result=result["stdout"])
-                        )
+                        try:
+                            solutions.append(
+                                Solution(api_id=api.id,
+                                        library_name=api.library_name,
+                                        api_name=api.api_name, 
+                                        args=api.args,
+                                        arg_exprs=api_exprs
+                                        )
+                            )
+                        except Exception as e:
+                            logger.error(f"Error while generating solution: {e}")
                         logger.info(f"Found a solution for {api.api_name}")
                         result_text = json.dumps({"sucess": True, "msg": result["stdout"]})
                     case ExecutionResultType.TIMEOUT:

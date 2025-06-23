@@ -10,6 +10,7 @@ with get_db_cursor() as cur:
     cur.execute(
         """CREATE TABLE IF NOT EXISTS solution (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            api_id INTEGER,
             library_name TEXT,
             api_name TEXT,
             args TEXT,
@@ -32,13 +33,15 @@ def create_solution(solution: Solution) -> Result[int, Exception]:
     with get_db_cursor() as cur:
         cur.execute(
             """INSERT INTO solution (
+                api_id,
                 library_name, 
                 api_name, 
                 args, 
                 arg_exprs, 
                 apicall_expr
-            ) VALUES (?, ?, ?, ?, ?)""",
+            ) VALUES (?, ?, ?, ?, ?, ?)""",
             (
+                solution.api_id,
                 solution.library_name,
                 solution.api_name,
                 args_text,
@@ -49,6 +52,10 @@ def create_solution(solution: Solution) -> Result[int, Exception]:
         solution_id = cur.lastrowid
         return Ok(solution_id)
 
+@resultify
+def create_solutions(solutions: list[Solution]) -> Result[list[int], Exception]:
+    res = [create_solution(solution).unwrap() for solution in solutions]
+    return res
 
 @resultify
 def get_solution(solution_id: int) -> Result[Optional[Solution], Exception]:
@@ -62,18 +69,39 @@ def get_solution(solution_id: int) -> Result[Optional[Solution], Exception]:
             return Ok(None)
 
         # 解析 JSON 字符串回模型
-        args = [Argument(**arg) for arg in json.loads(row[2])]
-        arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[3])]
+        args = [Argument(**arg) for arg in json.loads(row[4])]
+        arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[5])]
 
         solution = Solution(
-            library_name=row[1],
-            api_name=row[2],
+            id=row[0],
+            api_id=row[1],
+            library_name=row[2],
+            api_name=row[3],
             args=args,
             arg_exprs=arg_exprs,
-            apicall_expr=row[4],
+            apicall_expr=row[6],
         )
         return Ok(solution)
 
+@resultify
+def get_solution_by_api_id(api_id: int) -> Result[Optional[Solution], Exception]:
+    with get_db_cursor() as cur:
+        cur.execute("SELECT * FROM solution WHERE api_id = ?", (api_id,))
+        row = cur.fetchone()
+        if not row:
+            return Ok(None)
+        args = [Argument(**arg) for arg in json.loads(row[4])]
+        arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[5])]
+        solution = Solution(
+            id=row[0],
+            api_id=row[1],
+            library_name=row[2],
+            api_name=row[3],
+            args=args,
+            arg_exprs=arg_exprs,
+            apicall_expr=row[6],
+        )
+        return Ok(solution)
 
 @resultify
 def get_solutions(library_name: Optional[str] = None, api_name: Optional[str] = None) -> Result[List[Solution], Exception]:
@@ -99,14 +127,17 @@ def get_solutions(library_name: Optional[str] = None, api_name: Optional[str] = 
         solutions = []
 
         for row in rows:
-            args = [Argument(**arg) for arg in json.loads(row[2])]
-            arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[3])]
+            args = [Argument(**arg) for arg in json.loads(row[4])]
+            arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[5])]
+
             solution = Solution(
-                library_name=row[1],
-                api_name=row[2],
+                id=row[0],
+                api_id=row[1],
+                library_name=row[2],
+                api_name=row[3],
                 args=args,
                 arg_exprs=arg_exprs,
-                apicall_expr=row[4],
+                apicall_expr=row[6],
             )
             solutions.append(solution)
 

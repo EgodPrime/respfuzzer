@@ -1,19 +1,34 @@
 from pathlib import Path
+from typing import Optional
 
 import fire
 from loguru import logger
 
 from mplfuzz.models import API, MCPCode, PosType
-from mplfuzz.utils.db import get_all_unmcped_apis, save_mcp_code_to_api
 from mplfuzz.utils.result import Err, Ok, Result, resultify
 from mplfuzz.db.api_parse_record_table import get_apis
-from mplfuzz.db.mcpcode_generation_record_table import create_mcpcode, get_mcpcode
+from mplfuzz.db.mcpcode_generation_record_table import create_mcpcode, get_mcpcode_by_api_id
 
 
 def clean_arg_name(arg_name: str) -> str:
     if arg_name.startswith("*"):
         return arg_name.replace("*", "")
     return arg_name
+
+def indent(content:str, level: int=2) -> str:
+    return "\n".join(" " * level + line for line in content.split("\n"))
+
+def to_mcpcode_v2(api:API) -> str:
+    code = f"""
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP(log_level="WARNING")
+
+@mcp.tool()
+def {api.api_name.split('.')[-1]}({", ".join([arg.arg_name for arg in api.args if not arg.arg_name.startswith('_')])}):
+    pass
+"""
+    return code
 
 
 def to_mcpcode(api: API) -> str:
@@ -60,9 +75,13 @@ def _main(library_name: str, force_update: bool = False):
     oks = 0
     errs = 0
     for api in apis.value:
+        r = get_mcpcode_by_api_id(api.id).unwrap()
+        if r:
+            continue
         mcpcode = to_mcpcode(api)
         res = create_mcpcode(
             MCPCode(
+                api_id=api.id,
                 api_name=api.api_name,
                 library_name=library_name,
                 mcpcode=mcpcode

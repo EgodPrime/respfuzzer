@@ -1,5 +1,4 @@
 from enum import IntEnum
-from typing import override
 
 from pydantic import BaseModel, model_validator
 
@@ -92,7 +91,7 @@ class ExecutionResultType(IntEnum):
 
 
 class MutantExecution(BaseModel):
-    id: int
+    id: int|None = None
     mutant_id: int
     library_name: str
     api_name: str
