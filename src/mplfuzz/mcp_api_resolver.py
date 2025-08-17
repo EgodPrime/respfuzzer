@@ -93,7 +93,7 @@ class MCPAPIResolver:
                     messages=history,
                     model=self.model_name,
                     tools=tools,
-                    max_completion_tokens=output_length_limit,
+                    max_completion_tokens=output_length_limit
                 )
             except Exception as e:
                 return Err(f"Error occurred while creating completion: {e}")
