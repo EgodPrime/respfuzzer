@@ -99,3 +99,14 @@ class MutantExecution(BaseModel):
     ret_code: int
     stdout: str
     stderr: str
+
+class APICallExecution(BaseModel):
+    id: int|None = None
+    api_id: int
+    library_name: str
+    api_name: str
+    code: str
+    result_type: int
+    ret_code: int
+    stdout: str
+    stderr: str

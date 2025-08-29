@@ -120,7 +120,7 @@ class MCPAPIResolver:
                 tool_args: dict[str, str] = json.loads(tool_call.function.arguments)
                 logger.debug(f"Try call {api.api_name} with {tool_args}")
                 result = await async_execute_api_call(api, tool_args)
-                # logger.debug(f"Tool {tool_name} returned: {result}")
+                logger.debug(f"Tool {tool_name} returned: {result}")
 
                 match result["result_type"]:
                     case ExecutionResultType.OK:

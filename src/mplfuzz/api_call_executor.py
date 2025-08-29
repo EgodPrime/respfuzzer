@@ -4,7 +4,10 @@ import enum
 import tempfile
 from typing import List
 
-from mplfuzz.models import API, PosType
+from mplfuzz.models import API, PosType, APICallExecution
+from mplfuzz.utils.config import get_config
+from mplfuzz.db.apicall_execution_record_table import create_apicall_execution, update_apical_execution
+from openai import AsyncOpenAI
 
 
 class ExecutionResultType(enum.IntEnum):
@@ -136,20 +139,54 @@ async def async_safe_run(command: List[str]):
         "stderr": stderr,
     }
 
+async def polish_code(ori_code:str) -> str:
+    prompt = f"你是一个代码审计员，你会检查下述代码是否缺少适当的的import， 如果是的话你会对代码进行补全，否则你不做任何修改。你仅输出补全后的代码，不要输出```!\n{ori_code}"
+    model_config = get_config("model_config").unwrap()
+    model_name = model_config.get("model_name")
+    openai_client = AsyncOpenAI(
+        base_url=model_config.get("base_url"),
+        api_key=model_config.get("api_key"),
+    )
+    response = await openai_client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "user", "content": prompt},
+        ],
+        extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+    )
+    return response.choices[0].message.content
+
 
 async def async_execute_api_call(api: API, input_dict: dict[str, str]):
     args = api.args
-    arg_name_list = [arg.arg_name for arg in args]
-    for input_arg_name in input_dict.keys():
-        if input_arg_name not in arg_name_list:
-            return {"result_type": ExecutionResultType.CALLFAIL, "stderr": f"Invalid argument: {input_arg_name}"}
+    # arg_name_list = [arg.arg_name for arg in args]
+    # for input_arg_name in input_dict.keys():
+    #     if input_arg_name not in arg_name_list:
+    #         return {"result_type": ExecutionResultType.CALLFAIL, "stderr": f"Invalid argument: {input_arg_name}"}
     code = to_executable_code(api, input_dict)
+    # code = await polish_code(code)
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
         f.write(code)
         f.flush()
         command = ["python", f.name]
+        ae = APICallExecution(
+            api_id=api.id,
+            library_name=api.library_name,
+            api_name=api.api_name,
+            code=code,
+            result_type=-1,
+            ret_code=-1,
+            stdout='',
+            stderr=''
+        )
+        create_apicall_execution(ae).unwrap()
         result = await async_safe_run(command)
+        ae.result_type = result["result_type"]
+        ae.ret_code = result["ret_code"]
+        ae.stdout = result["stdout"]
+        ae.stderr = result["stderr"]
+        update_apical_execution(ae).unwrap()
         return result
 
 

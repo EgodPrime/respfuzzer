@@ -1,5 +1,6 @@
+from contextlib import closing
 import json
-from typing import List
+from typing import Iterator, List, Optional
 from mplfuzz.db.base import get_db_cursor
 from mplfuzz.utils.result import Err, Ok, Result, resultify
 from mplfuzz.models import API
@@ -62,3 +63,20 @@ def get_apis(library_name: str | None) -> Result[List[API], Exception]:
                 args=json.loads(row[4]), 
                 ret_type=row[5]) for row in rows]
         return api_list
+
+def get_api_iter(library_name: Optional[str]) -> Iterator[API]:
+    if library_name:
+        filter = f"WHERE api_name LIKE '{library_name}.%'"
+    else:
+        filter = ""
+    with get_db_cursor() as cur:
+        cur.execute(f"SELECT * FROM api {filter}")
+        for row in cur:
+            yield API(
+                id=row[0],
+                api_name=row[1],
+                library_name=row[2],
+                source=row[3],
+                args=json.loads(row[4]),
+                ret_type=row[5]
+            )
