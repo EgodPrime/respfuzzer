@@ -70,8 +70,10 @@ def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], 
                 if sum([parentheses_stack, brackets_stack, braces_stack, dquote_stack, squote_stack])==0:
                     arg_str_list.append(compact_arg_list_str[s:i])
                     s = i + 1
-    # while "" in arg_str_list:
-    #     arg_str_list.remove("")
+    if s < len(compact_arg_list_str):
+        arg_str_list.append(compact_arg_list_str[s:])
+    while "" in arg_str_list:
+        arg_str_list.remove("")
     return arg_str_list
 
 
@@ -189,6 +191,7 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
         print(match_str)
         raise e
 
+    logger.debug(raw_args_str)
     args = _compactify_arg_list_str(raw_args_str).and_then(_split_compact_arg_list_str).and_then(_parse_arg_str_list)
 
     if args.is_ok:

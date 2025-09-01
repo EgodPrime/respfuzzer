@@ -4,7 +4,7 @@ from mplfuzz.db.apicall_solution_record_table import get_solution_by_api_id
 def generate_whole_table():
     table = {}
     for api in get_api_iter(None):
-        print(f"reading {api.library_name}-{api.api_name}...")
+        # print(f"reading {api.library_name}-{api.api_name}...")
         if not api.library_name in table:
             table[api.library_name] = {}
         if not api.api_name in table[api.library_name]:
