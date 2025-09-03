@@ -5,13 +5,13 @@ import openai
 
 from mplfuzz.models import API, ExecutionResultType
 
-base_url="http://192.168.2.29:8000"
+base_url="http://192.168.2.29:8000/v1"
 model_name="qwen3-32b-awq"
 
 client = openai.Client(api_key="x", base_url=base_url)
 
 class Attempter:
-    def generate(api: API, history: list) -> str:
+    def generate(self, api: API, history: list) -> str:
         """构造一个包含API中信息的prompt来驱使大模型生成可能正确的API调用，利用history中的信息增强prompt中的引导"""
         prompt = f"<function>\n{api.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`api`和`history`中的信息来为{api.api_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。你生成的代码应该用<code></code>包裹。"
         try:
@@ -37,7 +37,7 @@ class Attempter:
             raise Exception(f"生成函数调用时发生错误：{str(e)}")
         
 class QueitExecutor:
-    def execute(code: str) -> dict:
+    def execute(self, code: str) -> dict:
         ret_code = 0
         stdout = ""
         stderr = ""
@@ -83,7 +83,7 @@ class QueitExecutor:
             return result
 
 class Reasoner:
-    def explain(code:str, result: dict) -> str:
+    def explain(self, code:str, result: dict) -> str:
         prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。"""
         try:
             # 调用模型进行推理
@@ -117,15 +117,15 @@ def solve(api: API) -> Optional[str]:
     solved = False
     while True:
         code = attempter.generate(api, history)
-        history.append({"role":"attempter", "message": code})
+        history.append({"role":"attempter", "content": code})
         result = executor.execute(code)
         if result["result_type"] == ExecutionResultType.OK:
             solved = True
             break
         else:
             reason = reasoner.explain(code, result)
-            history.append({"role":"executor", "message": result["stderr"]})
-            history.append({"role":"reasoner", "message": reason})
+            history.append({"role":"executor", "content": result["stderr"]})
+            history.append({"role":"reasoner", "content": reason})
             budget -= 1
             if budget == 0:
                 break

@@ -24,7 +24,7 @@ def test_generate_success(mock_create):
     mock_create.return_value = mock_response
 
     history = []
-    result = Attempter.generate(mock_api, history)
+    result = Attempter().generate(mock_api, history)
 
     assert result == "print('hello')"
     assert len(history) == 1
@@ -39,7 +39,7 @@ def test_generate_missing_prefix(mock_create):
     mock_create.return_value = mock_response
 
     with pytest.raises(Exception, match="Prefix missing"):
-        Attempter.generate(mock_api, [])
+        Attempter().generate(mock_api, [])
 
 # 测试缺少 </code> 后缀的异常情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
@@ -49,7 +49,7 @@ def test_generate_missing_suffix(mock_create):
     mock_create.return_value = mock_response
 
     with pytest.raises(Exception, match="Suffix missing"):
-        Attempter.generate(mock_api, [])
+        Attempter().generate(mock_api, [])
 
 # 测试外部 API 抛出异常的情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
@@ -57,4 +57,4 @@ def test_generate_api_error(mock_create):
     mock_create.side_effect = Exception("API error")
 
     with pytest.raises(Exception, match="生成函数调用时发生错误：API error"):
-        Attempter.generate(mock_api, [])
+        Attempter().generate(mock_api, [])

@@ -13,7 +13,7 @@ def test_execute_success(mock_popen):
     mock_popen.return_value = mock_proc
 
     code = "print('hello')"
-    result = QueitExecutor.execute(code)
+    result = QueitExecutor().execute(code)
 
     assert result["result_type"] == ExecutionResultType.OK
     assert result["ret_code"] == 0
@@ -29,7 +29,7 @@ def test_execute_failure(mock_popen):
     mock_popen.return_value = mock_proc
 
     code = "raise Exception('error')"
-    result = QueitExecutor.execute(code)
+    result = QueitExecutor().execute(code)
 
     assert result["result_type"] == ExecutionResultType.ABNORMAL
     assert result["ret_code"] == 1
@@ -44,7 +44,7 @@ def test_execute_timeout(mock_popen):
     mock_popen.return_value = mock_proc
 
     code = "import time; time.sleep(100)"
-    result = QueitExecutor.execute(code)
+    result = QueitExecutor().execute(code)
 
     assert result["result_type"] == ExecutionResultType.TIMEOUT
     assert result["ret_code"] == 1  # 默认超时返回码
@@ -56,7 +56,7 @@ def test_execute_exception(mock_popen):
     mock_popen.side_effect = Exception("Execution error")
 
     code = "import sys; sys.exit(1)"
-    result = QueitExecutor.execute(code)
+    result = QueitExecutor().execute(code)
 
     assert result["result_type"] == ExecutionResultType.CALLFAIL
     assert "Execution error" in result["stderr"]
