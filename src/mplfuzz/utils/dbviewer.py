@@ -1,9 +1,10 @@
+import fire
 from mplfuzz.db.api_parse_record_table import get_api_iter
 from mplfuzz.db.apicall_solution_record_table import get_solution_by_api_id
 
-def generate_whole_table():
+def generate_whole_table(library_name=None):
     table = {}
-    for api in get_api_iter(None):
+    for api in get_api_iter(library_name):
         # print(f"reading {api.library_name}-{api.api_name}...")
         if not api.library_name in table:
             table[api.library_name] = {}
@@ -24,5 +25,8 @@ def generate_whole_table():
     
     print(res)
 
+def main():
+    fire.Fire(generate_whole_table)
+
 if __name__ == "__main__":
-    generate_whole_table()
+    main()

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools", "Cython"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mplfuzz"
 version = "0.1.0"
@@ -23,6 +27,8 @@ dev = [
 
 [tool.pytest.ini_options]
 
+addopts = "--cov=src --cov-report=html"
+
 # 改变用例的查找路径规则，当前目录的testcase文件夹
 testpaths = ["tests"]
 
@@ -47,11 +53,13 @@ profile = "black"
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 default = true
 
+
 [project.scripts]
 clear_solutions = "mplfuzz.utils.db:clear_solutions"
 clear_mutants = "mplfuzz.utils.db:clear_mutants"
 library_visitor = "mplfuzz.library_visitor:main"
 library_mcp_generator = "mplfuzz.library_mcp_generator:main"
 library_api_resolver = "mplfuzz.library_api_resolver:main"
+agentic_api_resolver = "mplfuzz.agentic_api_resolver:main"
 library_apicall_mutator = "mplfuzz.library_apicall_mutator:main"
 apicall_mutants_executor = "mplfuzz.apicall_mutants_executor:main"

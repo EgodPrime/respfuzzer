@@ -1,8 +1,13 @@
 import subprocess
 import tempfile
 from typing import Optional
+import fire
+from loguru import logger
 import openai
 
+from mplfuzz.db.api_parse_record_table import get_apis
+from mplfuzz.db.apicall_solution_record_table import create_solution
+from mplfuzz.mcp_api_resolver import Solution
 from mplfuzz.models import API, ExecutionResultType
 
 base_url="http://192.168.2.29:8000/v1"
@@ -13,7 +18,7 @@ client = openai.Client(api_key="x", base_url=base_url)
 class Attempter:
     def generate(self, api: API, history: list) -> str:
         """构造一个包含API中信息的prompt来驱使大模型生成可能正确的API调用，利用history中的信息增强prompt中的引导"""
-        prompt = f"<function>\n{api.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`api`和`history`中的信息来为{api.api_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。你生成的代码应该用<code></code>包裹。"
+        prompt = f"<function>\n{api.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`api`和`history`中的信息来为{api.api_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容"
         try:
             response = client.chat.completions.create(
                 model=model_name,
@@ -117,13 +122,16 @@ def solve(api: API) -> Optional[str]:
     solved = False
     while True:
         code = attempter.generate(api, history)
-        history.append({"role":"attempter", "content": code})
+        # logger.debug(f"code:\n{code}")
         result = executor.execute(code)
+        # logger.debug(f"result:\n{result}")
         if result["result_type"] == ExecutionResultType.OK:
             solved = True
             break
         else:
             reason = reasoner.explain(code, result)
+            logger.debug(f"reason:\n{reason}")
+            history.append({"role":"attempter", "content": code})
             history.append({"role":"executor", "content": result["stderr"]})
             history.append({"role":"reasoner", "content": reason})
             budget -= 1
@@ -134,7 +142,31 @@ def solve(api: API) -> Optional[str]:
     else:
         return None
 
+def _main(library_name: str):
+    apis = get_apis(library_name).unwrap()
+    for api in apis:
+        logger.info(f"Try solving {api.api_name} ...")
+        code = None
+        try:
+            code = solve(api)
+        except Exception:
+            pass
+        if code:
+            solution = Solution(
+                api_id=api.id,
+                library_name=api.library_name,
+                api_name=api.api_name,
+                args=api.args,
+                arg_exprs=[],
+                apicall_expr=code
+            )
+            create_solution(solution).unwrap()
+            logger.info(f"Solution find for {api.api_name}:\n{code}")
+        else:
+            logger.info(f"Failed to solve {api.api_name}")
 
+def main():
+    fire.Fire(_main)
 
-
-
+if __name__ == '__main__':
+    main()

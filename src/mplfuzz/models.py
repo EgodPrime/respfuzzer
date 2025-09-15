@@ -59,6 +59,8 @@ class Solution(BaseModel):
 
     @model_validator(mode="after")
     def generate_attributes(self):
+        if self.apicall_expr:
+            return self
         # 构建一个从 name -> expr 的映射
         expr_map = {expr.name: expr.expr for expr in self.arg_exprs}
         # 构建参数表达式
