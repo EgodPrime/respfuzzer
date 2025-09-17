@@ -1,19 +1,19 @@
-import pytest
 from unittest import mock
-from mplfuzz.agentic_api_resolver import Reasoner, API, ExecutionResultType
+
+import pytest
+
+from mplfuzz.agentic_api_resolver import API, ExecutionResultType, Reasoner
+
 
 # 模拟 API 对象
 class MockAPI(API):
     def __init__(self):
-        super().__init__(
-            api_name="example_api",
-            source="mock",
-            args=[],
-            ret_type="str"
-        )
+        super().__init__(api_name="example_api", source="mock", args=[], ret_type="str")
+
 
 # 创建测试用 API 实例
 mock_api = MockAPI()
+
 
 # 测试正常生成解释的情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
@@ -29,6 +29,7 @@ def test_explain_success(mock_create):
 
     assert explanation == "代码缺少必要的参数"
 
+
 # 测试缺少 <explain> 前缀的异常情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
 def test_explain_missing_prefix(mock_create):
@@ -42,6 +43,7 @@ def test_explain_missing_prefix(mock_create):
     with pytest.raises(Exception, match="Prefix missing"):
         Reasoner().explain(code, result)
 
+
 # 测试缺少 </explain> 后缀的异常情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
 def test_explain_missing_suffix(mock_create):
@@ -54,6 +56,7 @@ def test_explain_missing_suffix(mock_create):
 
     with pytest.raises(Exception, match="Suffix missing"):
         Reasoner().explain(code, result)
+
 
 # 测试外部 API 抛出异常的情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")

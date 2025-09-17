@@ -1,13 +1,17 @@
-import subprocess
 import asyncio
 import enum
+import subprocess
 import tempfile
 from typing import List
 
-from mplfuzz.models import API, PosType, APICallExecution
-from mplfuzz.utils.config import get_config
-from mplfuzz.db.apicall_execution_record_table import create_apicall_execution, update_apical_execution
 from openai import AsyncOpenAI
+
+from mplfuzz.db.apicall_execution_record_table import (
+    create_apicall_execution,
+    update_apical_execution,
+)
+from mplfuzz.models import API, APICallExecution, PosType
+from mplfuzz.utils.config import get_config
 
 
 class ExecutionResultType(enum.IntEnum):
@@ -139,7 +143,8 @@ async def async_safe_run(command: List[str]):
         "stderr": stderr,
     }
 
-async def polish_code(ori_code:str) -> str:
+
+async def polish_code(ori_code: str) -> str:
     prompt = f"你是一个代码审计员，你会检查下述代码是否缺少适当的的import， 如果是的话你会对代码进行补全，否则你不做任何修改。你仅输出补全后的代码，不要输出```!\n{ori_code}"
     model_config = get_config("model_config").unwrap()
     model_name = model_config.get("model_name")
@@ -152,7 +157,7 @@ async def polish_code(ori_code:str) -> str:
         messages=[
             {"role": "user", "content": prompt},
         ],
-        extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+        extra_body={"chat_template_kwargs": {"enable_thinking": False}},
     )
     return response.choices[0].message.content
 
@@ -177,8 +182,8 @@ async def async_execute_api_call(api: API, input_dict: dict[str, str]):
             code=code,
             result_type=-1,
             ret_code=-1,
-            stdout='',
-            stderr=''
+            stdout="",
+            stderr="",
         )
         create_apicall_execution(ae).unwrap()
         result = await async_safe_run(command)

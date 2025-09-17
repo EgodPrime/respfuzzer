@@ -1,9 +1,10 @@
-from pathlib import Path
-import sqlite3
 import csv
 import json
-import re
 import os
+import re
+import sqlite3
+from pathlib import Path
+
 from mplfuzz.utils.paths import RUNDATA_DIR
 
 DB_PATH = RUNDATA_DIR / "mplfuzz.db"
@@ -14,43 +15,86 @@ OUTPUT_JSON = RUNDATA_DIR / "filtered_vulns.json"
 # 多维度崩溃关键词分类
 CRASH_KEYWORDS = {
     "kernel": [
-        "kernel panic", "oops", "system halted", "kernel BUG",
-        "systrap", "soft lockup", "hard lockup", "nmi watchdog",
-        "stack corruption", "slab corruption", "memory corruption"
+        "kernel panic",
+        "oops",
+        "system halted",
+        "kernel BUG",
+        "systrap",
+        "soft lockup",
+        "hard lockup",
+        "nmi watchdog",
+        "stack corruption",
+        "slab corruption",
+        "memory corruption",
     ],
     "memory": [
-        "segfault", "segmentation fault", "core dumped",
-        "bus error", "illegal instruction", "stack overflow",
-        "out of memory", "oom killer", "memory allocation failed",
-        "memory error", "malloc failed", "virtual memory exhausted"
+        "segfault",
+        "segmentation fault",
+        "core dumped",
+        "bus error",
+        "illegal instruction",
+        "stack overflow",
+        "out of memory",
+        "oom killer",
+        "memory allocation failed",
+        "memory error",
+        "malloc failed",
+        "virtual memory exhausted",
     ],
     "process": [
-        "aborted", "killed", "terminated", "exit code",
-        "failed with result", "service crashed", "process died",
-        "signal 11", "signal 6", "child process exited"
+        "aborted",
+        "killed",
+        "terminated",
+        "exit code",
+        "failed with result",
+        "service crashed",
+        "process died",
+        "signal 11",
+        "signal 6",
+        "child process exited",
     ],
     "hardware": [
-        "hardware error", "mce", "machine check exception",
-        "thermal event", "cpu temperature", "i/o error",
-        "disk failure", "sector error", "memory scrubbing",
-        "ecc error", "corrected error", "uncorrectable error"
+        "hardware error",
+        "mce",
+        "machine check exception",
+        "thermal event",
+        "cpu temperature",
+        "i/o error",
+        "disk failure",
+        "sector error",
+        "memory scrubbing",
+        "ecc error",
+        "corrected error",
+        "uncorrectable error",
     ],
     "hang": [
-        "hang", "unresponsive", "not responding", "freeze",
-        "timeout", "stuck", "blocked", "hung task",
-        "deadlock detected", "lockup"
+        "hang",
+        "unresponsive",
+        "not responding",
+        "freeze",
+        "timeout",
+        "stuck",
+        "blocked",
+        "hung task",
+        "deadlock detected",
+        "lockup",
     ],
     "generic": [
-        "crash", "crashed", "critical error", "fatal error",
-        "unrecoverable error", "system error", "abnormal termination"
-    ]
+        "crash",
+        "crashed",
+        "critical error",
+        "fatal error",
+        "unrecoverable error",
+        "system error",
+        "abnormal termination",
+    ],
 }
 
 EXCLUDED_PATTERNS = [
     re.compile(r"ValueError: .*", re.IGNORECASE),
     re.compile(r"KeyError", re.IGNORECASE),
     re.compile(r"TypeError: .*", re.IGNORECASE),
-    re.compile(r"AttributeError: .* has no attribute .*", re.IGNORECASE),  
+    re.compile(r"AttributeError: .* has no attribute .*", re.IGNORECASE),
     re.compile(r"AssertionError", re.IGNORECASE),
     re.compile(r"SyntaxError", re.IGNORECASE),
     re.compile(r"Traceback \(most recent call last\):.*pandas", re.DOTALL),
@@ -63,12 +107,14 @@ EXCLUDED_PATTERNS = [
     re.compile(r"got an unexpected keyword argument.*", re.IGNORECASE),
 ]
 
+
 def contains_crash_keyword(stderr: str) -> bool:
     stderr_lower = stderr.lower()
     for keyword_list in CRASH_KEYWORDS.values():
         if any(kw in stderr_lower for kw in keyword_list):
             return True
     return False
+
 
 def is_potential_vuln(stderr: str) -> bool:
     if not stderr:
@@ -78,6 +124,7 @@ def is_potential_vuln(stderr: str) -> bool:
     if any(p.search(stderr) for p in EXCLUDED_PATTERNS):
         return False
     return True
+
 
 def filter_vulnerabilities(batch_size=1000):
     if not os.path.isfile(DB_PATH):
@@ -103,16 +150,18 @@ def filter_vulnerabilities(batch_size=1000):
             for row in rows:
                 stderr = row[7] or ""
                 if is_potential_vuln(stderr):
-                    filtered_results.append({
-                        "id": row[0],
-                        "mutant_id": row[1],
-                        "library_name": row[2],
-                        "api_name": row[3],
-                        "result_type": row[4],
-                        "ret_code": row[5],
-                        "stdout": row[6],
-                        "stderr": stderr,
-                    })
+                    filtered_results.append(
+                        {
+                            "id": row[0],
+                            "mutant_id": row[1],
+                            "library_name": row[2],
+                            "api_name": row[3],
+                            "result_type": row[4],
+                            "ret_code": row[5],
+                            "stdout": row[6],
+                            "stderr": stderr,
+                        }
+                    )
 
             offset += batch_size
     except Exception as e:
@@ -127,7 +176,7 @@ def filter_vulnerabilities(batch_size=1000):
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
 
     try:
-        with open(OUTPUT_CSV, "w", encoding="utf-8", newline='') as f_csv:
+        with open(OUTPUT_CSV, "w", encoding="utf-8", newline="") as f_csv:
             writer = csv.DictWriter(f_csv, fieldnames=filtered_results[0].keys())
             writer.writeheader()
             writer.writerows(filtered_results)
@@ -141,6 +190,7 @@ def filter_vulnerabilities(batch_size=1000):
         print(f"筛选结果已导出到 JSON 文件: {OUTPUT_JSON}")
     except Exception as e:
         print(f"导出 JSON 出错: {e}")
+
 
 if __name__ == "__main__":
     filter_vulnerabilities()

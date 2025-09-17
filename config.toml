@@ -7,6 +7,11 @@ model_name = "qwen3-32b-awq"
 db_name = "mplfuzz3"
 table_name = "mplfuzz"
 
+[redis]
+host = "127.0.0.1"
+port = 6379
+db = 0
+
 [mcp_api_resolver]
 max_failure = 10
 # history_length_limit + output_length_limit <= context_length
@@ -18,4 +23,4 @@ batch_size = 10
 
 [fuzz]
 execution_timeout = 5.0
-mutants_per_seed = 100
+mutants_per_seed = 1000000

@@ -1,7 +1,10 @@
 import subprocess
-import pytest
 from unittest import mock
-from mplfuzz.agentic_api_resolver import QueitExecutor, ExecutionResultType
+
+import pytest
+
+from mplfuzz.agentic_api_resolver import ExecutionResultType, QueitExecutor
+
 
 # 测试正常执行成功的情况
 @mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
@@ -20,6 +23,7 @@ def test_execute_success(mock_popen):
     assert result["stdout"] == "stdout"
     assert result["stderr"] == "stderr"
 
+
 # 测试执行失败（非零退出码）
 @mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
 def test_execute_failure(mock_popen):
@@ -36,6 +40,7 @@ def test_execute_failure(mock_popen):
     assert result["stdout"] == ""
     assert result["stderr"] == "Error message"
 
+
 # 测试执行超时
 @mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
 def test_execute_timeout(mock_popen):
@@ -49,6 +54,7 @@ def test_execute_timeout(mock_popen):
     assert result["result_type"] == ExecutionResultType.TIMEOUT
     assert result["ret_code"] == 1  # 默认超时返回码
     assert "after 10 seconds" in result["stderr"]
+
 
 # 测试执行时抛出异常
 @mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")

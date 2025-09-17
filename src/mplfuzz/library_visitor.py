@@ -9,9 +9,9 @@ from typing import Dict, Iterator, List, Optional, Set
 import fire
 from loguru import logger
 
-from mplfuzz.models import API, Argument, PosType
-from mplfuzz.utils.result import Ok, Err, Result, resultify
 from mplfuzz.db.api_parse_record_table import create_api
+from mplfuzz.models import API, Argument, PosType
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 logger.level("INFO")
 
@@ -67,7 +67,7 @@ def _split_compact_arg_list_str(compact_arg_list_str: str) -> Result[List[str], 
             case "'":
                 squote_stack = 1 - squote_stack
             case ",":
-                if sum([parentheses_stack, brackets_stack, braces_stack, dquote_stack, squote_stack])==0:
+                if sum([parentheses_stack, brackets_stack, braces_stack, dquote_stack, squote_stack]) == 0:
                     arg_str_list.append(compact_arg_list_str[s:i])
                     s = i + 1
     if s < len(compact_arg_list_str):
@@ -180,10 +180,10 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
     \4
     )?
 """
-    re_flags = re.DOTALL|re.VERBOSE
+    re_flags = re.DOTALL | re.VERBOSE
     match = re.search(match_str, source, re_flags)
     try:
-        _name, raw_args_str, ret_type_str, _ , docstring = match.groups()
+        _name, raw_args_str, ret_type_str, _, docstring = match.groups()
         ret_type_str = "unknown" if ret_type_str is None else ret_type_str
         logger.debug(f"Parsing function {_name}({name})")
     except Exception as e:
@@ -256,8 +256,7 @@ class LibraryVisitor:
 
         # 使用正则表达式匹配函数定义
         function_def_pattern = re.compile(
-            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\((.*?)\)\s*(?:->\s*([^:]+))?:\s*...",
-            re.DOTALL
+            r"def\s+([a-zA-Z][a-zA-Z0-9_]*)\s*\((.*?)\)\s*(?:->\s*([^:]+))?:\s*...", re.DOTALL
         )
         matches = function_def_pattern.finditer(content)
 

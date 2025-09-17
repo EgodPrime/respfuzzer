@@ -7,10 +7,10 @@ from mcp import ClientSession
 from mcp.types import CallToolResult, TextContent
 from openai import AsyncOpenAI
 
+from mplfuzz.api_call_executor import ExecutionResultType, async_execute_api_call
 from mplfuzz.models import API, ArgumentExpr, Solution
 from mplfuzz.utils.config import get_config
 from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.api_call_executor import async_execute_api_call, ExecutionResultType
 
 
 class MCPAPIResolver:
@@ -38,7 +38,7 @@ class MCPAPIResolver:
             return Err(f"Model {self.model_name} not found. Available models: {model_names}")
 
         return Ok()
-    
+
     async def solve_api(self, api: API, mcp_session: ClientSession) -> Result[list[Solution], str]:
         if not self.openai_client:
             return Err("OpenAI client not initialized. Call setup_llm first.")
@@ -90,10 +90,7 @@ class MCPAPIResolver:
             # logger.debug(f"Query llm for {api.name}")
             try:
                 completion = await self.openai_client.chat.completions.create(
-                    messages=history,
-                    model=self.model_name,
-                    tools=tools,
-                    max_completion_tokens=output_length_limit
+                    messages=history, model=self.model_name, tools=tools, max_completion_tokens=output_length_limit
                 )
             except Exception as e:
                 return Err(f"Error occurred while creating completion: {e}")
@@ -127,12 +124,13 @@ class MCPAPIResolver:
                         api_exprs = [ArgumentExpr(name=k, expr=str(v)) for k, v in tool_args.items()]
                         try:
                             solutions.append(
-                                Solution(api_id=api.id,
-                                        library_name=api.library_name,
-                                        api_name=api.api_name, 
-                                        args=api.args,
-                                        arg_exprs=api_exprs
-                                        )
+                                Solution(
+                                    api_id=api.id,
+                                    library_name=api.library_name,
+                                    api_name=api.api_name,
+                                    args=api.args,
+                                    arg_exprs=api_exprs,
+                                )
                             )
                         except Exception as e:
                             logger.error(f"Error while generating solution: {e}")

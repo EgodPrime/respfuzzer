@@ -5,12 +5,15 @@ import fire
 from loguru import logger
 from mcp import ClientSession, StdioServerParameters, stdio_client
 
+from mplfuzz.db.api_parse_record_table import get_apis
+from mplfuzz.db.apicall_solution_record_table import (
+    create_solutions,
+    get_solution_by_api_id,
+)
+from mplfuzz.db.mcpcode_generation_record_table import get_mcpcode_by_api_id
 from mplfuzz.mcp_api_resolver import MCPAPIResolver
 from mplfuzz.models import API
 from mplfuzz.utils.config import get_config
-from mplfuzz.db.api_parse_record_table import get_apis
-from mplfuzz.db.mcpcode_generation_record_table import get_mcpcode_by_api_id
-from mplfuzz.db.apicall_solution_record_table import create_solutions, get_solution_by_api_id
 from mplfuzz.utils.result import Err, Ok, Result
 
 
@@ -38,10 +41,10 @@ class LibraryAPIResolver:
             if solution:
                 continue
             tasks.append(self.solve_one(api, sem))
-        
+
         await asyncio.gather(*tasks, return_exceptions=True)
         return Ok()
-    
+
     async def solve_one(self, api: API, sem: asyncio.Semaphore) -> None:
         async with sem:
             mcp_path = self.mcp_dir.joinpath(f"{api.api_name.replace('.', '___')}.py")
@@ -68,7 +71,6 @@ class LibraryAPIResolver:
                 logger.warning(f"Failed to save solutions for API {api.api_name}: {result.error}")
                 return
             logger.info(f"Saved solutions for API {api.api_name}")
-            
 
 
 async def async_main(library_name: str, mcp_dir: str):

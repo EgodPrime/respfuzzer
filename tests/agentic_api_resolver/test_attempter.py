@@ -1,19 +1,19 @@
-import pytest
 from unittest import mock
-from mplfuzz.agentic_api_resolver import Attempter, API
+
+import pytest
+
+from mplfuzz.agentic_api_resolver import API, Attempter
+
 
 # 模拟 API 对象
 class MockAPI(API):
     def __init__(self):
-        super().__init__(
-            api_name="example_api",
-            source="mock",
-            args=[],
-            ret_type="str"
-        )
+        super().__init__(api_name="example_api", source="mock", args=[], ret_type="str")
+
 
 # 创建测试用 API 实例
 mock_api = MockAPI()
+
 
 # 测试正常生成代码的情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
@@ -31,6 +31,7 @@ def test_generate_success(mock_create):
     assert history[0]["role"] == "attempter"
     assert "<code>print('hello')</code>" in history[0]["content"]
 
+
 # 测试缺少 <code> 前缀的异常情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
 def test_generate_missing_prefix(mock_create):
@@ -41,6 +42,7 @@ def test_generate_missing_prefix(mock_create):
     with pytest.raises(Exception, match="Prefix missing"):
         Attempter().generate(mock_api, [])
 
+
 # 测试缺少 </code> 后缀的异常情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")
 def test_generate_missing_suffix(mock_create):
@@ -50,6 +52,7 @@ def test_generate_missing_suffix(mock_create):
 
     with pytest.raises(Exception, match="Suffix missing"):
         Attempter().generate(mock_api, [])
+
 
 # 测试外部 API 抛出异常的情况
 @mock.patch("mplfuzz.agentic_api_resolver.client.chat.completions.create")

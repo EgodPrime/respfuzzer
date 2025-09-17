@@ -1,5 +1,7 @@
-from mplfuzz.db.api_parse_record_table import get_db_cursor
 import fire
+
+from mplfuzz.db.api_parse_record_table import get_db_cursor
+
 
 def fun(library_name: str):
     with get_db_cursor() as cur:
@@ -22,8 +24,10 @@ def fun(library_name: str):
         cur.execute(sql, (library_name,))
         cur.connection.commit()
 
+
 def main():
     fire.Fire(fun)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

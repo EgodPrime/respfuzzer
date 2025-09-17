@@ -1,8 +1,8 @@
 from typing import List, Optional
-from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.models import Mutant
 
+from mplfuzz.db.base import get_db_cursor
+from mplfuzz.models import Mutant
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 # 创建表
 with get_db_cursor() as cur:
@@ -39,9 +39,7 @@ def create_mutant(mutant: Mutant) -> Result[None, Exception]:
 @resultify
 def get_mutant(mutant_id: str) -> Result[Mutant | None, Exception]:
     with get_db_cursor() as cur:
-        cur.execute(
-            "SELECT * FROM mutant WHERE mutant_id = ?", (mutant_id,)
-        )
+        cur.execute("SELECT * FROM mutant WHERE mutant_id = ?", (mutant_id,))
         row = cur.fetchone()
         if row:
             return Mutant(
@@ -60,9 +58,7 @@ def get_mutant(mutant_id: str) -> Result[Mutant | None, Exception]:
 def get_mutants(library_name: Optional[str] = None) -> Result[List[Mutant], Exception]:
     with get_db_cursor() as cur:
         if library_name:
-            cur.execute(
-                "SELECT * FROM mutant WHERE library_name = ?", (library_name,)
-            )
+            cur.execute("SELECT * FROM mutant WHERE library_name = ?", (library_name,))
         else:
             cur.execute("SELECT * FROM mutant")
         rows = cur.fetchall()
@@ -78,6 +74,7 @@ def get_mutants(library_name: Optional[str] = None) -> Result[List[Mutant], Exce
             for row in rows
         ]
     return Ok(mutants)
+
 
 @resultify
 def get_mutants_unexecuted(library_name: Optional[str] = None) -> Result[List[Mutant], Exception]:

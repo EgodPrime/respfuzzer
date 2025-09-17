@@ -1,9 +1,9 @@
 import json
-from typing import List, Optional
-from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.models import Solution, Argument, ArgumentExpr
+from typing import Iterator, List, Optional
 
+from mplfuzz.db.base import get_db_cursor
+from mplfuzz.models import Argument, ArgumentExpr, Solution
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 # 创建数据库表
 with get_db_cursor() as cur:
@@ -52,10 +52,12 @@ def create_solution(solution: Solution) -> Result[int, Exception]:
         solution_id = cur.lastrowid
         return Ok(solution_id)
 
+
 @resultify
 def create_solutions(solutions: list[Solution]) -> Result[list[int], Exception]:
     res = [create_solution(solution).unwrap() for solution in solutions]
     return res
+
 
 @resultify
 def get_solution(solution_id: int) -> Result[Optional[Solution], Exception]:
@@ -83,6 +85,7 @@ def get_solution(solution_id: int) -> Result[Optional[Solution], Exception]:
         )
         return Ok(solution)
 
+
 @resultify
 def get_solution_by_api_id(api_id: int) -> Result[Optional[Solution], Exception]:
     with get_db_cursor() as cur:
@@ -103,8 +106,11 @@ def get_solution_by_api_id(api_id: int) -> Result[Optional[Solution], Exception]
         )
         return Ok(solution)
 
+
 @resultify
-def get_solutions(library_name: Optional[str] = None, api_name: Optional[str] = None) -> Result[List[Solution], Exception]:
+def get_solutions(
+    library_name: Optional[str] = None, api_name: Optional[str] = None
+) -> Result[List[Solution], Exception]:
     """
     获取多个 Solution，支持按 library_name 和 api_name 过滤。
     """
@@ -142,3 +148,41 @@ def get_solutions(library_name: Optional[str] = None, api_name: Optional[str] = 
             solutions.append(solution)
 
         return Ok(solutions)
+
+
+def get_solutions_iter(library_name: Optional[str] = None, api_name: Optional[str] = None) -> Iterator[Solution]:
+    """
+    获取多个 Solution 的迭代器，支持按 library_name 和 api_name 过滤。
+    """
+    filter_conditions = []
+    params = []
+
+    if library_name:
+        filter_conditions.append("library_name = ?")
+        params.append(library_name)
+
+    if api_name:
+        filter_conditions.append("api_name = ?")
+        params.append(api_name)
+
+    where_clause = "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
+
+    with get_db_cursor() as cur:
+        cur.execute(f"SELECT * FROM solution {where_clause}", tuple(params))
+        while True:
+            row = cur.fetchone()
+            if not row:
+                break
+            args = [Argument(**arg) for arg in json.loads(row[4])]
+            arg_exprs = [ArgumentExpr(**expr) for expr in json.loads(row[5])]
+
+            solution = Solution(
+                id=row[0],
+                api_id=row[1],
+                library_name=row[2],
+                api_name=row[3],
+                args=args,
+                arg_exprs=arg_exprs,
+                apicall_expr=row[6],
+            )
+            yield solution

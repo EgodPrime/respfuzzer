@@ -1,19 +1,21 @@
 import subprocess
 import tempfile
 from typing import Optional
+
 import fire
-from loguru import logger
 import openai
+from loguru import logger
 
 from mplfuzz.db.api_parse_record_table import get_apis
 from mplfuzz.db.apicall_solution_record_table import create_solution
 from mplfuzz.mcp_api_resolver import Solution
 from mplfuzz.models import API, ExecutionResultType
 
-base_url="http://192.168.2.29:8000/v1"
-model_name="qwen3-32b-awq"
+base_url = "http://192.168.2.29:8000/v1"
+model_name = "qwen3-32b-awq"
 
 client = openai.Client(api_key="x", base_url=base_url)
+
 
 class Attempter:
     def generate(self, api: API, history: list) -> str:
@@ -23,24 +25,28 @@ class Attempter:
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[
-                    {"role": "system", "content": "你是一个代码生成助手，你的名字是attempter，擅长根据用户提供的信息信息生成函数调用。"},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "你是一个代码生成助手，你的名字是attempter，擅长根据用户提供的信息信息生成函数调用。",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=500,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
             code = response.choices[0].message.content.strip()
             if not code.startswith("<code>"):
                 raise Exception("Prefix missing")
             if not code.endswith("</code>"):
                 raise Exception("Suffix missing")
-            
-            history.append({"role":"attempter", "content": code})
+
+            history.append({"role": "attempter", "content": code})
 
             return code.split("<code>")[1].split("</code>")[0]
         except Exception as e:
             raise Exception(f"生成函数调用时发生错误：{str(e)}")
-        
+
+
 class QueitExecutor:
     def execute(self, code: str) -> dict:
         ret_code = 0
@@ -87,8 +93,9 @@ class QueitExecutor:
                 }
             return result
 
+
 class Reasoner:
-    def explain(self, code:str, result: dict) -> str:
+    def explain(self, code: str, result: dict) -> str:
         prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。"""
         try:
             # 调用模型进行推理
@@ -96,10 +103,10 @@ class Reasoner:
                 model=model_name,
                 messages=[
                     {"role": "system", "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。"},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 max_tokens=500,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             )
             # 提取模型返回的文本
             explanation = response.choices[0].message.content.strip()
@@ -111,6 +118,7 @@ class Reasoner:
             return explanation.split("<explain>")[1].split("</explain>")[0]
         except Exception as e:
             raise Exception(f"解释执行结果时发生错误：{str(e)}")
+
 
 def solve(api: API) -> Optional[str]:
     attempter = Attempter()
@@ -131,9 +139,9 @@ def solve(api: API) -> Optional[str]:
         else:
             reason = reasoner.explain(code, result)
             logger.debug(f"reason:\n{reason}")
-            history.append({"role":"attempter", "content": code})
-            history.append({"role":"executor", "content": result["stderr"]})
-            history.append({"role":"reasoner", "content": reason})
+            history.append({"role": "attempter", "content": code})
+            history.append({"role": "executor", "content": result["stderr"]})
+            history.append({"role": "reasoner", "content": reason})
             budget -= 1
             if budget == 0:
                 break
@@ -141,6 +149,7 @@ def solve(api: API) -> Optional[str]:
         return code
     else:
         return None
+
 
 def _main(library_name: str):
     apis = get_apis(library_name).unwrap()
@@ -158,15 +167,17 @@ def _main(library_name: str):
                 api_name=api.api_name,
                 args=api.args,
                 arg_exprs=[],
-                apicall_expr=code
+                apicall_expr=code,
             )
             create_solution(solution).unwrap()
             logger.info(f"Solution find for {api.api_name}:\n{code}")
         else:
             logger.info(f"Failed to solve {api.api_name}")
 
+
 def main():
     fire.Fire(_main)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

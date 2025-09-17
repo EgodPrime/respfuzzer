@@ -1,9 +1,8 @@
-from typing import Optional, List
+from typing import List, Optional
 
 from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
 from mplfuzz.models import MCPCode
-
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 # Create the table if it doesn't exist
 with get_db_cursor() as cur:
@@ -57,6 +56,7 @@ def get_mcpcode(api_name: str) -> Result[Optional[MCPCode], Exception]:
         else:
             return Ok(None)
 
+
 @resultify
 def get_mcpcode_by_api_id(api_id: int) -> Result[Optional[MCPCode], Exception]:
     with get_db_cursor() as cur:
@@ -83,9 +83,7 @@ def get_mcpcodes(library_name: Optional[str] = None) -> Result[List[MCPCode], Ex
     """
     with get_db_cursor() as cur:
         if library_name:
-            cur.execute(
-                "SELECT * FROM mcpcode WHERE library_name = ?", (library_name,)
-            )
+            cur.execute("SELECT * FROM mcpcode WHERE library_name = ?", (library_name,))
         else:
             cur.execute("SELECT * FROM mcpcode")
         rows = cur.fetchall()

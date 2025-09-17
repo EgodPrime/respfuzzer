@@ -15,8 +15,8 @@ class Argument(BaseModel):
 
 
 class API(BaseModel):
-    id: int|None = None
-    library_name: str|None = None
+    id: int | None = None
+    library_name: str | None = None
     api_name: str
     source: str
     args: list[Argument]
@@ -27,7 +27,7 @@ class API(BaseModel):
 
     def __str__(self):
         return self.__repr__()
-    
+
     @model_validator(mode="after")
     def generate_attributes(self):
         if not self.library_name:
@@ -36,7 +36,7 @@ class API(BaseModel):
 
 
 class MCPCode(BaseModel):
-    id: int|None = None
+    id: int | None = None
     api_id: int
     library_name: str
     api_name: str
@@ -49,7 +49,7 @@ class ArgumentExpr(BaseModel):
 
 
 class Solution(BaseModel):
-    id: int|None = None
+    id: int | None = None
     api_id: int
     library_name: str
     api_name: str
@@ -77,7 +77,7 @@ class Solution(BaseModel):
 
 
 class Mutant(BaseModel):
-    id: int|None = None
+    id: int | None = None
     solution_id: int
     library_name: str
     api_name: str
@@ -93,7 +93,7 @@ class ExecutionResultType(IntEnum):
 
 
 class MutantExecution(BaseModel):
-    id: int|None = None
+    id: int | None = None
     mutant_id: int
     library_name: str
     api_name: str
@@ -102,8 +102,9 @@ class MutantExecution(BaseModel):
     stdout: str
     stderr: str
 
+
 class APICallExecution(BaseModel):
-    id: int|None = None
+    id: int | None = None
     api_id: int
     library_name: str
     api_name: str

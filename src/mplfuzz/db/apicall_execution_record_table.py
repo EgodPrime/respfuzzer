@@ -1,8 +1,9 @@
 import json
 from typing import List, Optional
+
 from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
 from mplfuzz.models import APICallExecution
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 with get_db_cursor() as cur:
     cur.execute(
@@ -18,6 +19,7 @@ with get_db_cursor() as cur:
             stderr TEXT
         )"""
     )
+
 
 @resultify
 def create_apicall_execution(apicall_execution: APICallExecution) -> Result[None, Exception]:
@@ -61,12 +63,11 @@ def update_apical_execution(apicall_execution: APICallExecution) -> Result[None,
         )
     return Ok(None)
 
+
 @resultify
 def get_apicall_execution(execution_id: int) -> Result[APICallExecution | None, Exception]:
     with get_db_cursor() as cur:
-        cur.execute(
-            "SELECT * FROM apicall_execution WHERE id = ?", (execution_id,)
-        )
+        cur.execute("SELECT * FROM apicall_execution WHERE id = ?", (execution_id,))
         row = cur.fetchone()
         if row:
             return APICallExecution(
@@ -88,9 +89,7 @@ def get_apicall_execution(execution_id: int) -> Result[APICallExecution | None, 
 def get_apicall_executions(api_id: Optional[int] = None) -> Result[List[APICallExecution], Exception]:
     with get_db_cursor() as cur:
         if api_id is not None:
-            cur.execute(
-                "SELECT * FROM apicall_execution WHERE api_id = ?", (api_id,)
-            )
+            cur.execute("SELECT * FROM apicall_execution WHERE api_id = ?", (api_id,))
         else:
             cur.execute("SELECT * FROM apicall_execution")
         rows = cur.fetchall()

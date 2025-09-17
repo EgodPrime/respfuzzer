@@ -4,10 +4,13 @@ from typing import Optional
 import fire
 from loguru import logger
 
+from mplfuzz.db.api_parse_record_table import get_apis
+from mplfuzz.db.mcpcode_generation_record_table import (
+    create_mcpcode,
+    get_mcpcode_by_api_id,
+)
 from mplfuzz.models import API, MCPCode, PosType
 from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.db.api_parse_record_table import get_apis
-from mplfuzz.db.mcpcode_generation_record_table import create_mcpcode, get_mcpcode_by_api_id
 
 
 def clean_arg_name(arg_name: str) -> str:
@@ -15,10 +18,12 @@ def clean_arg_name(arg_name: str) -> str:
         return arg_name.replace("*", "")
     return arg_name
 
-def indent(content:str, level: int=2) -> str:
+
+def indent(content: str, level: int = 2) -> str:
     return "\n".join(" " * level + line for line in content.split("\n"))
 
-def to_mcpcode_v2(api:API) -> str:
+
+def to_mcpcode_v2(api: API) -> str:
     code = f"""
 from mcp.server.fastmcp import FastMCP
 
@@ -79,14 +84,7 @@ def _main(library_name: str, force_update: bool = False):
         if r:
             continue
         mcpcode = to_mcpcode(api)
-        res = create_mcpcode(
-            MCPCode(
-                api_id=api.id,
-                api_name=api.api_name,
-                library_name=library_name,
-                mcpcode=mcpcode
-            )
-        )
+        res = create_mcpcode(MCPCode(api_id=api.id, api_name=api.api_name, library_name=library_name, mcpcode=mcpcode))
         if res.is_ok:
             oks += 1
             logger.debug(f"Generated MCP code for {api.api_name} successfully.")

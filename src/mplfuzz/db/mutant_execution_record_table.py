@@ -1,8 +1,8 @@
 from typing import List, Optional
-from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.models import MutantExecution
 
+from mplfuzz.db.base import get_db_cursor
+from mplfuzz.models import MutantExecution
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 # 创建表
 with get_db_cursor() as cur:
@@ -43,9 +43,7 @@ def create_mutant_execution(mutant_execution: MutantExecution) -> Result[None, E
 @resultify
 def get_mutant_execution(execution_id: int) -> Result[MutantExecution | None, Exception]:
     with get_db_cursor() as cur:
-        cur.execute(
-            "SELECT * FROM mutant_execution WHERE id = ?", (execution_id,)
-        )
+        cur.execute("SELECT * FROM mutant_execution WHERE id = ?", (execution_id,))
         row = cur.fetchone()
         if row:
             return MutantExecution(
@@ -65,9 +63,7 @@ def get_mutant_execution(execution_id: int) -> Result[MutantExecution | None, Ex
 def get_mutant_executions(mutant_id: Optional[int] = None) -> Result[List[MutantExecution], Exception]:
     with get_db_cursor() as cur:
         if mutant_id is not None:
-            cur.execute(
-                "SELECT * FROM mutant_execution WHERE mutant_id = ?", (mutant_id,)
-            )
+            cur.execute("SELECT * FROM mutant_execution WHERE mutant_id = ?", (mutant_id,))
         else:
             cur.execute("SELECT * FROM mutant_execution")
         rows = cur.fetchall()

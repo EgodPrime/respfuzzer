@@ -8,26 +8,24 @@ import os
 import sys
 import time
 import traceback
-from loguru import logger
-from pathlib import Path
 from collections import defaultdict
 from multiprocessing import Manager, Pipe, Process, Queue
 from multiprocessing.connection import Connection
+from pathlib import Path
+
 import dcov
-
 from colorama import Fore
-
+from loguru import logger
 from repfuzz.config import FUZZ, blacklist, skip, tgts
 from repfuzz.database.sqlite_proxy import (
     add_fuzz_record,
-    query_api_call_by_full_name,
     get_or_create_db,
     init_fuzz,
+    query_api_call_by_full_name,
     start_fuzz,
 )
 from repfuzz.fuzz import fuzz_api
 from repfuzz.fuzz.static_instrument import instrument_module
-
 
 # def safe_fuzz(
 #     library_names: list[str], queue: Queue, current_api, c_conn: Connection, black_set: set
@@ -68,9 +66,8 @@ from repfuzz.fuzz.static_instrument import instrument_module
 
 #         c_conn.send(1)  # Signal to the parent process that fuzzing is complete.
 
-def safe_fuzz(
-    library_name: str, queue: Queue, current_api, c_conn: Connection, black_set: set
-) -> None:
+
+def safe_fuzz(library_name: str, queue: Queue, current_api, c_conn: Connection, black_set: set) -> None:
 
     logger.info(f"Fuzzing process started for {library_name}")
 
@@ -99,9 +96,11 @@ def safe_fuzz(
 
         c_conn.send(1)  # Signal to the parent process that fuzzing is complete.
 
-def skip_imports_coverage(imports_file_path:str, white_list: list[str]):
+
+def skip_imports_coverage(imports_file_path: str, white_list: list[str]):
     # Run this function after initializing dcov and before starting fuzzing.
     import re
+
     re_str = r"(?:from ([a-zA-Z_][a-zA-Z_\.0-9]+) import [a-zA-Z_][a-zA-Z_0-9\*,\s]+(?:\s*#.*)?)|(?:import ([a-zA-Z_][a-zA-Z_\.0-9,\s]+)(?:\s*#.*)?)"
     imports_data = {}
     with open(imports_file_path, "r") as file:
@@ -109,9 +108,9 @@ def skip_imports_coverage(imports_file_path:str, white_list: list[str]):
             line = line.strip()
             match = re.search(re_str, line)
             if match:
-                mod = match.group(1).strip() if match.group(1) else match.group(2).strip() if match.group(2) else ''
-                if '.' in mod:
-                    mod = mod.split('.')[0]
+                mod = match.group(1).strip() if match.group(1) else match.group(2).strip() if match.group(2) else ""
+                if "." in mod:
+                    mod = mod.split(".")[0]
                 if mod in white_list:
                     if mod not in imports_data:
                         imports_data[mod] = []
@@ -131,12 +130,15 @@ def skip_imports_coverage(imports_file_path:str, white_list: list[str]):
 
     logger.info(f"Initial coverage is {dcov.count_bits_py()}")
 
+
 def fuzz_dataset(dataset: dict) -> None:
-    
+
     total_rows = 0
-    dcov.open_bitmap_py() 
+    dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
-    p = Process(target=skip_imports_coverage, args=('/root/repfuzz/experiments/RQ4/cleaned_import_list_1000.txt', dataset.keys()))
+    p = Process(
+        target=skip_imports_coverage, args=("/root/repfuzz/experiments/RQ4/cleaned_import_list_1000.txt", dataset.keys())
+    )
     p.start()
     p.join()
     # skip_imports_coverage('/root/repfuzz/experiments/RQ4/cleaned_import_list.txt', dataset.keys())
@@ -155,7 +157,6 @@ def fuzz_dataset(dataset: dict) -> None:
             total_rows += 1
             for api_call in api_calls:
                 queue.put((full_name, api_call))
-    
 
             # create some shared memory structures for inter-process communication.
             exec_counter = 0
@@ -165,11 +166,10 @@ def fuzz_dataset(dataset: dict) -> None:
             black_set = set()
             p_conn, c_conn = Pipe()
 
-            
             logger.info(f"Fuzz {full_name} start")
             while not queue.empty():
                 # Start a new worker process to execute all the API calls.
-                
+
                 safe_worker = Process(
                     target=safe_fuzz,
                     args=(library_name, queue, current_api, c_conn, black_set),
@@ -177,9 +177,7 @@ def fuzz_dataset(dataset: dict) -> None:
                 safe_worker.start()
 
                 while True:
-                    p_conn.send(
-                        1
-                    )  # send a signal to the worker process to allow it to execute the next execution.
+                    p_conn.send(1)  # send a signal to the worker process to allow it to execute the next execution.
                     if p_conn.poll(
                         10
                     ):  # check if the worker process has finished the current execution within the timeout.
@@ -218,18 +216,17 @@ def fuzz_dataset(dataset: dict) -> None:
                             f.write(open("/tmp/fuzz.py", "r").read())
                         break  # break the current fuzzing loop and restart the process.
                 safe_worker.join()
-                
+
             logger.info(f"Fuzz {full_name} done")
             logger.info(f"Coverage now: {dcov.count_bits_py()}")
 
     logger.info(f"final total coverage: {dcov.count_bits_py()}")
     dcov.close_bitmap_py()
 
+
 def main():
     argparser = argparse.ArgumentParser(description="Fuzzing dataset")
-    argparser.add_argument(
-        "-d", "--dataset_path", type=str, help="Path to the dataset directory", required=False
-    )
+    argparser.add_argument("-d", "--dataset_path", type=str, help="Path to the dataset directory", required=False)
     args = argparser.parse_args()
 
     fake_stdout = io.StringIO()
@@ -239,6 +236,7 @@ def main():
 
     data = json.load(open(args.dataset_path, "r"))
     fuzz_dataset(data)
+
 
 if __name__ == "__main__":
     main()

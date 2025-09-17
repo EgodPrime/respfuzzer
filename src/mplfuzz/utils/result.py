@@ -1,5 +1,5 @@
-from typing import Generic, Type, TypeVar, Union, Callable
 from functools import wraps
+from typing import Callable, Generic, Type, TypeVar, Union
 
 T = TypeVar("T")  # 成功值的类型
 E = TypeVar("E")  # 错误值的类型

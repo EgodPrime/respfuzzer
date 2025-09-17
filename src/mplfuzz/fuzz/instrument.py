@@ -1,11 +1,11 @@
 import inspect
-from functools import wraps
 import sys
+from functools import wraps
 from types import BuiltinFunctionType, FunctionType, ModuleType
+
 from loguru import logger
 
-from mplfuzz.fuzz.fuzz_function import fuzz_api
-fuzzed_list = []
+from mplfuzz.fuzz.fuzz_function import fuzz_function
 
 
 def instrument_function(func: FunctionType | BuiltinFunctionType):
@@ -17,13 +17,49 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
         res = func(*args, **kwargs)
-        full_name = f"{func.__module__}.{func.__name__}"
-        if full_name not in fuzzed_list:
-            fuzzed_list.append(full_name)
-            fuzz_api(func, *args, **kwargs)
+        # logger.debug(f"Want to fuzz {func.__module__}.{func.__name__}")
+        fuzz_function(func, *args, **kwargs)
         return res
 
     return wrapper
+
+
+def instrument_function_via_path(mod: ModuleType, path: str):
+    """
+    Instrument a function via its module and path.
+
+    This function takes a module and a string path representing the location
+    of a function within that module. It then instruments the function by
+    wrapping it with the `instrument_function` decorator.
+
+    Args:
+        mod: The module where the function is located.
+        path: The string path to the function within the module.
+
+    Returns:
+        None. The function is modified in place.
+
+    Raises:
+        None. However, it logs errors if the path is invalid or if the function
+        cannot be found.
+    """
+    mods = path.split(".")
+    if mods[0] != mod.__name__:
+        logger.error(f"Invalid package path: {path} does not start with {mod.__name__}!")
+        return
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {path}!")
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {path}!")
+        return
+    new_func = instrument_function(orig_func)
+    setattr(new_func, "original__func", orig_func)
+    setattr(parent, mods[-1], new_func)
 
 
 mod_has_been_seen = set()
@@ -50,10 +86,12 @@ def instrument_module(mod: ModuleType) -> None:
         return
     mod_has_been_seen.add(id(mod))
     for name, obj in inspect.getmembers(mod):
-        if name.startswith("_"):  # Skip modules and fuctions that are for internal use
+        # Skip modules and fuctions that are for internal use
+        if name.startswith("_"):
             continue
-        if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
-            continue
+        # if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
+        #     continue
+
         if isinstance(obj, ModuleType):
             if obj.__name__.startswith(top_mod_name):
                 instrument_module(obj)
@@ -61,11 +99,11 @@ def instrument_module(mod: ModuleType) -> None:
             true_module_path = obj.__module__
             if true_module_path is None:  # Skip functions that do not belong to any module
                 continue
-            tokens = true_module_path.split('.')
-            if not tokens[0] == top_mod_name: # Skip functions that does not belong to the top-level module
+            tokens = true_module_path.split(".")
+            if not tokens[0] == top_mod_name:  # Skip functions that does not belong to the top-level module
                 continue
             new_func = instrument_function(obj)
-            setattr(new_func, 'original__func', obj)
+            setattr(new_func, "original__func", obj)
             try:
                 true_module = top_mod
                 for x in tokens[1:]:

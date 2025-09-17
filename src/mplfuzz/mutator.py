@@ -1,7 +1,13 @@
 import copy
 from typing import Any, Dict, FrozenSet, Iterable, List, Set, Tuple
 
-from mplfuzz.mutate import mutate_bytes, mutate_float, mutate_int, mutate_str, chain_rng_rand_range
+from mplfuzz.mutate import (
+    chain_rng_rand_range,
+    mutate_bytes,
+    mutate_float,
+    mutate_int,
+    mutate_str,
+)
 
 VALUE_TYPES = [
     (bool, "bool"),
@@ -43,8 +49,10 @@ def mutate_complex(old_val: complex) -> complex:
     new_val = complex(new_real, new_imag)
     return new_val
 
+
 def mutate_bool(old_val: bool) -> bool:
     return not old_val
+
 
 def mutate_list_clip(old_val: list) -> list:
     a = len(old_val)
@@ -61,17 +69,19 @@ def mutate_list_clip(old_val: list) -> list:
         c = tmp
     return old_val[b:c]
 
+
 def mutate_list_dup(old_val: list) -> list:
-    dup_times = 2+ chain_rng_rand_range(8)
+    dup_times = 2 + chain_rng_rand_range(8)
     new_val = old_val * dup_times
     MAX_LEN = 100000
     new_val = new_val[:MAX_LEN]
     return new_val
 
+
 def mutate_list_expand(old_val: list) -> list:
     a = len(old_val)
     if a == 0:
-        return
+        return old_val
     index = chain_rng_rand_range(len(old_val) - 1)
     t = old_val[index]
     new_t = mutate_auto(t)
@@ -82,19 +92,17 @@ def mutate_list_expand(old_val: list) -> list:
 
 def mutate_list_random_one(old_val: list) -> list:
     a = len(old_val)
-    if a <= 1:
+    if a == 0:
         return old_val
+    elif a == 1:
+        return [mutate_auto(old_val[0])]
     b = chain_rng_rand_range(a - 1)
     new_val = mutate_auto(old_val[b])
     return old_val[:b] + [new_val] + old_val[b + 1 :]
 
 
 def mutate_list(old_val: list) -> list:
-    a = [
-            mutate_list_dup,
-            mutate_list_random_one,
-            mutate_list_expand,
-        ]
+    a = [mutate_list_dup, mutate_list_random_one, mutate_list_expand, mutate_list_clip]
     b = chain_rng_rand_range(len(a))
     mt = a[b]
     return mt(old_val)

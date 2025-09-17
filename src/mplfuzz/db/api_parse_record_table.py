@@ -1,10 +1,10 @@
-from contextlib import closing
 import json
+from contextlib import closing
 from typing import Iterator, List, Optional
-from mplfuzz.db.base import get_db_cursor
-from mplfuzz.utils.result import Err, Ok, Result, resultify
-from mplfuzz.models import API
 
+from mplfuzz.db.base import get_db_cursor
+from mplfuzz.models import API
+from mplfuzz.utils.result import Err, Ok, Result, resultify
 
 with get_db_cursor() as cur:
     cur.execute(
@@ -36,12 +36,8 @@ def get_api(api_name: str) -> Result[API | None, Exception]:
         row = cur.fetchone()
         if row:
             return API(
-                id=row[0], 
-                api_name=row[1], 
-                library_name=row[2], 
-                source=row[3], 
-                args=json.loads(row[4]), 
-                ret_type=row[5])
+                id=row[0], api_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5]
+            )
         else:
             return None
 
@@ -55,14 +51,12 @@ def get_apis(library_name: str | None) -> Result[List[API], Exception]:
     with get_db_cursor() as cur:
         cur.execute(f"SELECT * FROM api {filter}")
         rows = cur.fetchall()
-        api_list = [API(
-                id=row[0], 
-                api_name=row[1], 
-                library_name=row[2], 
-                source=row[3], 
-                args=json.loads(row[4]), 
-                ret_type=row[5]) for row in rows]
+        api_list = [
+            API(id=row[0], api_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5])
+            for row in rows
+        ]
         return api_list
+
 
 def get_api_iter(library_name: Optional[str]) -> Iterator[API]:
     if library_name:
@@ -73,10 +67,5 @@ def get_api_iter(library_name: Optional[str]) -> Iterator[API]:
         cur.execute(f"SELECT * FROM api {filter}")
         for row in cur:
             yield API(
-                id=row[0],
-                api_name=row[1],
-                library_name=row[2],
-                source=row[3],
-                args=json.loads(row[4]),
-                ret_type=row[5]
+                id=row[0], api_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5]
             )

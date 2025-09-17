@@ -1,13 +1,15 @@
 import asyncio
 import json
+
 import fire
-from loguru import logger
-from mplfuzz.models import Solution, Mutant
-from mplfuzz.utils.config import get_config
-from mplfuzz.db.apicall_solution_record_table import get_solutions
-from mplfuzz.db.apicall_mutatation_record_table import create_mutant
-from mplfuzz.utils.result import Err, Ok, Result
 import openai
+from loguru import logger
+
+from mplfuzz.db.apicall_mutatation_record_table import create_mutant
+from mplfuzz.db.apicall_solution_record_table import get_solutions
+from mplfuzz.models import Mutant, Solution
+from mplfuzz.utils.config import get_config
+from mplfuzz.utils.result import Err, Ok, Result
 
 model_config = get_config("model_config").unwrap()
 
@@ -67,7 +69,7 @@ async def batch_mutate(solution_list: list[Solution]) -> Result[None, Exception]
                         library_name=solution.library_name,
                         api_name=solution.api_name,
                         apicall_expr_ori=solution.apicall_expr,
-                        apicall_expr_new=mutant
+                        apicall_expr_new=mutant,
                     )
                     create_mutant(mutant).unwrap()
     return Ok()
