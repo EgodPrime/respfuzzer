@@ -4,7 +4,7 @@ api_key = "none"
 model_name = "qwen3-32b-awq"
 
 [db_config]
-db_name = "mplfuzz3"
+db_name = "mplfuzz4"
 table_name = "mplfuzz"
 
 [redis]
@@ -23,4 +23,4 @@ batch_size = 10
 
 [fuzz]
 execution_timeout = 5.0
-mutants_per_seed = 1000000
+mutants_per_seed = 1000

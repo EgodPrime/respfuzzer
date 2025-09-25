@@ -1,5 +1,6 @@
 import subprocess
 import tempfile
+import concurrent.futures
 from typing import Optional
 
 import fire
@@ -174,9 +175,37 @@ def _main(library_name: str):
         else:
             logger.info(f"Failed to solve {api.api_name}")
 
+def _mainC(library_name: str):
+    apis = get_apis(library_name).unwrap()
+
+    def process_api(api):
+        logger.info(f"Try solving {api.api_name} ...")
+        code = None
+        try:
+            code = solve(api)
+        except Exception:
+            pass
+        if code:
+            solution = Solution(
+                api_id=api.id,
+                library_name=api.library_name,
+                api_name=api.api_name,
+                args=api.args,
+                arg_exprs=[],
+                apicall_expr=code,
+            )
+            create_solution(solution).unwrap()
+            logger.info(f"Solution found for {api.api_name}:\n{code}")
+        else:
+            logger.info(f"Failed to solve {api.api_name}")
+
+    # 使用线程池，最多10个线程并发执行
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(process_api, api) for api in apis]
+        concurrent.futures.wait(futures)
 
 def main():
-    fire.Fire(_main)
+    fire.Fire(_mainC)
 
 
 if __name__ == "__main__":

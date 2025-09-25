@@ -1,50 +1,25 @@
 #!/bin/bash
 
-# libraries=("ast" "re" "difflib" "locale" "numpy" "scipy" "dask" "nltk" "torch" "pandas"
-#          "xgboost" "opencv-python" "sympy" "matplotlib" "seabron" "pytest" "scikit-learn" 
-#          "tensorflow" "spaCy" "faker")
-
 libraries=("ast" "re" "difflib" "locale" 
         "numpy" "scipy" "dask" "inspect"
         "nltk" "torch" "pandas" "sklearn")
 
 # extract api
-for library in "${libraries[@]}"
-do
-    echo "library_visitor $library"
-    library_visitor "$library"
-done
-
-# generate mcp
-for library in "${libraries[@]}"
-do
-    echo library_mcp_generator "$library"
-    library_mcp_generator "$library"
-done
-
-# generate apicall
 # for library in "${libraries[@]}"
 # do
-#     echo "library_api_resolver $library ."
-#     library_api_resolver "$library" .
+#     echo "library_visitor $library"
+#     library_visitor "$library"
 # done
+
+
+# for library in "${libraries[@]}"
+# do
+#     echo "agentic_api_resolver $library"
+#     agentic_api_resolver "$library"
+# done
+
 for library in "${libraries[@]}"
 do
-    echo "agentic_api_resolver $library ."
-    agentic_api_resolver "$library" .
+    echo "fuzz_library $library"
+    fuzz_library "$library"
 done
-
-
-# # mutation
-# for library in "${libraries[@]}"
-# do
-#     echo "library_apicall_mutator $library"
-#     library_apicall_mutator "$library"
-# done
-
-# # execution
-# for library in "${libraries[@]}"
-# do
-#     echo "apicall_mutants_executor $library"
-#     apicall_mutants_executor "$library"
-# done

@@ -151,12 +151,13 @@ def _parse_arg_str_list(arg_str_list: list[str]) -> Result[List[Argument], Excep
 
 
 @resultify
-def from_function_type(obj: FunctionType) -> Result[API, Exception]:
+def from_function_type(mod: ModuleType, obj: FunctionType) -> Result[API, Exception]:
     """
     convert a `FunctionType` to an `API` object
     """
     # get the "full package path" name of the function
-    name = f"{obj.__module__}.{obj.__name__}"
+    # name = f"{obj.__module__}.{obj.__name__}"
+    name = f"{mod.__name__}.{obj.__name__}"
     # get the source code of the function
     try:
         source = inspect.getsource(obj)
@@ -185,13 +186,13 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
     try:
         _name, raw_args_str, ret_type_str, _, docstring = match.groups()
         ret_type_str = "unknown" if ret_type_str is None else ret_type_str
-        logger.debug(f"Parsing function {_name}({name})")
+        # logger.debug(f"Parsing function {_name}({name})")
     except Exception as e:
         print(source)
         print(match_str)
         raise e
 
-    logger.debug(raw_args_str)
+    # logger.debug(raw_args_str)
     args = _compactify_arg_list_str(raw_args_str).and_then(_split_compact_arg_list_str).and_then(_parse_arg_str_list)
 
     if args.is_ok:
@@ -201,8 +202,9 @@ def from_function_type(obj: FunctionType) -> Result[API, Exception]:
 
 
 @resultify
-def from_builtin_function_type(pyi_dict: Dict[str, Dict], obj: BuiltinFunctionType) -> Result[API, Exception]:
-    name = f"{obj.__module__}.{obj.__name__}"
+def from_builtin_function_type(pyi_dict: Dict[str, Dict], mod:ModuleType, obj: BuiltinFunctionType) -> Result[API, Exception]:
+    # name = f"{obj.__module__}.{obj.__name__}"
+    name = f"{mod.__name__}.{obj.__name__}"
     return API(api_name=name, source=pyi_dict["source"], args=pyi_dict["args"], ret_type=pyi_dict["ret_type_str"])
 
 
@@ -263,7 +265,7 @@ class LibraryVisitor:
         for match in matches:
             func_name = match.group(1)
             raw_args_str = match.group(2)
-            logger.debug(f"Parsing builtin function {func_name}")
+            # logger.debug(f"Parsing builtin function {func_name}")
             ret_type_str = match.group(3) if match.group(3) else "unknown"
 
             if raw_args_str is None:
@@ -330,67 +332,84 @@ class LibraryVisitor:
         if id(mod) in mod_has_been_seen:
             return
         mod_has_been_seen.add(id(mod))
+        logger.debug(f"visit module {mod.__name__}")
 
         # Visit all the attributes in the module.
         if hasattr(mod, "__all__"):
             names = mod.__all__
         else:
             names = dir(mod)
-        for name in names:
-            # Skip if the attribute is a private attribute.
-            if name.startswith("_"):
-                continue
 
+        for name in names:
             # Try to get the attribute.
             try:
                 obj = getattr(mod, name)
             except AttributeError:
                 logger.warning(f"getattr({mod.__name__}, {name}) failed")
                 continue
-
-            # We think API is one of [`FunctionType`, `BuiltinFunctionType`]
-            if isinstance(obj, FunctionType):
-                # Thanks for Python's namespace mechanism :(
-                # We need to filter out the APIs that don't belong to the library.
-                if obj.__module__ is None:
-                    logger.warning(f"{mod.__name__}.{name} is FunctionType but has no __module__")
-                    continue
-                if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
-                    continue
-                if obj.__module__.startswith(root_mod_name):
-                    api = from_function_type(obj)
-                    if api.is_err:
-                        logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
-                        continue
-                    yield api.value
-
-            elif isinstance(obj, BuiltinFunctionType):
-                if obj.__module__ is None:
-                    logger.warning(f"{mod.__name__}.{name} is FunctionType but has no __module__")
-                    continue
-                if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
-                    continue
-                if obj.__module__.startswith(root_mod_name) and name in self.pyi_cache:
-                    api = from_builtin_function_type(self.pyi_cache[name], obj)
-                    if api.is_err:
-                        logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
-                        continue
-                    yield api.value
-
-            # Recursively visit the submodule.
-            elif isinstance(obj, ModuleType):
+            
+            # Only support modules, functions, and built-in functions.
+            if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
+                continue
+            
+            # Skip if the attribute is a private attribute.
+            if name.startswith("_") and not hasattr(mod, "__all__"):
+                continue
+            
+            # Check submodule firstly
+            if isinstance(obj, ModuleType):
+                # `ModuleType` has not attribute `__module__`, 
+                # its package path is defined in `__name__`
                 try:
-                    # `ModuleType`.__name__ is a "full package path" str
                     obj_full_name = obj.__name__
                 except Exception:
                     # Thanks for the lazy mode used by some libraries :(
                     clone_obj = mod.__new__(type(obj))
                     clone_obj.__dict__.update(obj.__dict__)
                     obj_full_name = clone_obj.__name__
-                # Skip the submodule if it doesn't belong to the library.
-                if obj_full_name.startswith(root_mod_name):
-                    for api in self._visit(obj, root_mod_name, mod_has_been_seen):
-                        yield api
+
+                # make sure it belongs to the library
+                if not obj_full_name.startswith(root_mod_name):
+                    continue
+
+                # make sure we do not visit private modules
+                if not hasattr(mod, '__all__'):
+                    if any(list(filter(lambda x: x.startswith("_"), obj_full_name.split(".")))):
+                        continue
+                
+                # Now we can recurse into the submodule
+                for api in self._visit(obj, root_mod_name, mod_has_been_seen):
+                    yield api
+            else:
+                # make sure we do not visit private modules
+                if not hasattr(mod, '__all__'):
+                    if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
+                        continue
+                
+                # There are indeed some troublemakers :(
+                if obj.__module__ is None:
+                    logger.warning(f"{mod.__name__}.{name} has no __module__")
+                    continue
+                
+                # make sure it belongs to the library
+                if not obj.__module__.startswith(root_mod_name):
+                    continue
+
+                # We think API is one of [`FunctionType`, `BuiltinFunctionType`]
+                if isinstance(obj, FunctionType):
+                    api = from_function_type(mod, obj)
+                    if api.is_err:
+                        logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
+                        continue
+                    yield api.value
+
+                elif isinstance(obj, BuiltinFunctionType):
+                    if name in self.pyi_cache:
+                        api = from_builtin_function_type(self.pyi_cache[name], mod, obj)
+                        if api.is_err:
+                            logger.warning(f"Failed to create API from {mod.__name__}.{name}: {api.error}")
+                            continue
+                        yield api.value
 
 
 def _main(library_name: str, verbose: bool = False):

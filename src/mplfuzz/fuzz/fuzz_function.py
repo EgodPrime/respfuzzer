@@ -45,7 +45,6 @@ def execute_once(api: Callable, *args, **kwargs):
         raise e
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        raise e
 
 
 def convert_to_param_list(*args, **kwargs) -> list:
@@ -95,7 +94,8 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     """
     full_name = f"{func.__module__}.{func.__name__}"
     rc = get_redis_client()
-    exec_cnt = rc.hget("exec_cnt", full_name)
+    # exec_cnt = rc.hget("exec_cnt", full_name)
+    exec_cnt = rc.hget("fuzz", "exec_cnt")
     if exec_cnt:
         exec_cnt = int(exec_cnt)
         if exec_cnt >= mutants_per_seed:
@@ -109,14 +109,16 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
         return
 
     logger.info(f"Start fuzz {full_name}")
+    rc.hset("fuzz", "current_func", full_name)
 
-    for i in range(1, mutants_per_seed + 1):
+    for i in range(exec_cnt+1, mutants_per_seed + 1):
         # logger.debug(f"{i}th mutation")
         seed = chain_rng_get_current_state()
-        rc.hset(f"exec_record:{full_name}", i, seed)
+        rc.hset(f"exec_record", i, seed)
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
-        rc.hset("exec_cnt", full_name, i)
+        # rc.hset("exec_cnt", full_name, i)
+        rc.hset("fuzz", "exec_cnt", i)
 
     logger.info(f"Fuzz {full_name} done")

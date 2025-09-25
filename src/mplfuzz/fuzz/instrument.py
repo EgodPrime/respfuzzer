@@ -7,6 +7,7 @@ from loguru import logger
 
 from mplfuzz.fuzz.fuzz_function import fuzz_function
 
+fuzzed_set = set()
 
 def instrument_function(func: FunctionType | BuiltinFunctionType):
     """
@@ -17,8 +18,11 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
         res = func(*args, **kwargs)
-        # logger.debug(f"Want to fuzz {func.__module__}.{func.__name__}")
-        fuzz_function(func, *args, **kwargs)
+        func_name = f"{func.__module__}.{func.__name__}"
+        if not func_name in fuzzed_set:
+            logger.debug(f"Want to fuzz {func_name}")
+            fuzzed_set.add(func_name)
+            fuzz_function(func, *args, **kwargs)
         return res
 
     return wrapper
@@ -58,8 +62,17 @@ def instrument_function_via_path(mod: ModuleType, path: str):
         logger.error(f"Cannot find function {path}!")
         return
     new_func = instrument_function(orig_func)
-    setattr(new_func, "original__func", orig_func)
+    setattr(new_func, "orig_func", orig_func)
+
+    # true_parent_package_path = orig_func.__module__
+    # true_parent = mod
+    # for name in true_parent_package_path.split(".")[1:]:
+    #     true_parent = getattr(true_parent, name)
+    # setattr(true_parent, mods[-1], new_func)
+    # logger.debug(f"Instrumented {true_parent_package_path}.{orig_func.__name__} ({path})")
+    
     setattr(parent, mods[-1], new_func)
+    logger.debug(f"Instrumented {path}")
 
 
 mod_has_been_seen = set()
