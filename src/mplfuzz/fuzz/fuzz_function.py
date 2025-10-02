@@ -1,10 +1,11 @@
 import signal
+import time
 from multiprocessing.connection import Connection
 from typing import Callable
 
 from loguru import logger
 
-from mplfuzz.mutate import chain_rng_get_current_state
+from mplfuzz.mutate import chain_rng_get_current_state, chain_rng_init
 from mplfuzz.mutator import mutate_param_list
 from mplfuzz.utils.config import get_config
 from mplfuzz.utils.redis_util import get_redis_client
@@ -102,6 +103,8 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
             # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
             return
 
+    chain_rng_init(int(time.time()))
+
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:
         logger.info(f"{full_name} has no arguments, execute only once.")
@@ -111,7 +114,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Start fuzz {full_name}")
     rc.hset("fuzz", "current_func", full_name)
 
-    for i in range(exec_cnt+1, mutants_per_seed + 1):
+    for i in range(exec_cnt + 1, mutants_per_seed + 1):
         # logger.debug(f"{i}th mutation")
         seed = chain_rng_get_current_state()
         rc.hset(f"exec_record", i, seed)

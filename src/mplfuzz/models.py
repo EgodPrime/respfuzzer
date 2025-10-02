@@ -11,7 +11,7 @@ class PosType(IntEnum):
 class Argument(BaseModel):
     arg_name: str
     type: str = "unknown"
-    pos_type: int
+    pos_type: str | int
 
 
 class API(BaseModel):
@@ -33,14 +33,6 @@ class API(BaseModel):
         if not self.library_name:
             self.library_name = self.api_name.split(".")[0]
         return self
-
-
-class MCPCode(BaseModel):
-    id: int | None = None
-    api_id: int
-    library_name: str
-    api_name: str
-    mcpcode: str
 
 
 class ArgumentExpr(BaseModel):
@@ -76,40 +68,8 @@ class Solution(BaseModel):
         return self
 
 
-class Mutant(BaseModel):
-    id: int | None = None
-    solution_id: int
-    library_name: str
-    api_name: str
-    apicall_expr_ori: str
-    apicall_expr_new: str
-
-
 class ExecutionResultType(IntEnum):
     OK = 0
     CALLFAIL = 0b001
     ABNORMAL = 0b010
     TIMEOUT = 0b100
-
-
-class MutantExecution(BaseModel):
-    id: int | None = None
-    mutant_id: int
-    library_name: str
-    api_name: str
-    result_type: int
-    ret_code: int
-    stdout: str
-    stderr: str
-
-
-class APICallExecution(BaseModel):
-    id: int | None = None
-    api_id: int
-    library_name: str
-    api_name: str
-    code: str
-    result_type: int
-    ret_code: int
-    stdout: str
-    stderr: str

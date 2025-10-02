@@ -9,6 +9,7 @@ from mplfuzz.fuzz.fuzz_function import fuzz_function
 
 fuzzed_set = set()
 
+
 def instrument_function(func: FunctionType | BuiltinFunctionType):
     """
     Return a instrumented version of `func`, which should fuzz the current call
@@ -70,7 +71,7 @@ def instrument_function_via_path(mod: ModuleType, path: str):
     #     true_parent = getattr(true_parent, name)
     # setattr(true_parent, mods[-1], new_func)
     # logger.debug(f"Instrumented {true_parent_package_path}.{orig_func.__name__} ({path})")
-    
+
     setattr(parent, mods[-1], new_func)
     logger.debug(f"Instrumented {path}")
 

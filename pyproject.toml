@@ -7,23 +7,23 @@ name = "mplfuzz"
 version = "0.1.0"
 description = "Fuzz Python Libraries as MCP services"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
-    "fire>=0.7.0",
+    "fire>=0.7.1",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
-    "mcp[cli]>=1.6.0",
-    "openai>=1.75.0",
-    "pydantic>=2.11.3",
-    "pytest-cov>=6.2.1",
+    "openai>=1.109.1",
+    "pydantic>=2.11.9",
     "redis>=6.4.0",
+    "sqlite-web>=0.6.4",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "black>=25.1.0",
+    "black>=25.9.0",
     "isort>=6.0.1",
-    "pytest>=8.3.5",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -37,14 +37,14 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 # 类名的规则，配置测试搜索的测试类名
-python_classes = ["Test_*"]
+python_classes = ["Test*"]
 
 # 方法名的规则，配置测试搜索的测试函数名
 python_functions = ["test_*"]
 
 [tool.black]
 line-length = 122
-target-version = ["py312"]
+target-version = ["py313"]
 include = '\.pyi?$'
 
 [tool.isort]
@@ -56,13 +56,7 @@ default = true
 
 
 [project.scripts]
-clear_solutions = "mplfuzz.utils.db:clear_solutions"
-clear_mutants = "mplfuzz.utils.db:clear_mutants"
 library_visitor = "mplfuzz.library_visitor:main"
-library_mcp_generator = "mplfuzz.library_mcp_generator:main"
-library_api_resolver = "mplfuzz.library_api_resolver:main"
 agentic_api_resolver = "mplfuzz.agentic_api_resolver:main"
-library_apicall_mutator = "mplfuzz.library_apicall_mutator:main"
-apicall_mutants_executor = "mplfuzz.apicall_mutants_executor:main"
-safe_fuzz = "mplfuzz.fuzz.safe_fuzz:main"
 fuzz_library = "mplfuzz.fuzz.fuzz_library:main"
+db_tools = "mplfuzz.utils.db_tools:main"

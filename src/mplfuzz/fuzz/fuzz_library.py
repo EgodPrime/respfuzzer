@@ -74,7 +74,7 @@ def fuzz_one_library(library_name: str) -> None:
                 logger.warning(
                     f"Solution {solution.id} did not reach the required mutants_per_seed({mutants_per_seed}). Restarting subprocess..."
                 )
-                exec_record = rc.hget(f"exec_record", exec_cnt+1)  # {1:(a,b,), 2:(s,d,)...}
+                exec_record = rc.hget(f"exec_record", exec_cnt + 1)  # {1:(a,b,), 2:(s,d,)...}
                 current_func = rc.hget("fuzz", "current_func")
                 if exec_record:
                     logger.debug(f"Safe worker died unexpectly when fuzz {current_func}:\n{exec_record}")
@@ -83,7 +83,7 @@ def fuzz_one_library(library_name: str) -> None:
                 safe_worker = Process(target=safe_fuzz, args=(solution,))
                 safe_worker.start()
                 safe_worker.join()
-        
+
         exec_cnt = rc.hget(f"fuzz", "exec_cnt")
         exec_cnt = int(exec_cnt) if exec_cnt else 0
         logger.info(f"Fuzz solution {solution.id} done with {exec_cnt} execution.")
@@ -106,21 +106,15 @@ def fuzz_one_library_v2(library_name: str) -> None:
         rc.hset("fuzz", "current_func", solution.api_name)
         rc.hset("fuzz", "exec_cnt", 0)
         rc.hset("seed", f"{solution.id}", solution.apicall_expr)
-        
+
         try:
             logger.debug(f"seed is :\n{solution.apicall_expr}")
             # exec(solution.apicall_expr)
         except Exception as e:
             logger.warning(f"Maybe solution {solution.id} is fake...\n{e}")
 
-
         # 调用 safe_fuzz.py 并传递参数
-        cmd = [
-            "safe_fuzz",
-            str(solution.id),
-            library_name,
-            solution.api_name
-        ]
+        cmd = ["safe_fuzz", str(solution.id), library_name, solution.api_name]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         # 等待子进程完成
@@ -149,6 +143,7 @@ def fuzz_one_library_v2(library_name: str) -> None:
             exec_cnt = int(exec_cnt) if exec_cnt else 0
 
         logger.info(f"Fuzz solution {solution.id} done with {exec_cnt} execution.")
+
 
 def main():
     fire.Fire(fuzz_one_library)

@@ -1,6 +1,6 @@
+import concurrent.futures
 import subprocess
 import tempfile
-import concurrent.futures
 from typing import Optional
 
 import fire
@@ -9,8 +9,7 @@ from loguru import logger
 
 from mplfuzz.db.api_parse_record_table import get_apis
 from mplfuzz.db.apicall_solution_record_table import create_solution
-from mplfuzz.mcp_api_resolver import Solution
-from mplfuzz.models import API, ExecutionResultType
+from mplfuzz.models import API, ExecutionResultType, Solution
 
 base_url = "http://192.168.2.29:8000/v1"
 model_name = "qwen3-32b-awq"
@@ -131,6 +130,12 @@ def solve(api: API) -> Optional[str]:
     solved = False
     while True:
         code = attempter.generate(api, history)
+        if f"{api.api_name}(" not in code:
+            history.append({"role": "reasoner", "content": f"生成的代码中不包含对{api.api_name}的调用，请重新生成"})
+            budget -= 1
+            if budget == 0:
+                break
+            continue
         # logger.debug(f"code:\n{code}")
         result = executor.execute(code)
         # logger.debug(f"result:\n{result}")
@@ -146,6 +151,7 @@ def solve(api: API) -> Optional[str]:
             budget -= 1
             if budget == 0:
                 break
+            continue
     if solved:
         return code
     else:
@@ -175,6 +181,7 @@ def _main(library_name: str):
         else:
             logger.info(f"Failed to solve {api.api_name}")
 
+
 def _mainC(library_name: str):
     apis = get_apis(library_name).unwrap()
 
@@ -203,6 +210,7 @@ def _mainC(library_name: str):
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(process_api, api) for api in apis]
         concurrent.futures.wait(futures)
+
 
 def main():
     fire.Fire(_mainC)

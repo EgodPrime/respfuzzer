@@ -4,7 +4,7 @@ api_key = "none"
 model_name = "qwen3-32b-awq"
 
 [db_config]
-db_name = "mplfuzz4"
+db_name = "mplfuzz-big"
 table_name = "mplfuzz"
 
 [redis]
