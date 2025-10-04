@@ -81,6 +81,16 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
+4. (Optional) Developer mode
+```bash
+uv pip install -e .[dev]
+```
+
+5. Install the libraries under test
+```bash
+uv pip install -r lut.txt
+```
+
 ## Usage Examples
 
 ### Fuzz a Specific Library
