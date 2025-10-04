@@ -9,14 +9,13 @@ from typing import Dict, Iterator, List, Optional, Set
 import fire
 from loguru import logger
 
-from mplfuzz.db.api_parse_record_table import create_api
-from mplfuzz.models import API
-from mplfuzz.parsers.function_parser import (
+from tracefuzz.db.function_table import create_function
+from tracefuzz.models import Function
+from tracefuzz.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from mplfuzz.parsers.pyi_parser import _find_all_pyi_files
-from mplfuzz.utils.result import Err, Ok, Result, resultify
+from tracefuzz.parsers.pyi_parser import _find_all_pyi_files
 
 logger.level("INFO")
 
@@ -26,14 +25,14 @@ class LibraryVisitor:
         self.library_name = library_name
         self.pyi_cache: Dict[str, Dict] = {}
 
-    def visit(self) -> Iterator[API]:
+    def visit(self) -> Iterator[Function]:
         """
-        Visit all the public APIs in the library and yield them.
+        Visit all the public functions in the library and yield them.
 
         Example:
         >>> visitor = LibraryVisitor('math')
-        >>> for api in visitor.visit():
-        ...     print(api)
+        >>> for function in visitor.visit():
+        ...     print(function)
         """
         try:
             library = importlib.import_module(self.library_name)
@@ -49,8 +48,8 @@ class LibraryVisitor:
         # )
 
         mod_has_been_seen = set()
-        for api in self._visit(library, self.library_name, mod_has_been_seen):
-            yield api
+        for function in self._visit(library, self.library_name, mod_has_been_seen):
+            yield function
 
     def find_all_pyi_functions(self):
         # 先根据库名找到库的 root directory，然后递归遍历找出所有的pyi文件，再找出pyi文件中所有的函数，存入self.pyi_cache中
@@ -63,11 +62,8 @@ class LibraryVisitor:
 
         visited_files: Set[str] = set()
         _find_all_pyi_files(root_path, visited_files, self.pyi_cache)
-        # self._find_all_pyi_files(root_path, visited_files).map_err(
-        #     lambda e: logger.warning(f"Error finding pyi files in {self.library_name}: {e}")
-        # )
 
-    def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[API]:
+    def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[Function]:
         # Skip if the module has already been seen.
         if id(mod) in mod_has_been_seen:
             return
@@ -77,8 +73,11 @@ class LibraryVisitor:
         # Visit all the attributes in the module.
         if hasattr(mod, "__all__"):
             names = mod.__all__
+        elif hasattr(mod, "__dict__"):
+            names = mod.__dict__
         else:
-            names = dir(mod)
+            logger.warning(f"Module {mod.__name__} has no __all__ or __dict__")
+            return
 
         for name in names:
             # Try to get the attribute.
@@ -92,9 +91,9 @@ class LibraryVisitor:
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
 
-            # # Skip if the attribute is a private attribute.
-            # if name.startswith("_") and not hasattr(mod, "__all__"):
-            #     continue
+            # Skip if the attribute is a private attribute.
+            if name.startswith("_") and not hasattr(mod, "__all__"):
+                continue
 
             # Check submodule firstly
             if isinstance(obj, ModuleType):
@@ -118,8 +117,8 @@ class LibraryVisitor:
                 #         continue
 
                 # Now we can recurse into the submodule
-                for api in self._visit(obj, root_mod_name, mod_has_been_seen):
-                    yield api
+                for function in self._visit(obj, root_mod_name, mod_has_been_seen):
+                    yield function
             else:
                 # # make sure we do not visit private modules
                 # if not hasattr(mod, '__all__'):
@@ -135,28 +134,26 @@ class LibraryVisitor:
                 if not obj.__module__.startswith(root_mod_name):
                     continue
 
-                # We think API is one of [`FunctionType`, `BuiltinFunctionType`]
+                # We think function is one of [`FunctionType`, `BuiltinFunctionType`]
                 if isinstance(obj, FunctionType):
-                    api = from_function_type(mod, obj)
-                    if api is not None:
-                        yield api
+                    function = from_function_type(mod, obj)
+                    if function is not None:
+                        yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
                     if name in self.pyi_cache:
-                        api = from_builtin_function_type(self.pyi_cache[name], mod, obj)
-                        yield api
+                        function = from_builtin_function_type(self.pyi_cache[name], mod, obj)
+                        yield function
 
 
-def _main(library_name: str, verbose: bool = False):
-    logger.info(f"Parsing APIs in library {library_name}")
+def _main(library_name: str):
+    logger.info(f"Parsing functions in library {library_name}")
     lv = LibraryVisitor(library_name)
     cnt = 0
-    for api in lv.visit():
-        create_api(api).map_err(lambda e: logger.error(f"Error saving  API {api.api_name}: {e}"))
+    for function in lv.visit():
+        create_function(function)
         cnt += 1
-        if verbose:
-            logger.info(f"API {api.api_name} parsed and saved to db")
-    logger.info(f"Finished parsing {cnt} APIs in library {library_name}")
+    logger.info(f"Finished parsing {cnt} functions in library {library_name}")
 
 
 def main():

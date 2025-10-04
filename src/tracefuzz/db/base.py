@@ -1,10 +1,10 @@
 import sqlite3
 from contextlib import contextmanager
 
-from mplfuzz.utils.config import get_config
-from mplfuzz.utils.paths import RUNDATA_DIR
+from tracefuzz.utils.config import get_config
+from tracefuzz.utils.paths import RUNDATA_DIR
 
-config = get_config("db_config").unwrap()
+config = get_config("db_config")
 db_name = config.get("db_name") + ".db"
 db_path = RUNDATA_DIR.joinpath(db_name)
 

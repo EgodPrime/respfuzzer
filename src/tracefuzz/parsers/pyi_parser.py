@@ -5,7 +5,7 @@ from typing import Dict, Set
 
 from inspect import _ParameterKind
 
-from mplfuzz.models import Argument
+from tracefuzz.models import Argument
 
 def is_top_level_function(node):
     """检查节点是否是模块级别的函数（不在类内部）"""

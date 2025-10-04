@@ -3,7 +3,7 @@ requires = ["setuptools", "Cython"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mplfuzz"
+name = "tracefuzz"
 version = "0.1.0"
 description = "Fuzz Python Libraries as MCP services"
 readme = "README.md"
@@ -56,7 +56,7 @@ default = true
 
 
 [project.scripts]
-library_visitor = "mplfuzz.library_visitor:main"
-agentic_api_resolver = "mplfuzz.agentic_api_resolver:main"
-fuzz_library = "mplfuzz.fuzz.fuzz_library:main"
-db_tools = "mplfuzz.utils.db_tools:main"
+library_visitor = "tracefuzz.library_visitor:main"
+agentic_function_resolver = "tracefuzz.agentic_function_resolver:main"
+fuzz_library = "tracefuzz.fuzz.fuzz_library:main"
+db_tools = "tracefuzz.utils.db_tools:main"

@@ -1,7 +1,7 @@
 import copy
 from typing import Any, Dict, FrozenSet, Iterable, List, Set, Tuple
 
-from mplfuzz.mutate import (
+from tracefuzz.mutate import (
     chain_rng_rand_range,
     mutate_bytes,
     mutate_float,

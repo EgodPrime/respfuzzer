@@ -8,6 +8,6 @@ source $config_file
 # Generate function calls for each library
 for library in "${libraries[@]}"
 do
-    echo "agentic_api_resolver $library"
-    agentic_api_resolver "$library"
+    echo "agentic_function_resolver $library"
+    agentic_function_resolver "$library"
 done

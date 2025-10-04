@@ -5,7 +5,7 @@ config_file="$current_dir/libraries.conf"
 # Source the library list
 source $config_file
 
-# Extract API information for each library
+# Extract function information for each library
 for library in "${libraries[@]}"
 do
     echo "library_visitor $library"

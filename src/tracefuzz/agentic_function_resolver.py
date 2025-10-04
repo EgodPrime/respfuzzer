@@ -1,4 +1,5 @@
 import concurrent.futures
+from datetime import datetime
 import subprocess
 import tempfile
 from typing import Optional
@@ -7,23 +8,24 @@ import fire
 import openai
 from loguru import logger
 
-from mplfuzz.db.api_parse_record_table import get_apis
-from mplfuzz.db.apicall_solution_record_table import create_solution
-from mplfuzz.models import API, ExecutionResultType, Solution
+from tracefuzz.db.function_table import get_functions
+from tracefuzz.db.seed_table import create_seed
+from tracefuzz.db.solve_history_table import create_solve_history
+from tracefuzz.models import Function, ExecutionResultType, Seed
+from tracefuzz.utils.config import get_config
 
-base_url = "http://192.168.2.29:8000/v1"
-model_name = "qwen3-32b-awq"
+cfg = get_config("reflective_seeder")
 
-client = openai.Client(api_key="x", base_url=base_url)
+client = openai.Client(api_key=cfg["api_key"], base_url=cfg["base_url"])
 
 
 class Attempter:
-    def generate(self, api: API, history: list) -> str:
-        """构造一个包含API中信息的prompt来驱使大模型生成可能正确的API调用，利用history中的信息增强prompt中的引导"""
-        prompt = f"<function>\n{api.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`api`和`history`中的信息来为{api.api_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容"
+    def generate(self, function: Function, history: list) -> str:
+        """构造一个包含function中信息的prompt来驱使大模型生成可能正确的function调用，利用history中的信息增强prompt中的引导"""
+        prompt = f"<function>\n{function.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容 4. 函数调用应该是完成包路径调用，例如import a; a.b.c()，而不能是from a.b import c; c()"
         try:
             response = client.chat.completions.create(
-                model=model_name,
+                model=cfg["model_name"],
                 messages=[
                     {
                         "role": "system",
@@ -100,7 +102,7 @@ class Reasoner:
         try:
             # 调用模型进行推理
             response = client.chat.completions.create(
-                model=model_name,
+                model=cfg["model_name"],
                 messages=[
                     {"role": "system", "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。"},
                     {"role": "user", "content": prompt},
@@ -120,7 +122,7 @@ class Reasoner:
             raise Exception(f"解释执行结果时发生错误：{str(e)}")
 
 
-def solve(api: API) -> Optional[str]:
+def solve(function: Function) -> Optional[str]:
     attempter = Attempter()
     executor = QueitExecutor()
     reasoner = Reasoner()
@@ -129,9 +131,9 @@ def solve(api: API) -> Optional[str]:
     history = []
     solved = False
     while True:
-        code = attempter.generate(api, history)
-        if f"{api.api_name}(" not in code:
-            history.append({"role": "reasoner", "content": f"生成的代码中不包含对{api.api_name}的调用，请重新生成"})
+        code = attempter.generate(function, history)
+        if f"{function.func_name}(" not in code:
+            history.append({"role": "reasoner", "content": f"生成的代码中不包含对{function.func_name}的调用，请重新生成"})
             budget -= 1
             if budget == 0:
                 break
@@ -152,63 +154,65 @@ def solve(api: API) -> Optional[str]:
             if budget == 0:
                 break
             continue
+
+    create_solve_history(function, history)
     if solved:
         return code
     else:
         return None
+    
+    
 
 
 def _main(library_name: str):
-    apis = get_apis(library_name).unwrap()
-    for api in apis:
-        logger.info(f"Try solving {api.api_name} ...")
+    functions = get_functions(library_name)
+    for function in functions:
+        logger.info(f"Try solving {function.func_name} ...")
         code = None
         try:
-            code = solve(api)
+            code = solve(function)
         except Exception:
             pass
         if code:
-            solution = Solution(
-                api_id=api.id,
-                library_name=api.library_name,
-                api_name=api.api_name,
-                args=api.args,
-                arg_exprs=[],
-                apicall_expr=code,
+            seed = Seed(
+                func_id=function.id,
+                library_name=function.library_name,
+                func_name=function.func_name,
+                args=function.args,
+                function_call=code
             )
-            create_solution(solution).unwrap()
-            logger.info(f"Solution find for {api.api_name}:\n{code}")
+            create_seed(seed)
+            logger.info(f"Seed find for {function.func_name}:\n{code}")
         else:
-            logger.info(f"Failed to solve {api.api_name}")
+            logger.info(f"Failed to solve {function.func_name}")
 
 
 def _mainC(library_name: str):
-    apis = get_apis(library_name).unwrap()
+    functions = get_functions(library_name)
 
-    def process_api(api):
-        logger.info(f"Try solving {api.api_name} ...")
+    def process_function(function: Function):
+        logger.info(f"Try solving {function.func_name} ...")
         code = None
         try:
-            code = solve(api)
+            code = solve(function)
         except Exception:
             pass
         if code:
-            solution = Solution(
-                api_id=api.id,
-                library_name=api.library_name,
-                api_name=api.api_name,
-                args=api.args,
-                arg_exprs=[],
-                apicall_expr=code,
+            seed = Seed(
+                func_id=function.id,
+                library_name=function.library_name,
+                func_name=function.func_name,
+                args=function.args,
+                function_call=code
             )
-            create_solution(solution).unwrap()
-            logger.info(f"Solution found for {api.api_name}:\n{code}")
+            create_seed(seed)
+            logger.info(f"Seed found for {function.func_name}:\n{code}")
         else:
-            logger.info(f"Failed to solve {api.api_name}")
+            logger.info(f"Failed to solve {function.func_name}")
 
     # 使用线程池，最多10个线程并发执行
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(process_api, api) for api in apis]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(process_function, function) for function in functions]
         concurrent.futures.wait(futures)
 
 

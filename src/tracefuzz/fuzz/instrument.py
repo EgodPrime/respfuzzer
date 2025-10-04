@@ -5,7 +5,7 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
 
-from mplfuzz.fuzz.fuzz_function import fuzz_function
+from tracefuzz.fuzz.fuzz_function import fuzz_function
 
 fuzzed_set = set()
 

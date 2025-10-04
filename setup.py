@@ -3,15 +3,15 @@ from setuptools import Extension, setup
 
 extentions = [
     Extension(
-        name="mplfuzz.mutate",
-        sources=["src/mplfuzz/c/mutate.cxx"],
+        name="tracefuzz.mutate",
+        sources=["src/tracefuzz/c/mutate.cxx"],
         language="c++",
         extra_compile_args=["-std=c++17"],
     )
 ]
 
 setup(
-    name="mplfuzz",
+    name="tracefuzz",
     version="1.0.0",
     ext_modules=cythonize(extentions),
 )

@@ -3,11 +3,11 @@ from unittest import mock
 
 import pytest
 
-from mplfuzz.agentic_api_resolver import ExecutionResultType, QueitExecutor
+from tracefuzz.agentic_function_resolver import ExecutionResultType, QueitExecutor
 
 
 # 测试正常执行成功的情况
-@mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
+@mock.patch("tracefuzz.agentic_function_resolver.subprocess.Popen")
 def test_execute_success(mock_popen):
     # 模拟 Popen 返回值
     mock_proc = mock.Mock()
@@ -25,7 +25,7 @@ def test_execute_success(mock_popen):
 
 
 # 测试执行失败（非零退出码）
-@mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
+@mock.patch("tracefuzz.agentic_function_resolver.subprocess.Popen")
 def test_execute_failure(mock_popen):
     mock_proc = mock.Mock()
     mock_proc.communicate.return_value = ("", "Error message")
@@ -42,7 +42,7 @@ def test_execute_failure(mock_popen):
 
 
 # 测试执行超时
-@mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
+@mock.patch("tracefuzz.agentic_function_resolver.subprocess.Popen")
 def test_execute_timeout(mock_popen):
     mock_proc = mock.Mock()
     mock_proc.communicate.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=10)
@@ -57,7 +57,7 @@ def test_execute_timeout(mock_popen):
 
 
 # 测试执行时抛出异常
-@mock.patch("mplfuzz.agentic_api_resolver.subprocess.Popen")
+@mock.patch("tracefuzz.agentic_function_resolver.subprocess.Popen")
 def test_execute_exception(mock_popen):
     mock_popen.side_effect = Exception("Execution error")
 

@@ -5,9 +5,9 @@ import re
 import sqlite3
 from pathlib import Path
 
-from mplfuzz.utils.paths import RUNDATA_DIR
+from tracefuzz.utils.paths import RUNDATA_DIR
 
-DB_PATH = RUNDATA_DIR / "mplfuzz.db"
+DB_PATH = RUNDATA_DIR / "tracefuzz.db"
 OUTPUT_CSV = RUNDATA_DIR / "filtered_vulns.csv"
 OUTPUT_JSON = RUNDATA_DIR / "filtered_vulns.json"
 
@@ -155,7 +155,7 @@ def filter_vulnerabilities(batch_size=1000):
                             "id": row[0],
                             "mutant_id": row[1],
                             "library_name": row[2],
-                            "api_name": row[3],
+                            "func_name": row[3],
                             "result_type": row[4],
                             "ret_code": row[5],
                             "stdout": row[6],

@@ -4,23 +4,18 @@ api_key = "none"
 model_name = "qwen3-32b-awq"
 
 [db_config]
-db_name = "mplfuzz-big"
-table_name = "mplfuzz"
+db_name = "tracefuzz-big"
 
 [redis]
 host = "127.0.0.1"
 port = 6379
 db = 0
 
-[mcp_api_resolver]
-max_failure = 10
-# history_length_limit + output_length_limit <= context_length
-history_length_limit = 14000
-output_length_limit = 2000
-
-[library_api_resolver]
-batch_size = 10
-
 [fuzz]
 execution_timeout = 5.0
 mutants_per_seed = 1000
+
+[reflective_seeder]
+base_url = "http://192.168.2.29:8000/v1"
+api_key = "none"
+model_name = "qwen3-32b-awq"

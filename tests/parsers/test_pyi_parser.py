@@ -2,8 +2,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from mplfuzz.models import API, Argument, PosType
-from mplfuzz.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
+from tracefuzz.models import Function, Argument, PosType
+from tracefuzz.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
 
 
 def test_parse_pyi_file():
@@ -34,7 +34,7 @@ def another_func(c: List[int]) -> None:...
     # Check test_func
     test_func = pyi_cache["test_func"]
     assert test_func["name"] == "test_func"
-    assert test_func["source"] == "def test_func(a:int,b:str) -> bool:..."
+    assert test_func["source"] == "def test_func(a: int, b: str) -> bool:..."
     assert len(test_func["args"]) == 2
     assert test_func["args"][0].arg_name == "a"
     assert test_func["args"][0].type == "int"
@@ -45,7 +45,7 @@ def another_func(c: List[int]) -> None:...
     # Check another_func
     another_func = pyi_cache["another_func"]
     assert another_func["name"] == "another_func"
-    assert another_func["source"] == "def another_func(c:List[int]) -> None:..."
+    assert another_func["source"] == "def another_func(c: List[int]) -> None:..."
     assert len(another_func["args"]) == 1
     assert another_func["args"][0].arg_name == "c"
     assert another_func["args"][0].type == "List[int]"

@@ -3,8 +3,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from mplfuzz.models import API, Argument, PosType
-from mplfuzz.parsers.function_parser import (
+from tracefuzz.models import Function, Argument, PosType
+from tracefuzz.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
@@ -13,7 +13,7 @@ from mplfuzz.parsers.function_parser import (
 @patch("inspect.getsource")
 @patch("inspect.signature")
 def test_from_function_type(mock_signature, mock_getsource):
-    """Test converting function type to API object"""
+    """Test converting function type to Function object"""
     # Mock function object
     mock_func = Mock()
     mock_func.__name__ = "test_func"
@@ -42,7 +42,7 @@ def test_func(a: int, b: str, c: List[int] = [1,2,3]) -> bool:
 
     # Test the function
     result = from_function_type(mod, mock_func)
-    assert result.api_name == "test_module.test_func"
+    assert result.func_name == "test_module.test_func"
     assert len(result.args) == 3
     assert result.args[0].arg_name == "a"
     assert result.args[0].type == "int"
@@ -55,7 +55,7 @@ def test_func(a: int, b: str, c: List[int] = [1,2,3]) -> bool:
 @patch("inspect.getsource")
 @patch("inspect.signature")
 def test_from_function_type_no_source(mock_signature, mock_getsource):
-    """Test converting function type to API object when source is not available"""
+    """Test converting function type to Function object when source is not available"""
     # Mock function object
     mock_func = Mock()
     mock_func.__name__ = "test_func"
@@ -78,7 +78,7 @@ def test_from_function_type_no_source(mock_signature, mock_getsource):
 
     # Test the function
     result = from_function_type(mod, mock_func)
-    assert result.api_name == "test_module.test_func"
+    assert result.func_name == "test_module.test_func"
     assert len(result.args) == 2
     assert result.args[0].arg_name == "a"
     assert result.args[0].type == "int"
@@ -87,7 +87,7 @@ def test_from_function_type_no_source(mock_signature, mock_getsource):
     assert result.ret_type == "unknown"
 
 def test_from_builtin_function_type():
-    """Test converting builtin function type to API object"""
+    """Test converting builtin function type to Function object"""
     # Test with valid pyi dict
     pyi_dict = {
         "source": "def test_func(a: int, b: str) -> bool:...",
@@ -102,7 +102,7 @@ def test_from_builtin_function_type():
     mock_obj.__name__ = "test_func"
 
     result = from_builtin_function_type(pyi_dict, mock_mod, mock_obj)
-    assert result.api_name == "test_module.test_func"
+    assert result.func_name == "test_module.test_func"
     assert len(result.args) == 2
     assert result.args[0].arg_name == "a"
     assert result.args[0].type == "int"

@@ -3,29 +3,30 @@ from unittest import mock
 
 import pytest
 
-from mplfuzz.agentic_api_resolver import API, ExecutionResultType, solve
-from mplfuzz.models import Argument
+from tracefuzz.agentic_function_resolver import Function, ExecutionResultType, solve
+from tracefuzz.models import Argument, PosType
 
 
-# 模拟 API 对象
-class MockAPI(API):
+# 模拟 Function 对象
+class MockFunction(Function):
     def __init__(self):
         super().__init__(
-            api_name="ast.literal_eval",
+            id = 1,
+            func_name="ast.literal_eval",
             source="mock",
-            args=[Argument(arg_name="s", type="str", pos_type=1)],
+            args=[Argument(arg_name="s", type="str", pos_type=PosType.POSITIONAL_OR_KEYWORD)],
             ret_type="object",
         )
 
 
-# 创建测试用 API 实例
-mock_api = MockAPI()
+# 创建测试用 Function 实例
+mock_function = MockFunction()
 
 
 # 测试：代码第一次失败，Reasoner 提供解释后，第二次生成成功
-@mock.patch("mplfuzz.agentic_api_resolver.Attempter.generate")
-@mock.patch("mplfuzz.agentic_api_resolver.QueitExecutor.execute")
-@mock.patch("mplfuzz.agentic_api_resolver.Reasoner.explain")
+@mock.patch("tracefuzz.agentic_function_resolver.Attempter.generate")
+@mock.patch("tracefuzz.agentic_function_resolver.QueitExecutor.execute")
+@mock.patch("tracefuzz.agentic_function_resolver.Reasoner.explain")
 def test_solve_retry_with_reasoner(mock_explain, mock_execute, mock_generate):
     # 第一次生成错误代码
     mock_generate.side_effect = [
@@ -47,15 +48,15 @@ def test_solve_retry_with_reasoner(mock_explain, mock_execute, mock_generate):
     # Reasoner 返回解释，引导生成正确代码
     mock_explain.return_value = '代码缺少必要的参数，应使用合法的字符串格式，例如 \'{"key": "value"}\'。'
 
-    result = solve(mock_api)
+    result = solve(mock_function)
 
     assert result == 'import ast; result = ast.literal_eval(\'{"key": "value"}\'); print(result)'
 
 
 # 测试：Reasoner 提供错误解释导致最终失败
-@mock.patch("mplfuzz.agentic_api_resolver.Attempter.generate")
-@mock.patch("mplfuzz.agentic_api_resolver.QueitExecutor.execute")
-@mock.patch("mplfuzz.agentic_api_resolver.Reasoner.explain")
+@mock.patch("tracefuzz.agentic_function_resolver.Attempter.generate")
+@mock.patch("tracefuzz.agentic_function_resolver.QueitExecutor.execute")
+@mock.patch("tracefuzz.agentic_function_resolver.Reasoner.explain")
 def test_solve_reasoner_failure(mock_explain, mock_execute, mock_generate):
     # 第一次生成错误代码
     mock_generate.return_value = "import ast; result = ast.literal_eval('invalid'); print(result)"
@@ -71,6 +72,6 @@ def test_solve_reasoner_failure(mock_explain, mock_execute, mock_generate):
     # Reasoner 返回错误解释，无法引导正确代码
     mock_explain.return_value = "代码缺少必要的参数，应使用合法的字符串格式，例如 'invalid'。"
 
-    result = solve(mock_api)
+    result = solve(mock_function)
 
     assert result is None  # 预算耗尽后返回 None

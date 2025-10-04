@@ -1,17 +1,18 @@
 import signal
+import sys
 import time
 from multiprocessing.connection import Connection
 from typing import Callable
 
 from loguru import logger
 
-from mplfuzz.mutate import chain_rng_get_current_state, chain_rng_init
-from mplfuzz.mutator import mutate_param_list
-from mplfuzz.utils.config import get_config
-from mplfuzz.utils.redis_util import get_redis_client
+from tracefuzz.mutate import chain_rng_get_current_state, chain_rng_init
+from tracefuzz.mutator import mutate_param_list
+from tracefuzz.utils.config import get_config
+from tracefuzz.utils.redis_util import get_redis_client
 
 c_conn: Connection = None
-fuzz_config = get_config("fuzz").unwrap()
+fuzz_config = get_config("fuzz")
 execution_timeout = fuzz_config["execution_timeout"]
 mutants_per_seed = fuzz_config["mutants_per_seed"]
 
@@ -20,11 +21,11 @@ def handle_timeout(signum, frame):
     raise TimeoutError(f"Execution takes more than {execution_timeout:.2f} seconds")
 
 
-def execute_once(api: Callable, *args, **kwargs):
+def execute_once(func: Callable, *args, **kwargs):
     """Execute a function with a timeout.
 
     Args:
-        api: Callable function to execute
+        func: Callable function to execute
         *args: Positional arguments for the function
         **kwargs: Keyword arguments for the function
 
@@ -38,7 +39,7 @@ def execute_once(api: Callable, *args, **kwargs):
     signal.signal(signal.SIGALRM, handle_timeout)
     try:
         signal.setitimer(signal.ITIMER_REAL, execution_timeout)
-        res = api(*args, **kwargs)
+        res = func(*args, **kwargs)
         signal.setitimer(signal.ITIMER_REAL, 0)
         return res
     except TimeoutError as e:
@@ -95,15 +96,15 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     """
     full_name = f"{func.__module__}.{func.__name__}"
     rc = get_redis_client()
-    # exec_cnt = rc.hget("exec_cnt", full_name)
     exec_cnt = rc.hget("fuzz", "exec_cnt")
     if exec_cnt:
         exec_cnt = int(exec_cnt)
         if exec_cnt >= mutants_per_seed:
             # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
             return
-
+    
     chain_rng_init(int(time.time()))
+    
 
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:
