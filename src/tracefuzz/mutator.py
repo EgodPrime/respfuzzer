@@ -26,6 +26,18 @@ VALUE_TYPES = [
 
 
 def get_type(old_val) -> str:
+    """
+    Get the type string for a given value.
+    
+    Args:
+        old_val: The value to check type for.
+    
+    Returns:
+        str: The type string.
+    
+    Raises:
+        ValueError: If the value type is unknown.
+    """
     for type_, val in VALUE_TYPES:
         if isinstance(old_val, type_):  # type: ignore
             return val
@@ -33,6 +45,13 @@ def get_type(old_val) -> str:
 
 
 def mutate_auto(old_val):
+    """
+    Automatically mutate a value based on its type.
+    Args:
+        old_val: The value to mutate.
+    Returns:
+        Mutated value of the same type.
+    """
     if old_val is None:
         return None
     if isinstance(old_val, object) and type(old_val) is type(object):

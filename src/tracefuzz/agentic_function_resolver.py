@@ -21,7 +21,11 @@ client = openai.Client(api_key=cfg["api_key"], base_url=cfg["base_url"])
 
 class Attempter:
     def generate(self, function: Function, history: list) -> str:
-        """构造一个包含function中信息的prompt来驱使大模型生成可能正确的function调用，利用history中的信息增强prompt中的引导"""
+        """构造一个包含function中信息的prompt来驱使大模型生成可能正确的function调用，利用history中的信息增强prompt中的引导
+        
+        Raises:
+            Exception: If code generation fails or response format is invalid.
+        """
         prompt = f"<function>\n{function.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容 4. 函数调用应该是完成包路径调用，例如import a; a.b.c()，而不能是from a.b import c; c()"
         try:
             response = client.chat.completions.create(
@@ -98,6 +102,11 @@ class QueitExecutor:
 
 class Reasoner:
     def explain(self, code: str, result: dict) -> str:
+        """解释代码执行结果，提供修正建议。
+        
+        Raises:
+            Exception: If explanation generation fails or response format is invalid.
+        """
         prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。"""
         try:
             # 调用模型进行推理

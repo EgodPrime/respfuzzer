@@ -18,13 +18,22 @@ class Function(BaseModel):
     ret_type: str = "unknown"
 
     def __repr__(self):
-        return f"{self.func_name}({", ".join(f"{arg.arg_name}[{arg.pos_type}]" for arg in self.args)})->{self.ret_type}"
+        """
+        Return a string representation of the function signature.
+        """
+        return f"{self.func_name}({', '.join(f'{arg.arg_name}[{arg.pos_type}]' for arg in self.args)})->{self.ret_type}"
 
     def __str__(self):
+        """
+        Return the string representation of the function (same as __repr__).
+        """
         return self.__repr__()
 
     @model_validator(mode="after")
     def generate_attributes(self):
+        """
+        Automatically set library_name if not provided, based on func_name.
+        """
         if not self.library_name:
             self.library_name = self.func_name.split(".")[0]
         return self

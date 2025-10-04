@@ -127,6 +127,13 @@ def is_potential_vuln(stderr: str) -> bool:
 
 
 def filter_vulnerabilities(batch_size=1000):
+    """
+    Filter and export potential vulnerabilities from the mutant_execution table.
+    Args:
+        batch_size (int): Number of records to process per batch.
+    Outputs:
+        Exports filtered results to CSV and JSON files.
+    """
     if not os.path.isfile(DB_PATH):
         print(f"错误：数据库文件不存在 -> {DB_PATH}")
         return

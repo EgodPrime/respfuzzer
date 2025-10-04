@@ -11,6 +11,13 @@ db_path = RUNDATA_DIR.joinpath(db_name)
 
 @contextmanager
 def get_db_cursor(commit: bool = True):
+    """
+    Context manager for SQLite DB cursor.
+    Args:
+        commit (bool): Whether to commit after usage. Default True.
+    Yields:
+        sqlite3.Cursor: Database cursor object.
+    """
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     try:

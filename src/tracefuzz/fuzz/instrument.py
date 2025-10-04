@@ -18,6 +18,14 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        """
+        Wrapper function that executes the original function and triggers fuzzing on first call.
+        Args:
+            *args: Positional arguments for the function.
+            **kwargs: Keyword arguments for the function.
+        Returns:
+            The result of the original function.
+        """
         res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
         if not func_name in fuzzed_set:

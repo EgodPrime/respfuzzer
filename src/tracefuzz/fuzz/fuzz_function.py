@@ -18,6 +18,12 @@ mutants_per_seed = fuzz_config["mutants_per_seed"]
 
 
 def handle_timeout(signum, frame):
+    """
+    Signal handler for timeout, raises TimeoutError.
+    
+    Raises:
+        TimeoutError: When execution timeout is reached.
+    """
     raise TimeoutError(f"Execution takes more than {execution_timeout:.2f} seconds")
 
 

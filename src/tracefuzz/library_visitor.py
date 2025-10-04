@@ -22,6 +22,11 @@ logger.level("INFO")
 
 class LibraryVisitor:
     def __init__(self, library_name: str):
+        """
+        Initialize a LibraryVisitor for the specified library.
+        Args:
+            library_name (str): The name of the library to visit.
+        """
         self.library_name = library_name
         self.pyi_cache: Dict[str, Dict] = {}
 
@@ -52,7 +57,10 @@ class LibraryVisitor:
             yield function
 
     def find_all_pyi_functions(self):
-        # 先根据库名找到库的 root directory，然后递归遍历找出所有的pyi文件，再找出pyi文件中所有的函数，存入self.pyi_cache中
+        """
+        Find and cache all functions defined in .pyi files for the target library.
+        Populates self.pyi_cache with function definitions.
+        """
         spec = importlib.util.find_spec(self.library_name)
         if spec is None or spec.origin is None:
             return None
