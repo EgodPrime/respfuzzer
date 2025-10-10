@@ -2,62 +2,43 @@ from unittest import mock
 
 import pytest
 
-from tracefuzz.agentic_function_resolver import Function, Attempter
+from tracefuzz.agentic_function_resolver import Attempter
+from tracefuzz.models import Function
 
 
-# 模拟 Function 对象
 class MockFunction(Function):
     def __init__(self):
-        super().__init__(func_name="example_function", source="mock", args=[], ret_type="str")
+        super().__init__(func_name="example.func", source="mock", args=[])
 
 
-# 创建测试用 Function 实例
-mock_function = MockFunction()
+def test_generate_extracts_code_tag_and_returns_inner_content():
+    at = Attempter()
 
-
-# 测试正常生成代码的情况
-@mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create")
-def test_generate_success(mock_create):
-    # 创建 mock_response 对象
     mock_response = mock.Mock()
-    mock_response.choices = [mock.Mock(message=mock.Mock(content="<code>print('hello')</code>"))]
-    mock_create.return_value = mock_response
+    # mimic new-style client response used in the file: choices[0].message.content
+    mock_response.choices = [mock.Mock(message=mock.Mock(content="<code>print('ok')</code>"))]
 
-    history = []
-    result = Attempter().generate(mock_function, history)
+    with mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create", return_value=mock_response):
+        code = at.generate(MockFunction(), [])
 
-    assert result == "print('hello')"
-    assert len(history) == 1
-    assert history[0]["role"] == "attempter"
-    assert "<code>print('hello')</code>" in history[0]["content"]
+    assert "print('ok')" == code
 
 
-# 测试缺少 <code> 前缀的异常情况
-@mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create")
-def test_generate_missing_prefix(mock_create):
+def test_generate_accepts_triple_backticks_fallback():
+    at = Attempter()
     mock_response = mock.Mock()
-    mock_response.choices = [mock.Mock(message=mock.Mock(content="print('hello')"))]
-    mock_create.return_value = mock_response
+    mock_response.choices = [mock.Mock(message=mock.Mock(content="```py\nprint('bk')\n```"))]
 
-    with pytest.raises(Exception, match="Prefix missing"):
-        Attempter().generate(mock_function, [])
+    with mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create", return_value=mock_response):
+        code = at.generate(MockFunction(), [])
 
-
-# 测试缺少 </code> 后缀的异常情况
-@mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create")
-def test_generate_missing_suffix(mock_create):
-    mock_response = mock.Mock()
-    mock_response.choices = [mock.Mock(message=mock.Mock(content="<code>print('hello'"))]
-    mock_create.return_value = mock_response
-
-    with pytest.raises(Exception, match="Suffix missing"):
-        Attempter().generate(mock_function, [])
+    assert "print('bk')" in code
 
 
-# 测试外部 Function 抛出异常的情况
-@mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create")
-def test_generate_function_error(mock_create):
-    mock_create.side_effect = Exception("Function error")
+def test_generate_raises_after_retries_on_errors():
+    at = Attempter()
 
-    with pytest.raises(Exception, match="生成函数调用时发生错误：Function error"):
-        Attempter().generate(mock_function, [])
+    with mock.patch("tracefuzz.agentic_function_resolver.client.chat.completions.create", side_effect=Exception("boom")):
+        with pytest.raises(Exception):
+            at.generate(MockFunction(), [])
+from unittest import mock

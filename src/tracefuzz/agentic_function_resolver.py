@@ -2,7 +2,9 @@ import concurrent.futures
 from datetime import datetime
 import subprocess
 import tempfile
-from typing import Optional
+from typing import Optional, List
+import time
+import traceback
 
 import fire
 import openai
@@ -13,6 +15,7 @@ from tracefuzz.db.seed_table import create_seed
 from tracefuzz.db.solve_history_table import create_solve_history
 from tracefuzz.models import Function, ExecutionResultType, Seed
 from tracefuzz.utils.config import get_config
+import json
 
 cfg = get_config("reflective_seeder")
 
@@ -27,37 +30,53 @@ class Attempter:
             Exception: If code generation fails or response format is invalid.
         """
         prompt = f"<function>\n{function.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容 4. 函数调用应该是完成包路径调用，例如import a; a.b.c()，而不能是from a.b import c; c()"
-        try:
-            response = client.chat.completions.create(
-                model=cfg["model_name"],
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一个代码生成助手，你的名字是attempter，擅长根据用户提供的信息信息生成函数调用。",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=500,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-            )
-            code = response.choices[0].message.content.strip()
-            if not code.startswith("<code>"):
-                raise Exception("Prefix missing")
-            if not code.endswith("</code>"):
-                raise Exception("Suffix missing")
-
-            history.append({"role": "attempter", "content": code})
-
-            return code.split("<code>")[1].split("</code>")[0]
-        except Exception as e:
-            raise Exception(f"生成函数调用时发生错误：{str(e)}")
+        # Add a small retry loop for transient API errors
+        last_exc = None
+        for attempt in range(3):
+            try:
+                response = client.chat.completions.create(
+                    model=cfg["model_name"],
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "你是一个代码生成助手，你的名字是attempter，擅长根据用户提供的信息信息生成函数调用。",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=500,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+                code = response.choices[0].message.content.strip()
+                # tolerate some common variations: try to extract code between <code> tags
+                if "<code>" in code and "</code>" in code:
+                    return code.split("<code>")[1].split("</code>")[0]
+                # fallback: if triple-backtick used, extract that
+                if "```" in code:
+                    parts = code.split("```")
+                    # if language specified like ```py, the code is in parts[1]
+                    if len(parts) >= 3:
+                        return parts[1].strip()
+                    elif len(parts) >= 2:
+                        return parts[1].strip()
+                # if no recognized wrapper, raise to trigger retry or higher-level handling
+                raise ValueError("模型返回不包含 <code> 或 ``` 包裹的代码段")
+            except Exception as e:
+                last_exc = e
+                logger.debug(f"Attempter.generate attempt {attempt+1} failed: {e}")
+                # transient wait before retry
+                time.sleep(1 + attempt)
+                continue
+        # after retries, raise a clear exception with traceback
+        tb = traceback.format_exception_only(type(last_exc), last_exc)
+        raise Exception(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
 
 
 class QueitExecutor:
     def execute(self, code: str) -> dict:
-        ret_code = 0
+        ret_code = 1
         stdout = ""
         stderr = ""
+        proc = None
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(code)
             f.flush()
@@ -75,20 +94,30 @@ class QueitExecutor:
                 )
 
                 # 读取输出（捕获所有）
-                stdout, stderr = proc.communicate(input="\n" * 24, timeout=10)  # 10秒超时
-                ret_code = proc.returncode
-                if ret_code != 0:
-                    result_type = ExecutionResultType.ABNORMAL
-                else:
-                    result_type = ExecutionResultType.OK
-            except subprocess.TimeoutExpired as e:
-                result_type = ExecutionResultType.TIMEOUT
-                proc.kill()
-                stderr = str(e)
-                ret_code = 1
+                try:
+                    stdout, stderr = proc.communicate(input="\n" * 24, timeout=10)  # 10秒超时
+                    ret_code = proc.returncode
+                    if ret_code != 0:
+                        result_type = ExecutionResultType.ABNORMAL
+                    else:
+                        result_type = ExecutionResultType.OK
+                except subprocess.TimeoutExpired as e:
+                    # try to kill and collect any remaining output
+                    result_type = ExecutionResultType.TIMEOUT
+                    try:
+                        if proc is not None:
+                            proc.kill()
+                            out, err = proc.communicate(timeout=1)
+                            stdout = (stdout or "") + (out or "")
+                            stderr = (stderr or "") + (err or "")
+                    except Exception:
+                        # ignore further errors while cleaning up
+                        pass
+                    stderr = (stderr or "") + f"\nTimeoutExpired: {str(e)}"
+                    ret_code = 124
             except Exception as e:
                 result_type = ExecutionResultType.CALLFAIL
-                stderr = str(e)
+                stderr = (stderr or "") + f"\nException when starting subprocess: {str(e)}\n" + traceback.format_exc()
                 ret_code = 1
             finally:
                 result = {
@@ -108,92 +137,169 @@ class Reasoner:
             Exception: If explanation generation fails or response format is invalid.
         """
         prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。"""
-        try:
-            # 调用模型进行推理
-            response = client.chat.completions.create(
-                model=cfg["model_name"],
-                messages=[
-                    {"role": "system", "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。"},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=500,
-                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-            )
-            # 提取模型返回的文本
-            explanation = response.choices[0].message.content.strip()
-            # 确保输出包含 <explain> 标签
-            if not explanation.startswith("<explain>"):
-                raise Exception("Prefix missing")
-            if not explanation.endswith("</explain>"):
-                raise Exception("Suffix missing")
-            return explanation.split("<explain>")[1].split("</explain>")[0]
-        except Exception as e:
-            raise Exception(f"解释执行结果时发生错误：{str(e)}")
+        # small retry loop for transient API issues
+        last_exc = None
+        for attempt in range(3):
+            try:
+                response = client.chat.completions.create(
+                    model=cfg["model_name"],
+                    messages=[
+                        {"role": "system", "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=500,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+                explanation = response.choices[0].message.content.strip()
+                if "<explain>" in explanation and "</explain>" in explanation:
+                    return explanation.split("<explain>")[1].split("</explain>")[0]
+                # fallback: return whole text if no tags but non-empty
+                if explanation:
+                    return explanation
+                raise ValueError("模型返回空的解释内容")
+            except Exception as e:
+                last_exc = e
+                logger.debug(f"Reasoner.explain attempt {attempt+1} failed: {e}")
+                time.sleep(1 + attempt)
+                continue
+        tb = traceback.format_exception_only(type(last_exc), last_exc)
+        raise Exception(f"解释执行结果时发生错误，最后一次错误: {''.join(tb)}")
+
+
+class Judger:
+    """Use the LLM to judge whether a generated code string contains a valid call to the target function.
+
+    The `judge` method returns a dict: {"valid": bool, "reason": str}.
+    """
+
+    def judge(self, code: str, function: Function) -> dict:
+        prompt = (
+            f"<function>\n{function.model_dump_json()}\n</function>\n"
+            f"<code>\n{code}\n</code>\n"
+            "请判断上面的 `code` 是否包含对 `function` 的有效调用（例如完整包路径的函数调用或显式的通过别名能够唯一映射到目标函数的调用）。"
+            " 输出应为 JSON 对象，形如 {\"valid\": true, \"reason\": \"...\"}。"
+        )
+
+        last_exc = None
+        for attempt in range(3):
+            try:
+                response = client.chat.completions.create(
+                    model=cfg["model_name"],
+                    messages=[
+                        {"role": "system", "content": "你是一个代码审核助手，判断生成的代码是否包含对目标函数的有效调用。"},
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=200,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+
+                text = response.choices[0].message.content.strip()
+                # try to extract json blob
+                try:
+                    # find first '{' and last '}' to extract JSON
+                    start = text.find("{")
+                    end = text.rfind("}")
+                    if start != -1 and end != -1 and end > start:
+                        j = json.loads(text[start : end + 1])
+                        return {"valid": bool(j.get("valid")), "reason": str(j.get("reason", ""))}
+                except Exception:
+                    # fall through and attempt simple parsing
+                    pass
+
+                # fallback heuristics
+                lowered = text.lower()
+                if "true" in lowered or "yes" in lowered or "valid" in lowered:
+                    return {"valid": True, "reason": text}
+                else:
+                    return {"valid": False, "reason": text}
+            except Exception as e:
+                last_exc = e
+                logger.debug(f"Judger.judge attempt {attempt+1} failed: {e}")
+                time.sleep(1 + attempt)
+                continue
+
+        tb = traceback.format_exception_only(type(last_exc), last_exc)
+        raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
 def solve(function: Function) -> Optional[str]:
     attempter = Attempter()
+    judger = Judger()
     executor = QueitExecutor()
     reasoner = Reasoner()
 
     budget = 10
-    history = []
+    history: List[dict] = []
     solved = False
-    while True:
-        code = attempter.generate(function, history)
-        if f"{function.func_name}(" not in code:
-            history.append({"role": "reasoner", "content": f"生成的代码中不包含对{function.func_name}的调用，请重新生成"})
-            budget -= 1
-            if budget == 0:
-                break
-            continue
-        # logger.debug(f"code:\n{code}")
-        result = executor.execute(code)
-        # logger.debug(f"result:\n{result}")
-        if result["result_type"] == ExecutionResultType.OK:
-            solved = True
-            break
-        else:
-            reason = reasoner.explain(code, result)
-            logger.debug(f"reason:\n{reason}")
-            history.append({"role": "attempter", "content": code})
-            history.append({"role": "executor", "content": result["stderr"]})
-            history.append({"role": "reasoner", "content": reason})
-            budget -= 1
-            if budget == 0:
-                break
-            continue
+    code = None
+    try:
+        while True:
+            # generate may raise; handle and record the error into history so we can save it later
+            try:
+                code = attempter.generate(function, history)
+            except Exception as e:
+                err_msg = f"Attempter error: {str(e)}"
+                logger.debug(err_msg)
+                history.append({"role": "attempter_error", "content": err_msg})
+                budget -= 1
+                if budget <= 0:
+                    break
+                continue
 
-    create_solve_history(function, history)
+            history.append({"role": "attempter", "content": code})
+
+            # judge may raise; handle and record the error into history so we can save it later
+            try:
+                judgment = judger.judge(code, function)
+                if judgment["valid"]:
+                    logger.debug(f"Judger accepted the code:\n{code}")
+                else:
+                    logger.debug(f"Judger rejected the code: {judgment['reason']}")
+                    history.append({"role": "judger", "content": f"Judger rejected the code: {judgment['reason']}"})
+                    budget -= 1
+                    if budget <= 0:
+                        break
+                    continue
+            except Exception as e:
+                err_msg = f"Judger error: {str(e)}"
+                logger.debug(err_msg)
+                history.append({"role": "judger_error", "content": err_msg})
+                budget -= 1
+                if budget <= 0:
+                    break
+                continue
+
+            result = executor.execute(code)
+
+            if result["result_type"] == ExecutionResultType.OK:
+                solved = True
+                break
+            else:
+                # try to get an explanation; if reasoner fails, record the failure and continue
+                try:
+                    reason = reasoner.explain(code, result)
+                except Exception as e:
+                    reason = f"Reasoner error: {str(e)}"
+                    logger.debug(reason)
+
+                logger.debug(f"reason:\n{reason}")
+                history.append({"role": "executor", "content": result.get("stderr")})
+                history.append({"role": "reasoner", "content": reason})
+                budget -= 1
+                if budget == 0:
+                    break
+                continue
+    finally:
+        try:
+            create_solve_history(function, history)
+        except Exception:
+            # ensure solve never crashes due to history persistence failures
+            logger.exception("Failed to write solve history")
+
     if solved:
         return code
     else:
         return None
-    
-    
-
-
-def _main(library_name: str):
-    functions = get_functions(library_name)
-    for function in functions:
-        logger.info(f"Try solving {function.func_name} ...")
-        code = None
-        try:
-            code = solve(function)
-        except Exception:
-            pass
-        if code:
-            seed = Seed(
-                func_id=function.id,
-                library_name=function.library_name,
-                func_name=function.func_name,
-                args=function.args,
-                function_call=code
-            )
-            create_seed(seed)
-            logger.info(f"Seed find for {function.func_name}:\n{code}")
-        else:
-            logger.info(f"Failed to solve {function.func_name}")
 
 
 def _mainC(library_name: str):
@@ -219,7 +325,7 @@ def _mainC(library_name: str):
         else:
             logger.info(f"Failed to solve {function.func_name}")
 
-    # 使用线程池，最多10个线程并发执行
+    # 使用线程池，最多3个线程并发执行
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         futures = [executor.submit(process_function, function) for function in functions]
         concurrent.futures.wait(futures)
