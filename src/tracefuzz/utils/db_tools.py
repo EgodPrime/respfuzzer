@@ -1,6 +1,8 @@
-import fire
 import importlib
-from tracefuzz.db.function_table import get_function_iter, get_db_cursor
+
+import fire
+
+from tracefuzz.db.function_table import get_db_cursor, get_function_iter
 from tracefuzz.db.seed_table import get_seed_by_function_id
 
 
@@ -45,7 +47,9 @@ def cleanup_invalid_function_records():
         # Delete all invalid records
         if invalid_ids:
             placeholders = ",".join("?" * len(invalid_ids))
-            cursor.execute(f"DELETE FROM function WHERE id IN ({placeholders})", invalid_ids)
+            cursor.execute(
+                f"DELETE FROM function WHERE id IN ({placeholders})", invalid_ids
+            )
             print(f"Deleted {len(invalid_ids)} invalid records.")
         else:
             print("No invalid records found.")
@@ -87,14 +91,14 @@ def delete_duplicate_function_records(library_name: str):
         print(f"Removed duplicate records for library: {library_name}")
 
 
-def delete_seed_records(library_name: str=None):
+def delete_seed_records(library_name: str = None):
     """Remove all seed records for a specific library, or the entire table if no library is specified"""
     with get_db_cursor() as cur:
         if not library_name:
             # Delete all records
             cur.execute("DELETE FROM seed")
             count_after = cur.rowcount
-            
+
             if count_after > 0:
                 print(f"Deleted {count_after} seed records from the entire table.")
             else:
@@ -104,7 +108,7 @@ def delete_seed_records(library_name: str=None):
             # Delete all records for the specified library
             cur.execute("DELETE FROM seed WHERE library_name = ?", (library_name,))
             count_after = cur.rowcount
-            
+
             if count_after > 0:
                 print(f"Deleted {count_after} seed records for library: {library_name}")
             else:
@@ -113,12 +117,14 @@ def delete_seed_records(library_name: str=None):
 
 def main():
     """Main entry point for the db_tools command-line interface"""
-    fire.Fire({
-        'view': view,
-        'cleanup-invalid': cleanup_invalid_function_records,
-        'delete-duplicate': delete_duplicate_function_records,
-        'delete-seed': delete_seed_records
-    })
+    fire.Fire(
+        {
+            "view": view,
+            "cleanup-invalid": cleanup_invalid_function_records,
+            "delete-duplicate": delete_duplicate_function_records,
+            "delete-seed": delete_seed_records,
+        }
+    )
 
 
 if __name__ == "__main__":

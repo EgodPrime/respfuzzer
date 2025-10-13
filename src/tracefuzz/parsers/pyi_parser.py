@@ -1,20 +1,20 @@
-import os
-import re
 import ast
+import os
+from inspect import _ParameterKind
 from typing import Dict, Set
 
-from inspect import _ParameterKind
-
 from tracefuzz.models import Argument
+
 
 def is_top_level_function(node):
     """检查节点是否是模块级别的函数（不在类内部）"""
     parent = node
-    while hasattr(parent, 'parent'):
+    while hasattr(parent, "parent"):
         parent = parent.parent
         if isinstance(parent, ast.ClassDef):
             return False  # 在类内部
     return True  # 在模块级别
+
 
 def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
     """
@@ -38,33 +38,65 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
 
                     for arg in node.args.posonlyargs:
                         arg_name = arg.arg
-                        arg_type = ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        arg_type = (
+                            ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        )
                         pos_type = _ParameterKind.POSITIONAL_ONLY.name
-                        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=pos_type))
+                        arg_list.append(
+                            Argument(
+                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                            )
+                        )
                     for arg in node.args.args:
                         arg_name = arg.arg
-                        arg_type = ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        arg_type = (
+                            ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        )
                         pos_type = _ParameterKind.POSITIONAL_OR_KEYWORD.name
-                        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=pos_type))
+                        arg_list.append(
+                            Argument(
+                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                            )
+                        )
                     if node.args.vararg:
                         arg = node.args.vararg
                         arg_name = arg.arg
-                        arg_type = ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        arg_type = (
+                            ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        )
                         pos_type = _ParameterKind.VAR_POSITIONAL.name
-                        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=pos_type))
+                        arg_list.append(
+                            Argument(
+                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                            )
+                        )
                     for arg in node.args.kwonlyargs:
                         arg_name = arg.arg
-                        arg_type = ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        arg_type = (
+                            ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        )
                         pos_type = _ParameterKind.KEYWORD_ONLY.name
-                        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=pos_type))
+                        arg_list.append(
+                            Argument(
+                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                            )
+                        )
                     if node.args.kwarg:
                         arg = node.args.kwarg
                         arg_name = arg.arg
-                        arg_type = ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        arg_type = (
+                            ast.unparse(arg.annotation) if arg.annotation else "unknown"
+                        )
                         pos_type = _ParameterKind.VAR_KEYWORD.name
-                        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=pos_type))
-                    
-                    ret_type_str = ast.unparse(node.returns) if node.returns else "unknown"
+                        arg_list.append(
+                            Argument(
+                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                            )
+                        )
+
+                    ret_type_str = (
+                        ast.unparse(node.returns) if node.returns else "unknown"
+                    )
 
                     pyi_cache[func_name] = {
                         "name": func_name,
@@ -75,7 +107,9 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                     }
 
 
-def _find_all_pyi_files(dir_path: str, visited_files: Set[str], pyi_cache: Dict[str, Dict]) -> None:
+def _find_all_pyi_files(
+    dir_path: str, visited_files: Set[str], pyi_cache: Dict[str, Dict]
+) -> None:
     """
     递归遍历指定目录下的所有 .pyi 文件，并将文件路径存入 visited_files 集合中
     """
@@ -89,4 +123,3 @@ def _find_all_pyi_files(dir_path: str, visited_files: Set[str], pyi_cache: Dict[
                 _parse_pyi_file(file_path, pyi_cache)
         for dir_name in dirs:
             _find_all_pyi_files(os.path.join(root, dir_name), visited_files, pyi_cache)
-

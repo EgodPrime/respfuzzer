@@ -1,5 +1,5 @@
 import copy
-from typing import Any, Dict, FrozenSet, Iterable, List, Set, Tuple
+from typing import Dict, FrozenSet, List, Set, Tuple
 
 from tracefuzz.mutate import (
     chain_rng_rand_range,
@@ -28,13 +28,13 @@ VALUE_TYPES = [
 def get_type(old_val) -> str:
     """
     Get the type string for a given value.
-    
+
     Args:
         old_val: The value to check type for.
-    
+
     Returns:
         str: The type string.
-    
+
     Raises:
         ValueError: If the value type is unknown.
     """
@@ -190,3 +190,22 @@ def mutate_param_list(old_val: List[object]) -> List:
     for i in mt_idx:
         new_val[i] = mutate_auto(new_val[i])
     return new_val
+
+
+__all__ = [
+    "mutate_auto",
+    "mutate_bool",
+    "mutate_int",
+    "mutate_float",
+    "mutate_complex",
+    "mutate_str",
+    "mutate_bytes",
+    "mutate_list",
+    "mutate_tuple",
+    "mutate_bytearray",
+    "mutate_set",
+    "mutate_frozenset",
+    "mutate_dict",
+    "mutate_instance",
+    "mutate_param_list",
+]

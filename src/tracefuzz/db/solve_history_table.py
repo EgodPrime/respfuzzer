@@ -1,9 +1,8 @@
 import json
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
 from tracefuzz.db.base import get_db_cursor
 from tracefuzz.models import Function
-
 
 # Create the solve history table
 with get_db_cursor() as cur:
@@ -21,14 +20,14 @@ with get_db_cursor() as cur:
 def create_solve_history(function: Function, history: list[dict]) -> Optional[int]:
     """
     Store solve history for an function in the database.
-    
+
     Args:
         function: The function object containing library_name and func_name
         history: List of dictionaries with 'role' and 'content' keys
     """
     # Convert history to a string format
     history_str = json.dumps(history, ensure_ascii=False, indent=2)
-    
+
     with get_db_cursor() as cur:
         cur.execute(
             """INSERT INTO solve_history (func_id, library_name, func_name, history) VALUES (?, ?, ?, ?)""",
@@ -40,22 +39,21 @@ def create_solve_history(function: Function, history: list[dict]) -> Optional[in
 def get_solve_history(solve_history_id: int) -> Optional[List[dict]]:
     """
     Retrieve solve history for an function from the database.
-    
+
     Args:
         solve_history_id: The ID of the solve history record
-    
+
     Returns:
         List of dictionaries with 'role' and 'content' keys
     """
     with get_db_cursor() as cur:
         cur.execute(
-            """SELECT history FROM solve_history WHERE id = ? """,
-            (solve_history_id,)
+            """SELECT history FROM solve_history WHERE id = ? """, (solve_history_id,)
         )
         row = cur.fetchone()
         if not row:
             return None
-        
+
         history_str = row[0]
         history = json.loads(history_str)
         return history
@@ -64,12 +62,9 @@ def get_solve_history(solve_history_id: int) -> Optional[List[dict]]:
 def delete_solve_history(solve_history_id: int) -> None:
     """
     Delete solve history for an function from the database.
-    
+
     Args:
         solve_history_id: The ID of the solve history record
     """
     with get_db_cursor() as cur:
-        cur.execute(
-            """DELETE FROM solve_history WHERE id = ?""",
-            (solve_history_id,)
-        )
+        cur.execute("""DELETE FROM solve_history WHERE id = ?""", (solve_history_id,))

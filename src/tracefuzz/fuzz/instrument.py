@@ -1,5 +1,4 @@
 import inspect
-import sys
 from functools import wraps
 from types import BuiltinFunctionType, FunctionType, ModuleType
 
@@ -29,7 +28,7 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
         res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
         if not func_name in fuzzed_set:
-            logger.debug(f"Want to fuzz {func_name}")
+            # logger.debug(f"Want to fuzz {func_name}")
             fuzzed_set.add(func_name)
             fuzz_function(func, *args, **kwargs)
         return res
@@ -58,7 +57,9 @@ def instrument_function_via_path(mod: ModuleType, path: str):
     """
     mods = path.split(".")
     if mods[0] != mod.__name__:
-        logger.error(f"Invalid package path: {path} does not start with {mod.__name__}!")
+        logger.error(
+            f"Invalid package path: {path} does not start with {mod.__name__}!"
+        )
         return
     parent = mod
     for name in mods[1:-1]:
@@ -81,7 +82,7 @@ def instrument_function_via_path(mod: ModuleType, path: str):
     # logger.debug(f"Instrumented {true_parent_package_path}.{orig_func.__name__} ({path})")
 
     setattr(parent, mods[-1], new_func)
-    logger.debug(f"Instrumented {path}")
+    # logger.debug(f"Instrumented {path}")
 
 
 mod_has_been_seen = set()
@@ -119,10 +120,14 @@ def instrument_module(mod: ModuleType) -> None:
                 instrument_module(obj)
         elif isinstance(obj, (FunctionType, BuiltinFunctionType)):
             true_module_path = obj.__module__
-            if true_module_path is None:  # Skip functions that do not belong to any module
+            if (
+                true_module_path is None
+            ):  # Skip functions that do not belong to any module
                 continue
             tokens = true_module_path.split(".")
-            if not tokens[0] == top_mod_name:  # Skip functions that does not belong to the top-level module
+            if (
+                not tokens[0] == top_mod_name
+            ):  # Skip functions that does not belong to the top-level module
                 continue
             new_func = instrument_function(obj)
             setattr(new_func, "original__func", obj)

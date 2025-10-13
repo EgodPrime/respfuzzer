@@ -1,10 +1,10 @@
 import concurrent.futures
-from datetime import datetime
+import json
 import subprocess
 import tempfile
-from typing import Optional, List
 import time
 import traceback
+from typing import List, Optional
 
 import fire
 import openai
@@ -13,9 +13,8 @@ from loguru import logger
 from tracefuzz.db.function_table import get_functions
 from tracefuzz.db.seed_table import create_seed
 from tracefuzz.db.solve_history_table import create_solve_history
-from tracefuzz.models import Function, ExecutionResultType, Seed
+from tracefuzz.models import ExecutionResultType, Function, Seed
 from tracefuzz.utils.config import get_config
-import json
 
 cfg = get_config("reflective_seeder")
 
@@ -25,7 +24,7 @@ client = openai.Client(api_key=cfg["api_key"], base_url=cfg["base_url"])
 class Attempter:
     def generate(self, function: Function, history: list) -> str:
         """构造一个包含function中信息的prompt来驱使大模型生成可能正确的function调用，利用history中的信息增强prompt中的引导
-        
+
         Raises:
             Exception: If code generation fails or response format is invalid.
         """
@@ -128,7 +127,9 @@ class QueitExecutor:
 
                 # 读取输出（捕获所有）
                 try:
-                    stdout, stderr = proc.communicate(input="\n" * 24, timeout=10)  # 10秒超时
+                    stdout, stderr = proc.communicate(
+                        input="\n" * 24, timeout=10
+                    )  # 10秒超时
                     ret_code = proc.returncode
                     if ret_code != 0:
                         result_type = ExecutionResultType.ABNORMAL
@@ -150,7 +151,11 @@ class QueitExecutor:
                     ret_code = 124
             except Exception as e:
                 result_type = ExecutionResultType.CALLFAIL
-                stderr = (stderr or "") + f"\nException when starting subprocess: {str(e)}\n" + traceback.format_exc()
+                stderr = (
+                    (stderr or "")
+                    + f"\nException when starting subprocess: {str(e)}\n"
+                    + traceback.format_exc()
+                )
                 ret_code = 1
             finally:
                 result = {
@@ -165,7 +170,7 @@ class QueitExecutor:
 class Reasoner:
     def explain(self, code: str, result: dict) -> str:
         """解释代码执行结果，提供修正建议。
-        
+
         Raises:
             Exception: If explanation generation fails or response format is invalid.
         """
@@ -177,7 +182,10 @@ class Reasoner:
                 response = client.chat.completions.create(
                     model=cfg["model_name"],
                     messages=[
-                        {"role": "system", "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。"},
+                        {
+                            "role": "system",
+                            "content": "你是一个代码调试助手，擅长解释代码错误并提供修正建议。",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=500,
@@ -210,7 +218,7 @@ class Judger:
             f"<function>\n{function.model_dump_json()}\n</function>\n"
             f"<code>\n{code}\n</code>\n"
             "请判断上面的 `code` 是否包含对 `function` 的有效调用（例如完整包路径的函数调用或显式的通过别名能够唯一映射到目标函数的调用）。"
-            " 输出应为 JSON 对象，形如 {\"valid\": true, \"reason\": \"...\"}。"
+            ' 输出应为 JSON 对象，形如 {"valid": true, "reason": "..."}。'
         )
 
         last_exc = None
@@ -219,7 +227,10 @@ class Judger:
                 response = client.chat.completions.create(
                     model=cfg["model_name"],
                     messages=[
-                        {"role": "system", "content": "你是一个代码审核助手，判断生成的代码是否包含对目标函数的有效调用。"},
+                        {
+                            "role": "system",
+                            "content": "你是一个代码审核助手，判断生成的代码是否包含对目标函数的有效调用。",
+                        },
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=200,
@@ -234,7 +245,10 @@ class Judger:
                     end = text.rfind("}")
                     if start != -1 and end != -1 and end > start:
                         j = json.loads(text[start : end + 1])
-                        return {"valid": bool(j.get("valid")), "reason": str(j.get("reason", ""))}
+                        return {
+                            "valid": bool(j.get("valid")),
+                            "reason": str(j.get("reason", "")),
+                        }
                 except Exception:
                     # fall through and attempt simple parsing
                     pass
@@ -288,7 +302,12 @@ def solve(function: Function) -> Optional[str]:
                     logger.debug(f"Judger accepted the code:\n{code}")
                 else:
                     logger.debug(f"Judger rejected the code: {judgment['reason']}")
-                    history.append({"role": "judger", "content": f"Judger rejected the code: {judgment['reason']}"})
+                    history.append(
+                        {
+                            "role": "judger",
+                            "content": f"Judger rejected the code: {judgment['reason']}",
+                        }
+                    )
                     budget -= 1
                     if budget <= 0:
                         break
@@ -351,7 +370,7 @@ def _mainC(library_name: str):
                 library_name=function.library_name,
                 func_name=function.func_name,
                 args=function.args,
-                function_call=code
+                function_call=code,
             )
             create_seed(seed)
             logger.info(f"Seed found for {function.func_name}:\n{code}")
@@ -359,8 +378,12 @@ def _mainC(library_name: str):
             logger.info(f"Failed to solve {function.func_name}")
 
     # 使用线程池，最多3个线程并发执行
-    with concurrent.futures.ThreadPoolExecutor(max_workers=int(cfg.get("concurrency", 4))) as executor:
-        futures = [executor.submit(process_function, function) for function in functions]
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=int(cfg.get("concurrency", 4))
+    ) as executor:
+        futures = [
+            executor.submit(process_function, function) for function in functions
+        ]
         concurrent.futures.wait(futures)
 
 

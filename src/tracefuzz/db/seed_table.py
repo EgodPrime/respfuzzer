@@ -2,7 +2,7 @@ import json
 from typing import Iterator, List, Optional
 
 from tracefuzz.db.base import get_db_cursor
-from tracefuzz.models import Argument, ArgumentExpr, Seed
+from tracefuzz.models import Argument, Seed
 
 # 创建数据库表
 with get_db_cursor() as cur:
@@ -17,13 +17,13 @@ with get_db_cursor() as cur:
         )"""
     )
 
+
 def create_seed(seed: Seed) -> int:
     """
     将 Seed 插入到数据库中，并返回新生成的 ID。
     """
     # 将 args 和 arg_exprs 转为 JSON 字符串
     args_text = json.dumps([arg.model_dump() for arg in seed.args])
-    
 
     with get_db_cursor() as cur:
         cur.execute(
@@ -48,6 +48,7 @@ def create_seed(seed: Seed) -> int:
 def create_seeds(seeds: list[Seed]) -> list[int]:
     res = [create_seed(seed) for seed in seeds]
     return res
+
 
 def get_seed(seed_id: int) -> Optional[Seed]:
     """
@@ -93,7 +94,7 @@ def get_seed_by_function_id(func_id: int) -> Optional[Seed]:
 
 def get_seeds(
     library_name: Optional[str] = None, func_name: Optional[str] = None
-) ->List[Seed]:
+) -> List[Seed]:
     """
     获取多个 Solution，支持按 library_name 和 func_name 过滤。
     """
@@ -108,7 +109,9 @@ def get_seeds(
         filter_conditions.append("func_name = ?")
         params.append(func_name)
 
-    where_clause = "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
+    where_clause = (
+        "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
+    )
 
     with get_db_cursor() as cur:
         cur.execute(f"SELECT * FROM seed {where_clause}", tuple(params))
@@ -131,7 +134,9 @@ def get_seeds(
         return seeds
 
 
-def get_seeds_iter(library_name: Optional[str] = None, func_name: Optional[str] = None) -> Iterator[Seed]:
+def get_seeds_iter(
+    library_name: Optional[str] = None, func_name: Optional[str] = None
+) -> Iterator[Seed]:
     """
     获取多个 Seed 的迭代器，支持按 library_name 和 func_name 过滤。
     """
@@ -146,7 +151,9 @@ def get_seeds_iter(library_name: Optional[str] = None, func_name: Optional[str] 
         filter_conditions.append("func_name = ?")
         params.append(func_name)
 
-    where_clause = "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
+    where_clause = (
+        "WHERE " + " AND ".join(filter_conditions) if filter_conditions else ""
+    )
 
     with get_db_cursor() as cur:
         cur.execute(f"SELECT * FROM seed {where_clause}", tuple(params))

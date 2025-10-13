@@ -1,10 +1,7 @@
 import importlib
-import inspect
-import json
 import os
-import re
 from types import BuiltinFunctionType, FunctionType, ModuleType
-from typing import Dict, Iterator, List, Optional, Set
+from typing import Dict, Iterator, Set
 
 import fire
 from loguru import logger
@@ -71,7 +68,9 @@ class LibraryVisitor:
         visited_files: Set[str] = set()
         _find_all_pyi_files(root_path, visited_files, self.pyi_cache)
 
-    def _visit(self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set) -> Iterator[Function]:
+    def _visit(
+        self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set
+    ) -> Iterator[Function]:
         # Skip if the module has already been seen.
         if id(mod) in mod_has_been_seen:
             return
@@ -150,7 +149,9 @@ class LibraryVisitor:
 
                 elif isinstance(obj, BuiltinFunctionType):
                     if name in self.pyi_cache:
-                        function = from_builtin_function_type(self.pyi_cache[name], mod, obj)
+                        function = from_builtin_function_type(
+                            self.pyi_cache[name], mod, obj
+                        )
                         yield function
 
 

@@ -1,5 +1,5 @@
-from unittest import mock
 import subprocess
+from unittest import mock
 
 from tracefuzz.agentic_function_resolver import QueitExecutor
 from tracefuzz.models import ExecutionResultType
@@ -10,7 +10,10 @@ def test_execute_ok(monkeypatch):
     mock_proc.communicate.return_value = ("out", "")
     mock_proc.returncode = 0
 
-    monkeypatch.setattr("tracefuzz.agentic_function_resolver.subprocess.Popen", lambda *a, **k: mock_proc)
+    monkeypatch.setattr(
+        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        lambda *a, **k: mock_proc,
+    )
 
     res = QueitExecutor().execute("print('x')")
     assert res["result_type"] == ExecutionResultType.OK
@@ -23,7 +26,10 @@ def test_execute_abnormal(monkeypatch):
     mock_proc.communicate.return_value = ("", "err")
     mock_proc.returncode = 1
 
-    monkeypatch.setattr("tracefuzz.agentic_function_resolver.subprocess.Popen", lambda *a, **k: mock_proc)
+    monkeypatch.setattr(
+        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        lambda *a, **k: mock_proc,
+    )
 
     res = QueitExecutor().execute("raise Exception('e')")
     assert res["result_type"] == ExecutionResultType.ABNORMAL
@@ -33,9 +39,14 @@ def test_execute_abnormal(monkeypatch):
 
 def test_execute_timeout(monkeypatch):
     mock_proc = mock.Mock()
-    mock_proc.communicate.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=10)
+    mock_proc.communicate.side_effect = subprocess.TimeoutExpired(
+        cmd="python", timeout=10
+    )
 
-    monkeypatch.setattr("tracefuzz.agentic_function_resolver.subprocess.Popen", lambda *a, **k: mock_proc)
+    monkeypatch.setattr(
+        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        lambda *a, **k: mock_proc,
+    )
 
     res = QueitExecutor().execute("import time; time.sleep(100)")
     assert res["result_type"] == ExecutionResultType.TIMEOUT
@@ -48,7 +59,9 @@ def test_execute_callfail(monkeypatch):
     def raise_on_popen(*a, **k):
         raise Exception("spawn failed")
 
-    monkeypatch.setattr("tracefuzz.agentic_function_resolver.subprocess.Popen", raise_on_popen)
+    monkeypatch.setattr(
+        "tracefuzz.agentic_function_resolver.subprocess.Popen", raise_on_popen
+    )
 
     res = QueitExecutor().execute("print('x')")
     assert res["result_type"] == ExecutionResultType.CALLFAIL

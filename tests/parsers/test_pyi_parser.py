@@ -1,8 +1,5 @@
 from unittest.mock import Mock, patch
 
-import pytest
-
-from tracefuzz.models import Function, Argument, PosType
 from tracefuzz.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
 
 
@@ -55,7 +52,10 @@ def another_func(c: List[int]) -> None:...
         """Test finding all .pyi files"""
         # Mock walk results
         mock_walk = Mock()
-        mock_walk.return_value = [("/path/to", [], ["test.pyi", "other.pyi"]), ("/path/to/subdir", [], ["sub.pyi"])]
+        mock_walk.return_value = [
+            ("/path/to", [], ["test.pyi", "other.pyi"]),
+            ("/path/to/subdir", [], ["sub.pyi"]),
+        ]
 
         # Mock file content
         content = """

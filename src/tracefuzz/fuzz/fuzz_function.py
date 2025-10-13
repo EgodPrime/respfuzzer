@@ -1,5 +1,4 @@
 import signal
-import sys
 import time
 from multiprocessing.connection import Connection
 from typing import Callable
@@ -20,7 +19,7 @@ mutants_per_seed = fuzz_config["mutants_per_seed"]
 def handle_timeout(signum, frame):
     """
     Signal handler for timeout, raises TimeoutError.
-    
+
     Raises:
         TimeoutError: When execution timeout is reached.
     """
@@ -109,9 +108,8 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
         if exec_cnt >= mutants_per_seed:
             # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
             return
-    
+
     chain_rng_init(int(time.time()))
-    
 
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:

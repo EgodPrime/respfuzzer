@@ -1,16 +1,15 @@
-import signal
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tracefuzz.utils.redis_util import get_redis_client
 from tracefuzz.fuzz.fuzz_function import (
     convert_to_param_list,
     execute_once,
     fuzz_function,
-    handle_timeout,
     reconvert_param_list,
 )
+from tracefuzz.utils.redis_util import get_redis_client
+
 
 @pytest.fixture(autouse=True)
 def clean_exec_cnt():
@@ -58,7 +57,9 @@ def test_fuzz_function_no_args(
     mock_function.__module__ = "test_module"
     mock_function.__name__ = "test_function"
     fuzz_function(mock_function)
-    mock_logger.info.assert_any_call("test_module.test_function has no arguments, execute only once.")
+    mock_logger.info.assert_any_call(
+        "test_module.test_function has no arguments, execute only once."
+    )
 
 
 @patch("tracefuzz.fuzz.fuzz_function.logger")

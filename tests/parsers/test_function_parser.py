@@ -1,9 +1,7 @@
 import inspect
 from unittest.mock import Mock, patch
 
-import pytest
-
-from tracefuzz.models import Function, Argument, PosType
+from tracefuzz.models import Argument
 from tracefuzz.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
@@ -30,11 +28,17 @@ def test_func(a: int, b: str, c: List[int] = [1,2,3]) -> bool:
     # Mock signature
     mock_signature.return_value = inspect.Signature(
         parameters=[
-            inspect.Parameter("a", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-            inspect.Parameter("b", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
-            inspect.Parameter("c", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=list),
+            inspect.Parameter(
+                "a", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+            ),
+            inspect.Parameter(
+                "b", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
+            ),
+            inspect.Parameter(
+                "c", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=list
+            ),
         ],
-        return_annotation=bool
+        return_annotation=bool,
     )
 
     mod = Mock()
@@ -52,6 +56,7 @@ def test_func(a: int, b: str, c: List[int] = [1,2,3]) -> bool:
     assert result.args[2].type == "list"
     assert result.ret_type == "bool"
 
+
 @patch("inspect.getsource")
 @patch("inspect.signature")
 def test_from_function_type_no_source(mock_signature, mock_getsource):
@@ -67,10 +72,14 @@ def test_from_function_type_no_source(mock_signature, mock_getsource):
     # Mock signature
     mock_signature.return_value = inspect.Signature(
         parameters=[
-            inspect.Parameter("a", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-            inspect.Parameter("b", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str),
+            inspect.Parameter(
+                "a", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+            ),
+            inspect.Parameter(
+                "b", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str
+            ),
         ],
-        return_annotation=inspect.Signature.empty
+        return_annotation=inspect.Signature.empty,
     )
 
     mod = Mock()
@@ -86,12 +95,24 @@ def test_from_function_type_no_source(mock_signature, mock_getsource):
     assert result.args[1].type == "str"
     assert result.ret_type == "unknown"
 
+
 def test_from_builtin_function_type():
     """Test converting builtin function type to Function object"""
     # Test with valid pyi dict
     pyi_dict = {
         "source": "def test_func(a: int, b: str) -> bool:...",
-        "args": [Argument(arg_name="a", type="int", pos_type=inspect.Parameter.POSITIONAL_OR_KEYWORD), Argument(arg_name="b", type="str", pos_type=inspect.Parameter.POSITIONAL_OR_KEYWORD)],
+        "args": [
+            Argument(
+                arg_name="a",
+                type="int",
+                pos_type=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            ),
+            Argument(
+                arg_name="b",
+                type="str",
+                pos_type=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            ),
+        ],
         "ret_type_str": "bool",
     }
 

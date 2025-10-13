@@ -1,6 +1,5 @@
 import importlib
 import io
-import subprocess
 import sys
 from multiprocessing import Process
 
@@ -8,7 +7,7 @@ import fire
 from loguru import logger
 
 from tracefuzz.db.seed_table import get_seeds_iter
-from tracefuzz.fuzz.instrument import instrument_function_via_path, instrument_module
+from tracefuzz.fuzz.instrument import instrument_function_via_path
 from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
@@ -66,7 +65,9 @@ def fuzz_one_library(library_name: str) -> None:
         safe_worker.start()
         try:
             # Timeout: fixed time + dynamic time = max_try_per_seed * execution_timeout + mutants_per_seed / 100
-            safe_worker.join(max_try_per_seed*execution_timeout+mutants_per_seed/100)
+            safe_worker.join(
+                max_try_per_seed * execution_timeout + mutants_per_seed / 100
+            )
         except TimeoutError:
             logger.warning(f"Seed {seed.id} global timed out.")
             safe_worker.kill()
@@ -74,7 +75,7 @@ def fuzz_one_library(library_name: str) -> None:
             # As this is unforgivable, we just wait for 1 second and let it die naturally
             safe_worker.join(1)
 
-        for i in range(1, max_try_per_seed+1):
+        for i in range(1, max_try_per_seed + 1):
             exec_cnt = rc.hget(f"fuzz", "exec_cnt")
             exec_cnt = int(exec_cnt) if exec_cnt else 0
             if exec_cnt >= mutants_per_seed:
@@ -86,7 +87,9 @@ def fuzz_one_library(library_name: str) -> None:
                 exec_record = rc.hget(f"exec_record", exec_cnt + 1)  # {1:a, 2:b, ...}
                 current_func = rc.hget("fuzz", "current_func")
                 if exec_record:
-                    logger.debug(f"Safe worker died unexpectly when fuzz {current_func}:\n{exec_record}")
+                    logger.debug(
+                        f"Safe worker died unexpectly when fuzz {current_func}:\n{exec_record}"
+                    )
 
                 # 给一次重试机会
                 safe_worker.kill()
@@ -94,16 +97,19 @@ def fuzz_one_library(library_name: str) -> None:
                 safe_worker.start()
                 try:
                     # dynamically reduce the fixed time according to the number of already tried times
-                    safe_worker.join((max_try_per_seed-i)*execution_timeout+(mutants_per_seed-exec_cnt)/100)
+                    safe_worker.join(
+                        (max_try_per_seed - i) * execution_timeout
+                        + (mutants_per_seed - exec_cnt) / 100
+                    )
                 except TimeoutError:
                     logger.warning(f"Seed {seed.id} timed out on retry.")
                     safe_worker.kill()
                     safe_worker.join(1)
 
-
         exec_cnt = rc.hget(f"fuzz", "exec_cnt")
         exec_cnt = int(exec_cnt) if exec_cnt else 0
         logger.info(f"Fuzz seed {seed.id} done with {exec_cnt} execution.")
+
 
 def main():
     fire.Fire(fuzz_one_library)

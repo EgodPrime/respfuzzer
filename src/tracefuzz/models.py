@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 from pydantic import BaseModel, model_validator
-from inspect import _ParameterKind as PosType
+
 
 class Argument(BaseModel):
     arg_name: str
@@ -52,12 +52,13 @@ class Seed(BaseModel):
     args: list[Argument]
     function_call: str
 
+
 class ChatHistory(BaseModel):
     id: int | None = None
     function_id: int
     library_name: str
     func_name: str
-    history: list[dict[str,str]]
+    history: list[dict[str, str]]
 
 
 class ExecutionResultType(IntEnum):

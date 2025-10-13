@@ -22,9 +22,16 @@ def create_function(function: Function) -> int:
     with get_db_cursor() as cur:
         cur.execute(
             f"""INSERT INTO function (func_name, library_name, source, args, ret_type) VALUES (?, ?, ?, ?, ?)""",
-            (function.func_name, function.library_name, function.source, args_text, function.ret_type),
+            (
+                function.func_name,
+                function.library_name,
+                function.source,
+                args_text,
+                function.ret_type,
+            ),
         )
         return cur.lastrowid
+
 
 def get_function(func_name: str) -> Optional[Function]:
     with get_db_cursor() as cur:
@@ -32,7 +39,12 @@ def get_function(func_name: str) -> Optional[Function]:
         row = cur.fetchone()
         if row:
             return Function(
-                id=row[0], func_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5]
+                id=row[0],
+                func_name=row[1],
+                library_name=row[2],
+                source=row[3],
+                args=json.loads(row[4]),
+                ret_type=row[5],
             )
         else:
             return None
@@ -47,7 +59,14 @@ def get_functions(library_name: str | None) -> List[Function]:
         cur.execute(f"SELECT * FROM function {filter}")
         rows = cur.fetchall()
         function_list = [
-            Function(id=row[0], func_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5])
+            Function(
+                id=row[0],
+                func_name=row[1],
+                library_name=row[2],
+                source=row[3],
+                args=json.loads(row[4]),
+                ret_type=row[5],
+            )
             for row in rows
         ]
         return function_list
@@ -62,5 +81,10 @@ def get_function_iter(library_name: Optional[str]) -> Iterator[Function]:
         cur.execute(f"SELECT * FROM function {filter}")
         for row in cur:
             yield Function(
-                id=row[0], func_name=row[1], library_name=row[2], source=row[3], args=json.loads(row[4]), ret_type=row[5]
+                id=row[0],
+                func_name=row[1],
+                library_name=row[2],
+                source=row[3],
+                args=json.loads(row[4]),
+                ret_type=row[5],
             )

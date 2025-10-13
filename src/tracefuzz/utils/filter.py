@@ -3,7 +3,6 @@ import json
 import os
 import re
 import sqlite3
-from pathlib import Path
 
 from tracefuzz.utils.paths import RUNDATA_DIR
 

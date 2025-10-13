@@ -9,10 +9,12 @@ description = "Fuzz Python Libraries as MCP services"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "argparse>=1.4.0",
     "fire>=0.7.1",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
     "openai>=1.109.1",
+    "psutil>=7.1.0",
     "pydantic>=2.11.9",
     "redis>=6.4.0",
     "sqlite-web>=0.6.4",
@@ -20,10 +22,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black>=25.9.0",
-    "isort>=6.0.1",
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
+    "pytest",
+    "pytest-cov",
+    "black",
+    "isort",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
@@ -42,13 +45,23 @@ python_classes = ["Test*"]
 # 方法名的规则，配置测试搜索的测试函数名
 python_functions = ["test_*"]
 
-[tool.black]
-line-length = 122
-target-version = ["py313"]
-include = '\.pyi?$'
-
 [tool.isort]
 profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+
+# Use ruff to automatically remove unused imports as part of formatting workflow.
+[tool.ruff]
+line-length = 88
+fix = true
+
+[tool.ruff.lint]
+select = ["F401", "F403"]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
 
 [[tool.uv.index]]
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
