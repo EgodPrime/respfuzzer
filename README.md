@@ -4,63 +4,11 @@ TraceFuzz is an advanced fuzzing framework that combines traditional fuzzing tec
 
 ## Key Features
 
-### Agentic Function Resolution
-- **Attempter**: Generates test cases based on function signatures and history.
-- **QueitExecutor**: Executes code safely with timeout protection.
-- **Reasoner**: Analyzes execution results and provides explanations for failures.
 
-### Library Analysis
-- **LibraryVisitor**: Discovers functions from Python libraries by traversing module trees.
-- **FunctionParser**: Extracts function signatures and types from Python modules.
-- **PyiParser**: Parses `.pyi` interface files to understand type hints.
-
-### Fuzzing Engine
-- **Mutator**: Generates test cases by mutating parameters of various types (lists, dicts, complex numbers, etc.).
-- **Instrumenter**: Instruments functions for detailed execution tracking.
-- **FuzzFunction**: Executes functions with mutated inputs and captures results.
-
-### Persistent Storage
-- **Database System**: Stores function definitions, seeds, and solve history.
-- **SQLite/Redis Integration**: Supports both file-based and in-memory storage.
-- **History Tracking**: Maintains complete execution history for analysis.
-
-### Advanced Capabilities
-- **Crash Detection**: Identifies potential vulnerabilities through crash keywords.
-- **Vulnerability Filtering**: Filters results to focus on high-potential issues.
-- **Configuration Management**: Flexible configuration via `config.toml`.
 
 ## Architecture
 
-```
-+-------------------+
-|    Agentic System |
-| (Attempter, Executor, Reasoner) |
-+-------------------+
-          |
-          v
-+-------------------+
-|   Fuzzing Engine  |
-| (Mutator, Instrumenter) |
-+-------------------+
-          |
-          v
-+-------------------+
-|   Library Visitor |
-| (Function Discovery) |
-+-------------------+
-          |
-          v
-+-------------------+
-|    Parsers        |
-| (.pyi, Function)  |
-+-------------------+
-          |
-          v
-+-------------------+
-|   Database        |
-| (Functions, Seeds, History) |
-+-------------------+
-```
+
 
 ## Installation
 
@@ -72,7 +20,7 @@ cd tracefuzz
 
 2. Create and activate a virtual environment:
 ```bash
-uv venv
+uv venv --python 3.13
 source .venv/bin/activate
 ```
 
@@ -88,7 +36,8 @@ uv pip install -e .[dev]
 
 5. Install the libraries under test:
 ```bash
-uv pip install -r lut.txt
+# edit the script and set USE_UV=0 if you are not using uv
+bash scripts/install_lut.sh
 ```
 
 ## Usage Examples
@@ -169,3 +118,21 @@ Generate a coverage report:
 ```bash
 pytest --cov=src --cov-report=html
 ```
+
+## Libraries Under Test
+
+| Library | Type | Composition | URL|
+|---------|------|-------------|----|
+| SimpleJSON | JSON Parsing | Pure Python | https://simplejson.readthedocs.io/ |
+| NLTK | Natural Language Processing | Pure Python | https://www.nltk.org/ |
+| Dask | Parallel Computing | Pure Python | https://dask.org/ |
+| PyYAML | YAML Parsing | Pure Python | https://pyyaml.org/ |
+| NumPy   | Scientific Computing | Python + C extension | https://numpy.org/ |
+| Pandas  | Data Analysis | Python + C extension | https://pandas.pydata.org/ |
+| Scikit-learn | Machine Learning | Python + C extension | https://scikit-learn.org/ |
+| Scipy | Scientific Computing | Python + C extension | https://scipy.org/ |
+| Requests | HTTP Library | Pure Python | https://requests.readthedocs.io/ |
+| Pillow | Image Processing | Python + C extension | https://python-pillow.org/ |
+| PyTorch | Deep Learning | Python + C extension | https://pytorch.org/ |
+| PaddlePaddle | Deep Learning | Python + C extension | https://www.paddlepaddle.org.cn/ |
+

@@ -26,7 +26,7 @@ uint32_t chain_rng_rand_range(uint32_t max) {
     if (max <= 1) return 0;
     
     // 使用当前状态生成随机数
-    uint32_t result = (uint32_t)((_state * (uint64_t)max) >> 32);
+    uint32_t result = (uint32_t)((_state * 0x5DEECE66DULL + 0xBULL) >> 32);
     
     // ！！！关键：自动推进状态，为下一次调用做准备
     chain_rng_next();

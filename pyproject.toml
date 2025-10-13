@@ -31,7 +31,7 @@ dev = [
 
 [tool.pytest.ini_options]
 
-addopts = "--cov=src --cov-report=html"
+addopts = "--cov=src --cov-report=html:htmlcov --cov-report=term-missing -q"
 
 # 改变用例的查找路径规则，当前目录的testcase文件夹
 testpaths = ["tests"]
