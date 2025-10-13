@@ -3,7 +3,7 @@ import redis
 from tracefuzz.utils.config import get_config
 
 
-def get_redis_client():
+def get_redis_client() -> redis.Redis:
     """
     获取 Redis 客户端实例
     """

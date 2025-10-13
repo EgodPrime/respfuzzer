@@ -74,7 +74,6 @@ if f"{function.func_name}(" not in code:
 
 ### 不检查路径私有+运行时可达性检测
 
-```bash
 (tracefuzz) root@c4b1125ab23d:~/tracefuzz# db_tools view
 
 |    Library Name    |  function Solved   |   function Total   |    Solving Rate    |
@@ -90,10 +89,49 @@ if f"{function.func_name}(" not in code:
 |       torch        |        654         |        704         |       92.90       %|
 |       pandas       |        257         |        348         |       73.85       %|
 |      sklearn       |        352         |        383         |       91.91       %|
-```
+
 
 有所提升，但是还是有3个没有达到90%以上
 
 ### 不检查路径私有+运行时可达性检测+Judger
 
 > 设置一个Judger判断Attempter生成的代码是否包含对目标函数的有效调用
+> 这一版本的Judger在执行之前起作用
+
+root@c4b1125ab23d:~/tracefuzz# uv run db_tools view
+
+|    Library Name    |  function Solved   |   function Total   |    Solving Rate    |
+|        ast         |         13         |         13         |      100.00       %|
+|         re         |         11         |         11         |      100.00       %|
+|      difflib       |         8          |         8          |      100.00       %|
+|       locale       |         10         |         10         |      100.00       %|
+|       numpy        |        641         |        665         |       96.39       %|
+|       scipy        |        1395        |        1409        |       99.01       %|
+|        dask        |        210         |        236         |       88.98       %|
+|      inspect       |         64         |         67         |       95.52       %|
+|        nltk        |        532         |        713         |       74.61       %|
+|       torch        |        608         |        704         |       86.36       %|
+|       pandas       |        264         |        344         |       76.74       %|
+|      sklearn       |        360         |        383         |       93.99       %|
+
+有一些确实升高了，但又有一些降低了，有点怪，怀疑存在Judger误判的情况
+
+### 不检查路径私有+运行时可达性检测+Judger+prompt优化1
+
+root@c4b1125ab23d:~/tracefuzz# uv run db_tools view
+
+|    Library Name    |  function Solved   |   function Total   |    Solving Rate    |
+|        ast         |         13         |         13         |      100.00       %|
+|         re         |         11         |         11         |      100.00       %|
+|      difflib       |         8          |         8          |      100.00       %|
+|       locale       |         10         |         10         |      100.00       %|
+|       numpy        |        633         |        655         |       96.64       %|
+|       scipy        |        1386        |        1413        |       98.09       %|
+|        dask        |        214         |        237         |       90.30       %|
+|      inspect       |         67         |         67         |      100.00       %|
+|        nltk        |        578         |        764         |       75.65       %|
+|       torch        |        622         |        704         |       88.35       %|
+|       pandas       |        256         |        348         |       73.56       %|
+|      sklearn       |        334         |        383         |       87.21       %|
+
+仍然是有升有降，感觉没有继续调试的必要了，应该到这个技术路线的临界点了

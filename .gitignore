@@ -16,3 +16,4 @@ src/mplfuzz/mutate.cpython-312-x86_64-linux-gnu.so
 .gitignore
 .vscode/settings.json
 src/**/*.so
+dump.rdb

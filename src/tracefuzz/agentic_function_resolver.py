@@ -29,7 +29,40 @@ class Attempter:
         Raises:
             Exception: If code generation fails or response format is invalid.
         """
-        prompt = f"<function>\n{function.model_dump_json()}\n</function>\n<history>\n{history}\n</history>请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。注意：1. 你生成的代码应该用<code></code>包裹。2. 不要生成``` 3. 不要生成`code`以外的任何内容 4. 函数调用应该是完成包路径调用，例如import a; a.b.c()，而不能是from a.b import c; c()"
+        prompt = f"""任务:
+请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成``` 
+3. 不要生成`code`以外的任何内容 
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<history>
+...
+</history>
+<code>
+import a
+x = 2
+y = "str"
+res = a.b.c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{function.model_dump_json()}
+</function>
+<history>
+{history}
+</history>
+"""
         # Add a small retry loop for transient API errors
         last_exc = None
         for attempt in range(3):
@@ -326,7 +359,7 @@ def _mainC(library_name: str):
             logger.info(f"Failed to solve {function.func_name}")
 
     # 使用线程池，最多3个线程并发执行
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=int(cfg.get("concurrency", 4))) as executor:
         futures = [executor.submit(process_function, function) for function in functions]
         concurrent.futures.wait(futures)
 

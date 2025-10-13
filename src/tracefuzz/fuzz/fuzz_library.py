@@ -1,96 +1,128 @@
 import importlib
 import io
-import subprocess
+import signal
 import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as FutureTimeoutError
 from multiprocessing import Process
+from typing import Optional
 
 import fire
 from loguru import logger
+import psutil  # 新增：用于监控资源
 
 from tracefuzz.db.seed_table import get_seeds_iter
-from tracefuzz.fuzz.instrument import instrument_function_via_path, instrument_module
+from tracefuzz.fuzz.instrument import instrument_function_via_path
 from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
+import redis
 from tracefuzz.utils.redis_util import get_redis_client
 
+# 常量提取
+DEFAULT_EXECUTION_TIMEOUT = 5.0  # 从配置读取
+DEFAULT_MUTANTS_PER_SEED = 100
+DEFAULT_MAX_TRY_PER_SEED = 3
 
-def safe_fuzz(seed: Seed):
+def safe_fuzz(seed: Seed) -> None:
     """
-    Safely execute the fuzzing process for a given seed.
-
-    Args:
-        seed (Seed): A Seed object containing the library name and function call expression.
+    Safely and silently execute the fuzzing process for a given seed.
     """
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
-    library_name = seed.library_name
-    # spec = importlib.util.find_spec(library_name)
-    # origin = spec.origin
-
+    
     try:
         logger.debug(f"seed is :\n{seed.function_call}")
-        # exec(seed.function_call)
-        # logger.debug("seed is ok")
+        target = importlib.import_module(seed.library_name)
+        instrument_function_via_path(target, seed.func_name)
+        exec(seed.function_call)
     except Exception as e:
-        logger.warning(f"Maybe seed {seed.id} is fake...\n{e}")
-        return
+        raise  # 重新抛出，便于上层处理
 
-    target = importlib.import_module(library_name)
-    instrument_function_via_path(target, seed.func_name)
-    # instrument_module(target)
-    exec(seed.function_call)
+def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) -> bool:
+    """
+    Manage a process with timeout and resource monitoring.
+    Returns True if completed successfully, False if timed out.
+    """
+    start_time = time.time()
+    process.start()
+    
+    while process.is_alive() and (time.time() - start_time) < timeout:
+        time.sleep(0.1)  # 心跳检查间隔
+        try:
+            p = psutil.Process(process.pid)
+            if p.cpu_percent() > 90 or p.memory_percent() > 80:  # 资源阈值
+                logger.warning(f"Seed {seed_id} resource usage too high, killing...")
+                process.kill()
+                break
+        except psutil.NoSuchProcess:
+            break
+    
+    if process.is_alive():
+        logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
+        process.terminate()
+        process.join(1)
+        if process.is_alive():
+            process.kill()
+            process.join(1)
+        return False
+    else:
+        process.join()
+        return True
 
+def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
+    """
+    Fuzz a single seed with retries and monitoring.
+    Returns the number of executions.
+    """
+    execution_timeout = config.get("execution_timeout", DEFAULT_EXECUTION_TIMEOUT)
+    mutants_per_seed = config.get("mutants_per_seed", DEFAULT_MUTANTS_PER_SEED)
+    max_try_per_seed = config.get("max_try_per_seed", DEFAULT_MAX_TRY_PER_SEED)
+    
+    redis_client.hset("fuzz", "current_func", seed.func_name)
+    redis_client.hset("fuzz", "exec_cnt", 0)
+    redis_client.delete("exec_record")
+    
+    for attempt in range(1, max_try_per_seed + 1):
+        exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
+        if exec_cnt >= mutants_per_seed:
+            break
+        
+        logger.info(f"Start fuzz seed {seed.id} ({seed.func_name}), attempt {attempt}.")
+        process = Process(target=safe_fuzz, args=(seed,))
+        """动态调整超时时间
+        总时间 = 动态固定时间 + 动态浮动时间
+        动态固定时间=(max_try_per_seed - attempt + 1) * execution_timeout
+        动态浮动时间=(mutants_per_seed - exec_cnt) / 100
+        解释：
+        1. 随着尝试次数的增加，动态固定时间线性减少，意味着对一个种子的容忍度降低。
+        2. 动态浮动时间根据剩余需要执行的变异数调整，确保有足够时间完成剩余任务。
+        3. 动态浮动时间的一个基本假设是大部分测试用例的执行都在10ms以内完成，因此除以100。
+        """
+        timeout = (max_try_per_seed - attempt + 1) * execution_timeout + (mutants_per_seed - exec_cnt) / 100
+        success = manage_process_with_timeout(process, timeout, seed.id)
+        
+        if not success:
+            continue  # 重试
+    
+    final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
+    logger.info(f"Fuzz seed {seed.id} done with {final_exec_cnt} executions.")
+    return final_exec_cnt
 
 def fuzz_one_library(library_name: str) -> None:
     """
-    Fuzz a single library by iterating over all seeds and executing them.
-
-    Args:
-        library_name (str): The name of the library to fuzz.
+    Fuzz a single library with improved concurrency and monitoring.
     """
-    fuzz_config = get_config("fuzz")
-    mutants_per_seed = fuzz_config["mutants_per_seed"]
-    rc = get_redis_client()
-    # 清空"exec_cnt"表
-    rc.delete("fuzz")
+    config = get_config("fuzz")
+    redis_client = get_redis_client()
+    redis_client.delete("fuzz")
+    
     for seed in get_seeds_iter(library_name):
-        logger.info(f"Start fuzz seed {seed.id} ({seed.func_name}).")
-        rc.hset("fuzz", "current_func", seed.func_name)
-        rc.hset("fuzz", "exec_cnt", 0)
-        rc.delete("exec_record")
-        # rc.hset("exec_cnt", seed.func_name, 0)
-        safe_worker = Process(target=safe_fuzz, args=(seed,))
-        safe_worker.start()
-        safe_worker.join()
-
-        for _ in range(9):
-            exec_cnt = rc.hget(f"fuzz", "exec_cnt")
-            exec_cnt = int(exec_cnt) if exec_cnt else 0
-            if exec_cnt >= mutants_per_seed:
-                break
-            if exec_cnt < mutants_per_seed:
-                logger.warning(
-                    f"Seed {seed.id} did not reach the required mutants_per_seed({mutants_per_seed}). Restarting subprocess..."
-                )
-                exec_record = rc.hget(f"exec_record", exec_cnt + 1)  # {1:(a,b,), 2:(s,d,)...}
-                current_func = rc.hget("fuzz", "current_func")
-                if exec_record:
-                    logger.debug(f"Safe worker died unexpectly when fuzz {current_func}:\n{exec_record}")
-
-                # 给一次重试机会
-                safe_worker = Process(target=safe_fuzz, args=(seed,))
-                safe_worker.start()
-                safe_worker.join()
-
-        exec_cnt = rc.hget(f"fuzz", "exec_cnt")
-        exec_cnt = int(exec_cnt) if exec_cnt else 0
-        logger.info(f"Fuzz seed {seed.id} done with {exec_cnt} execution.")
+        fuzz_single_seed(seed, config, redis_client)
 
 def main():
     fire.Fire(fuzz_one_library)
-
 
 if __name__ == "__main__":
     main()
