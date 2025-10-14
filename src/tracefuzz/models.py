@@ -16,6 +16,7 @@ class Function(BaseModel):
     source: str
     args: list[Argument]
     ret_type: str = "unknown"
+    is_builtin: int = 0
 
     def __repr__(self):
         """

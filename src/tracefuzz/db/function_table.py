@@ -12,7 +12,8 @@ with get_db_cursor() as cur:
             library_name TEXT,
             source TEXT, 
             args TEXT, 
-            ret_type TEXT
+            ret_type TEXT,
+            is_builtin INTEGER DEFAULT 0
         )"""
     )
 
@@ -21,13 +22,14 @@ def create_function(function: Function) -> int:
     args_text = json.dumps([arg.model_dump() for arg in function.args])
     with get_db_cursor() as cur:
         cur.execute(
-            f"""INSERT INTO function (func_name, library_name, source, args, ret_type) VALUES (?, ?, ?, ?, ?)""",
+            f"""INSERT INTO function (func_name, library_name, source, args, ret_type, is_builtin) VALUES (?, ?, ?, ?, ?, ?)""",
             (
                 function.func_name,
                 function.library_name,
                 function.source,
                 args_text,
                 function.ret_type,
+                function.is_builtin,
             ),
         )
         return cur.lastrowid
@@ -45,6 +47,7 @@ def get_function(func_name: str) -> Optional[Function]:
                 source=row[3],
                 args=json.loads(row[4]),
                 ret_type=row[5],
+                is_builtin=row[6],
             )
         else:
             return None
@@ -66,6 +69,7 @@ def get_functions(library_name: str | None) -> List[Function]:
                 source=row[3],
                 args=json.loads(row[4]),
                 ret_type=row[5],
+                is_builtin=row[6],
             )
             for row in rows
         ]
@@ -87,4 +91,5 @@ def get_function_iter(library_name: Optional[str]) -> Iterator[Function]:
                 source=row[3],
                 args=json.loads(row[4]),
                 ret_type=row[5],
+                is_builtin=row[6],
             )

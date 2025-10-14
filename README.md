@@ -123,16 +123,17 @@ pytest --cov=src --cov-report=html
 
 | Library | Type | Composition | URL|
 |---------|------|-------------|----|
-| SimpleJSON | JSON Parsing | Pure Python | https://simplejson.readthedocs.io/ |
 | NLTK | Natural Language Processing | Pure Python | https://www.nltk.org/ |
 | Dask | Parallel Computing | Pure Python | https://dask.org/ |
 | PyYAML | YAML Parsing | Pure Python | https://pyyaml.org/ |
+| Prophet | Time Series Forecasting | Python + C extension | https://facebook.github.io/prophet/ |
 | NumPy   | Scientific Computing | Python + C extension | https://numpy.org/ |
 | Pandas  | Data Analysis | Python + C extension | https://pandas.pydata.org/ |
 | Scikit-learn | Machine Learning | Python + C extension | https://scikit-learn.org/ |
 | Scipy | Scientific Computing | Python + C extension | https://scipy.org/ |
 | Requests | HTTP Library | Pure Python | https://requests.readthedocs.io/ |
-| Pillow | Image Processing | Python + C extension | https://python-pillow.org/ |
+| spaCy | Natural Language Processing | Python + C extension | https://spacy.io/ |
 | PyTorch | Deep Learning | Python + C extension | https://pytorch.org/ |
 | PaddlePaddle | Deep Learning | Python + C extension | https://www.paddlepaddle.org.cn/ |
+
 

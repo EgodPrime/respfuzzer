@@ -292,7 +292,7 @@ static PyObject* mutate_str(PyObject* self, PyObject* args){
     new_str[len] = '\0';
     u32 x = (u32)len;
     havoc((u8 *)new_str, x, true);
-    #if PY_MINOR_VERSION == 13
+    #if PY_MINOR_VERSION >= 13
     return PyUnicode_FromKindAndData(PyUnicode_1BYTE_KIND, new_str, x);
     #else
     return _PyUnicode_FromASCII(new_str, x);

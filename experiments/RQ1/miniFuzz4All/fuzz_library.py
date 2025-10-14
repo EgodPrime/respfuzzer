@@ -1,19 +1,20 @@
-import importlib
 import io
-from multiprocessing import Process
 import sys
 import time
+from multiprocessing import Process
 
+import fire
 import psutil
+from loguru import logger
 from redis import Redis
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.redis_util import get_redis_client
+
 from tracefuzz.db.seed_table import get_seeds_iter
 from tracefuzz.models import Seed
-import fire
-from loguru import logger
+from tracefuzz.utils.config import get_config
+from tracefuzz.utils.redis_util import get_redis_client
 
 from .f4a_mutator import Fuzz4AllMutator
+
 
 def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
     """
@@ -66,6 +67,7 @@ def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) 
         process.join()
         return True
 
+
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
     execution_timeout = config.get("execution_timeout")
     mutants_per_seed = config.get("mutants_per_seed")
@@ -83,8 +85,17 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
         if exec_cnt >= mutants_per_seed:
             break
 
-        logger.info(f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}.")
-        process = Process(target=safe_fuzz, args=(seed, mutants_per_seed - exec_cnt, redis_client,))
+        logger.info(
+            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}."
+        )
+        process = Process(
+            target=safe_fuzz,
+            args=(
+                seed,
+                mutants_per_seed - exec_cnt,
+                redis_client,
+            ),
+        )
         timeout = (max_try_per_seed - attempt + 1) * execution_timeout + (
             mutants_per_seed - exec_cnt
         ) / 100
@@ -96,8 +107,6 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
     final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
     logger.info(f"Fuzz seed {seed.id} done with {final_exec_cnt} executions.")
     return final_exec_cnt
-
-    
 
 
 def fuzz_one_library(library_name: str) -> None:

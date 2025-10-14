@@ -90,7 +90,9 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
         if exec_cnt >= mutants_per_seed:
             break
 
-        logger.info(f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}.")
+        logger.info(
+            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}."
+        )
         process = Process(target=safe_fuzz, args=(seed,))
         """动态调整超时时间
         总时间 = 动态固定时间 + 动态浮动时间
@@ -107,7 +109,9 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
         success = manage_process_with_timeout(process, timeout, seed.id)
 
         if process.exitcode not in (0, None):
-            logger.warning(f"Seed {seed.id} attempt {attempt} did not complete successfully, last random state: {randome_state}.")
+            logger.warning(
+                f"Seed {seed.id} attempt {attempt} did not complete successfully, last random state: {randome_state}."
+            )
 
         if not success:
             continue  # 重试

@@ -17,8 +17,9 @@ from tracefuzz.models import ExecutionResultType, Function, Seed
 from tracefuzz.utils.config import get_config
 
 cfg = get_config("reflective_seeder")
+llm_cfg = get_config("llm")
 
-client = openai.Client(api_key=cfg["api_key"], base_url=cfg["base_url"])
+client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
 class Attempter:
@@ -67,7 +68,7 @@ res = a.b.c(x, y)
         for attempt in range(3):
             try:
                 response = client.chat.completions.create(
-                    model=cfg["model_name"],
+                    model=llm_cfg["model_name"],
                     messages=[
                         {
                             "role": "system",
@@ -180,7 +181,7 @@ class Reasoner:
         for attempt in range(3):
             try:
                 response = client.chat.completions.create(
-                    model=cfg["model_name"],
+                    model=llm_cfg["model_name"],
                     messages=[
                         {
                             "role": "system",
@@ -225,7 +226,7 @@ class Judger:
         for attempt in range(3):
             try:
                 response = client.chat.completions.create(
-                    model=cfg["model_name"],
+                    model=llm_cfg["model_name"],
                     messages=[
                         {
                             "role": "system",

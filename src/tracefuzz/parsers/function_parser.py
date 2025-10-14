@@ -50,4 +50,5 @@ def from_builtin_function_type(
         source=pyi_dict["source"],
         args=pyi_dict["args"],
         ret_type=pyi_dict["ret_type_str"],
+        is_builtin=1,
     )

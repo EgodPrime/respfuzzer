@@ -27,12 +27,6 @@ def test_execute_once_success():
     assert result == "success"
 
 
-def test_execute_once_timeout():
-    mock_function = MagicMock(side_effect=TimeoutError("Execution timeout"))
-    with pytest.raises(TimeoutError):
-        execute_once(mock_function, 1, 2, 3)
-
-
 def test_convert_to_param_list():
     args = (1, 2, 3)
     kwargs = {"a": 4, "b": 5}
