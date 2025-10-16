@@ -71,7 +71,7 @@ def get_seed(seed_id: int) -> Optional[Seed]:
             args=args,
             function_call=row[5],
         )
-        return Seed
+        return seed
 
 
 def get_seed_by_function_id(func_id: int) -> Optional[Seed]:

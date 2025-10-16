@@ -1,0 +1,23 @@
+[llm]
+base_url = <your openai-compatible base url>
+api_key = <your api key>
+model_name = <your model name, e.g., gpt-4>
+
+[db_config]
+db_name = "tracefuzz" # without .db suffix
+
+[redis]
+host = "127.0.0.1"
+port = 6379
+db = 0
+
+[fuzz]
+execution_timeout = 5.0
+mutants_per_seed = 100000
+max_try_per_seed = 10
+
+[reflective_seeder]
+concurrency = 12 # number of threads for seeding
+
+[fuzz4all]
+strategy = 1

@@ -59,7 +59,8 @@ def mutate_auto(old_val):
     type_ = get_type(old_val)
     func_name = f"mutate_{type_}"
     func = globals()[func_name]
-    return func(old_val)
+    new_val = func(old_val)
+    return new_val
 
 
 def mutate_complex(old_val: complex) -> complex:

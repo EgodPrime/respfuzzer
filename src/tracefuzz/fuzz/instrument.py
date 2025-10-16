@@ -4,7 +4,7 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
 
-from tracefuzz.fuzz.fuzz_function import fuzz_function
+from tracefuzz.fuzz.fuzz_function import fuzz_function, replay_fuzz
 
 fuzzed_set = set()
 
@@ -35,6 +35,20 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
+    """
+    Return a instrumented version of `func`, which should replay the last fuzz
+    mutation before return.
+
+    Random state should be set outside before the function call.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        res = func(*args, **kwargs)
+        replay_fuzz(func, *args, **kwargs)
+        return res
+
+    return wrapper
 
 def instrument_function_via_path(mod: ModuleType, path: str):
     """
@@ -74,15 +88,30 @@ def instrument_function_via_path(mod: ModuleType, path: str):
     new_func = instrument_function(orig_func)
     setattr(new_func, "orig_func", orig_func)
 
-    # true_parent_package_path = orig_func.__module__
-    # true_parent = mod
-    # for name in true_parent_package_path.split(".")[1:]:
-    #     true_parent = getattr(true_parent, name)
-    # setattr(true_parent, mods[-1], new_func)
-    # logger.debug(f"Instrumented {true_parent_package_path}.{orig_func.__name__} ({path})")
-
     setattr(parent, mods[-1], new_func)
     # logger.debug(f"Instrumented {path}")
+
+def instrument_function_via_path_replay(mod: ModuleType, path: str):
+    mods = path.split(".")
+    if mods[0] != mod.__name__:
+        logger.error(
+            f"Invalid package path: {path} does not start with {mod.__name__}!"
+        )
+        return
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {path}!")
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {path}!")
+        return
+    new_func = instrument_function_replay(orig_func)
+    setattr(new_func, "orig_func", orig_func)
+    setattr(parent, mods[-1], new_func)
+    logger.info(f"Instrumented {path} for replay")
 
 
 mod_has_been_seen = set()

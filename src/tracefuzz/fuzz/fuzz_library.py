@@ -1,7 +1,10 @@
 import importlib
 import io
+import os
+import signal
 import sys
 import time
+import multiprocessing
 from multiprocessing import Process
 
 import fire
@@ -33,8 +36,34 @@ def safe_fuzz(seed: Seed) -> None:
         logger.error(f"Error during fuzzing seed {seed.id}: {e}")
         raise  # 重新抛出，便于上层处理
 
+def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):
+    """
+    安全杀死进程及其所有子进程（Linux 专用）。
+    使用进程组发送信号，确保所有子进程被杀死。
+    """
+    if not process.is_alive():
+        return
 
-def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) -> bool:
+    try:
+        pgid = os.getpgid(process.pid)
+    except OSError:
+        return
+
+    # 先尝试优雅终止
+    os.killpg(pgid, signal.SIGTERM)
+    try:
+        process.join(timeout)
+    except:
+        pass
+
+    if process.is_alive():
+        os.killpg(pgid, signal.SIGKILL)
+        try:
+            process.join(timeout)
+        except:
+            pass
+
+def manage_process_with_timeout(process: multiprocessing.Process, timeout: float, seed_id: int) -> bool:
     """
     Manage a process with timeout and resource monitoring.
     Returns True if completed successfully, False if timed out.
@@ -43,28 +72,38 @@ def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) 
     process.start()
 
     while process.is_alive() and (time.time() - start_time) < timeout:
-        time.sleep(0.1)  # 心跳检查间隔
+        time.sleep(0.1)
         try:
             p = psutil.Process(process.pid)
-            if p.cpu_percent() > 90 or p.memory_percent() > 80:  # 资源阈值
+            if p.cpu_percent() > 150 or p.memory_percent() > 80:
                 logger.warning(f"Seed {seed_id} resource usage too high, killing...")
-                process.kill()
+                process.terminate()
                 break
-        except psutil.NoSuchProcess:
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            break
+        except Exception as e:
+            logger.error(f"Error monitoring process {seed_id}: {e}")
             break
 
     if process.is_alive():
         logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
         process.terminate()
-        process.join(1)
-        if process.is_alive():
-            process.kill()
+        try:
             process.join(1)
-        return False
-    else:
-        process.join()
-        return True
+        except:
+            pass
 
+        if process.is_alive():
+            logger.warning(f"Process still alive, force killing with kill_process_tree...")
+            kill_process_tree_linux(process)
+        return False
+
+    # 进程正常结束，需要 join 回收
+    try:
+        process.join(1)
+    except:
+        pass
+    return True
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
     """

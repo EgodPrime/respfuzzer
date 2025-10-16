@@ -8,7 +8,16 @@ TraceFuzz is an advanced fuzzing framework that combines traditional fuzzing tec
 
 ## Architecture
 
-
+ - ReflectiveSeeder
+   - library_visitor.py
+   - agentic_function_resolver.py
+ - FuzzTrigger
+   - fuzz/instrument.py
+ - FuzzEngine
+   - c
+   - mutator.py
+   - fuzz/fuzz_function.py
+   - fuzz/fuzz_library.py
 
 ## Installation
 
@@ -38,6 +47,12 @@ uv pip install -e .[dev]
 ```bash
 # edit the script and set USE_UV=0 if you are not using uv
 bash scripts/install_lut.sh
+```   
+
+6. Configure the framework:
+```bash
+cp config.toml.default config.toml
+# Edit config.toml to set your model API key and other settings
 ```
 
 ## Usage Examples
