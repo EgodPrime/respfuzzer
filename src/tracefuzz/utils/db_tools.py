@@ -4,28 +4,61 @@ import fire
 
 from tracefuzz.db.function_table import get_db_cursor, get_function_iter
 from tracefuzz.db.seed_table import get_seed_by_function_id
+from tracefuzz.models import Function, Seed
 
 
 def view(library_name=None):
     """View database statistics for the specified library or all libraries"""
-    table = {}
+    function_table: dict[str,dict[str, Function]] = {}
+    seed_table: dict[str,dict[str, Seed]] = {}
     for function in get_function_iter(library_name):
-        if not function.library_name in table:
-            table[function.library_name] = {}
-        if not function.func_name in table[function.library_name]:
-            table[function.library_name][function.func_name] = None
+        if not function.library_name in function_table:
+            function_table[function.library_name] = {}
+        function_table[function.library_name][function.func_name] = function
+
+        if not function.library_name in seed_table:
+            seed_table[function.library_name] = {}
+        if not function.func_name in seed_table[function.library_name]:
+            seed_table[function.library_name][function.func_name] = None
         seed = get_seed_by_function_id(function.id)
         if seed:
-            table[function.library_name][function.func_name] = seed
+            seed_table[function.library_name][function.func_name] = seed
+    
+    # | Library Name | UDF Count | UDF Solved | BF Count | BF Solved | TF Count | TF Solved |
+    # |a | 200 | 199 (99.50%) | 100 | 88 (88.00%) | 300 | 287 (95.67%) |
+    # ...
+    # UDF: User-Defined Function
+    # BF: Built-in Function
+    # TF: Total Function
+    res = f"\n|{"Library Name":^20}|{"UDF Count":^20}|{"UDF Solved":^20}|{"BF Count":^20}|{"BF Solved":^20}|{"TF Count":^20}|{"TF Solved":^20}|\n"
+    for lib_name in function_table:
+        udf_count = 0
+        udf_solved = 0
+        bf_count = 0
+        bf_solved = 0
+        for func_name in function_table[lib_name]:
+            function = function_table[lib_name][func_name]
+            seed = seed_table[lib_name][func_name]
+            is_builtin = function.is_builtin
+            if is_builtin:
+                bf_count += 1
+                if seed and seed.function_call:
+                    bf_solved += 1
+            else:
+                udf_count += 1
+                if seed and seed.function_call:
+                    udf_solved += 1
+        tf_count = udf_count + bf_count
+        tf_solved = udf_solved + bf_solved
 
-    res = f"\n|{"Library Name":^20}|{"function Solved":^20}|{"function Total":^20}|{"Solving Rate":^20}|\n"
-    for library in table:
-        solved_count = 0
-        total_count = len(table[library])
-        for func_name, seed in table[library].items():
-            if seed:
-                solved_count += 1
-        res += f"|{library:^20}|{solved_count:^20}|{total_count:^20}|{(solved_count / total_count) * 100:^19.2f}%|\n"
+        udf_percent = f"{(udf_solved / udf_count * 100):.2f}%" if udf_count > 0 else 'N/A'
+        udf_solved_str = f"{udf_solved} ({udf_percent})"
+        bf_percent = f"{(bf_solved / bf_count * 100):.2f}%" if bf_count > 0 else 'N/A'
+        bf_solved_str = f"{bf_solved} ({bf_percent})"
+        tf_percent = f"{(tf_solved / tf_count * 100):.2f}%" if tf_count > 0 else 'N/A'
+        tf_solved_str = f"{tf_solved} ({tf_percent})"
+
+        res += f"|{lib_name:^20}|{udf_count:^20}|{udf_solved_str:^20}|{bf_count:^20}|{bf_solved_str:^20}|{tf_count:^20}|{tf_solved_str:^20}|\n"
 
     print(res)
 

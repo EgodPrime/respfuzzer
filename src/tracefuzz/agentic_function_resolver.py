@@ -328,6 +328,7 @@ def solve(function: Function) -> Optional[str]:
                 solved = True
                 break
             else:
+                break
                 # try to get an explanation; if reasoner fails, record the failure and continue
                 try:
                     reason = reasoner.explain(code, result)
