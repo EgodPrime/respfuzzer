@@ -20,3 +20,4 @@ dump.rdb
 .vscode/c_cpp_properties.json
 temp*.rdb
 config.toml
+**/DyFuzz/**
