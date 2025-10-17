@@ -10,9 +10,9 @@ from tracefuzz.utils.config import get_config
 cfg = get_config("fuzz4all")
 llm_cfg = get_config("llm")
 
-logger.debug(f"LLM Config: {llm_cfg}")
+# logger.debug(f"LLM Config: {llm_cfg}")
 
-client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
+client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
 class Fuzz4AllMutator:
@@ -167,7 +167,8 @@ class Fuzz4AllMutator:
                 "<eom>",
             ],
         )
-        new_code = response.choices[0].text.strip()
+        # logger.debug(f"LLM response: {response}")
+        new_code = response.content.strip()
 
         self.current_code = self.clean(self.prompt_used["begin"] + "\n" + new_code)
         return self.current_code

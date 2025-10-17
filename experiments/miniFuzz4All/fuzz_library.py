@@ -13,7 +13,7 @@ from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 
-from .f4a_mutator import Fuzz4AllMutator
+from f4a_mutator import Fuzz4AllMutator
 
 
 def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
@@ -26,14 +26,17 @@ def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
     sys.stderr = fake_stderr
 
     f4a_mutator = Fuzz4AllMutator(seed)
-    for _ in range(cnt):
+    for i in range(cnt):
         try:
             mutated_call = f4a_mutator.generate()
-            logger.debug(f"New mutant:\n{mutated_call}")
+            logger.debug(f"Generated mutant {i+1}/{cnt} for seed {seed.id}")
+            # logger.debug(f"New mutant:\n{mutated_call}")
             exec(mutated_call)
             redis_client.hincrby("fuzz", "exec_cnt", 1)
+            logger.debug(f"Successfully executed mutated call for seed {seed.id}")
         except Exception as e:
-            logger.error(f"Error executing mutated call for seed {seed.id}: {e}")
+            continue
+            # logger.error(f"Error executing mutated call for seed {seed.id}: {e}")
 
 
 def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) -> bool:
