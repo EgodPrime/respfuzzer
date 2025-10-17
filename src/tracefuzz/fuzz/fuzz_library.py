@@ -17,6 +17,7 @@ from tracefuzz.fuzz.instrument import instrument_function_via_path
 from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
+from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -168,7 +169,16 @@ def fuzz_one_library(library_name: str) -> None:
     redis_client = get_redis_client()
     redis_client.delete("fuzz")
 
+    blacklist = set()
+    if FUZZ_BLACKLIST_PATH.exists():
+        with open(FUZZ_BLACKLIST_PATH, "r") as f:
+            for line in f:
+                blacklist.add(line.strip())
+
     for seed in get_seeds_iter(library_name):
+        if seed.func_name in blacklist:
+            logger.info(f"Skipping blacklisted function: {seed.func_name}")
+            continue
         fuzz_single_seed(seed, config, redis_client)
 
 
