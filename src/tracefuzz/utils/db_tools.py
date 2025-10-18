@@ -31,6 +31,7 @@ def view(library_name=None):
     # BF: Built-in Function
     # TF: Total Function
     res = f"\n|{"Library Name":^20}|{"UDF Count":^20}|{"UDF Solved":^20}|{"BF Count":^20}|{"BF Solved":^20}|{"TF Count":^20}|{"TF Solved":^20}|\n"
+    res += f"|{"-"*20}|{"-"*20}|{"-"*20}|{"-"*20}|{"-"*20}|{"-"*20}|{"-"*20}|\n"
     for lib_name in function_table:
         udf_count = 0
         udf_solved = 0

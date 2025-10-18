@@ -386,7 +386,7 @@ def solve(function: Function) -> Optional[str]:
                 break
             else:
                 # =============================================================================================
-                # Uncomment below to stop at first failure
+                # Uncomment below to stop at first failure, not using reasoner to analyze failures
                 # break 
                 # =============================================================================================
                 # try to get an explanation; if reasoner fails, record the failure and continue

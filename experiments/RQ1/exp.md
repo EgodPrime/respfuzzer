@@ -1,8 +1,175 @@
 # RQ1 Experiment
 
+## How to disable Reasoner
+
+Do the following change in `agentic_function_resolver.py`:
+
+```python
+# agentic_function_resolver.py:solve
+# ...
+
+            if result["result_type"] == ExecutionResultType.OK:
+                solved = True
+                break
+            else:
+                # =============================================================================================
+                # Uncomment below to stop at first failure, not using reasoner to analyze failures
+                # break 
+                # =============================================================================================
+                # try to get an explanation; if reasoner fails, record the failure and continue
+                try:
+                    reason = reasoner.explain(code, result)
+                except Exception as e:
+                    reason = f"Reasoner error: {str(e)}"
+                    logger.debug(reason)
+
+# ...
+```
+
+## How to disable the full docs
+
+Do the following change in `agentic_function_resolver.py`:
+
+```python
+# agentic_function_resolver.py:Attempter:generate
+# ...
+
+        prompt = f"""任务:
+请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成``` 
+3. 不要生成`code`以外的任何内容 
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<history>
+...
+</history>
+<code>
+import a
+x = 2
+y = "str"
+res = a.b.c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{function.model_dump_json()}
+</function>
+<history>
+{history}
+</history>
+"""
+
+# =============================================================================================
+# Uncomment below to not take use of function information such as docstring and source code
+#         from inspect import _ParameterKind
+#         func_name = function.func_name
+#         func_args = function.args
+#         func_sig = f"def {func_name}("
+#         if func_args:
+#             for i, arg in enumerate(func_args):
+#                 if i > 0:
+#                     func_sig += ", "
+#                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+#                     func_sig += "*" + arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+#                     func_sig += "**" + arg.arg_name
+#         func_sig += "): ..."
+#         prompt = f"""任务:
+# 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+# 注意：
+# 1. 你生成的代码应该用<code></code>包裹。
+# 2. 不要生成``` 
+# 3. 不要生成`code`以外的任何内容 
+# 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+
+# 例子：
+# <function>
+# {{
+#     func_name: "a.b.c",
+#     ...  // 其他字段省略
+# }}
+# </function>
+# <history>
+# ...
+# </history>
+# <code>
+# import a
+# x = 2
+# y = "str"
+# res = a.b.c(x, y)
+# </code>
+
+# 现在任务开始：
+# <function>
+# {func_sig}
+# </function>
+# <history>
+# {history}
+# </history>
+# """
+# =============================================================================================
+
+# ...
+```
+
+## Setup
+
+> Note: we use {TRACEFUZZ} to denote the root directory of the TraceFuzz repo.
+
+### Step 1
+Modify the `{TRACEFUZZ}/config.toml` as follows:
+
+```toml
+[db_config]
+db_name = "tracefuzz-RQ1-111" # without .db suffix
+```
+
+### Step 2
+Extract Functions from the libraries:
+
+```bash
+cd {TRACEFUZZ}
+bash scripts/run_library_visitor.sh
+```
+
+functions will be extracted and stored in the database `{TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db`.
+
+### Step 3
+Copy the database file for experiments:
+
+```bash
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-101.db
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-110.db
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-100.db
+```
+
 ## Attempter + Reasoner vs full docs
 
+```bash
+cd {TRACEFUZZ}
+bash scripts/run_agentic_function_resolver.sh
+db_tools view
+```
+
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
+|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
 |        nltk        |        764         |    558 (73.04%)    |         0          |      0 (N/A)       |        764         |    558 (73.04%)    |
 |        dask        |        237         |    215 (90.72%)    |         0          |      0 (N/A)       |        237         |    215 (90.72%)    |
 |        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
@@ -18,7 +185,18 @@
 
 ## Attempter only vs full docs
 
+```bash
+cd {TRACEFUZZ}
+# modify config.toml to use tracefuzz-RQ1-110.db
+vim config.toml
+# disable reasoner in agentic_function_resolver.py
+vim src/tracefuzz/agentic_function_resolver.py
+bash scripts/run_agentic_function_resolver.sh
+db_tools view
+```
+
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
+|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
 |        nltk        |        764         |    471 (61.65%)    |         0          |      0 (N/A)       |        764         |    471 (61.65%)    |
 |        dask        |        237         |    189 (79.75%)    |         0          |      0 (N/A)       |        237         |    189 (79.75%)    |
 |        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
@@ -34,7 +212,18 @@
 
 ## Attempter + Reasoner vs no docs
 
+```bash
+cd {TRACEFUZZ}
+# modify config.toml to use tracefuzz-RQ1-101.db
+vim config.toml
+# modify agentic_function_resolver.py to enable reasoner but not use docs
+vim src/tracefuzz/agentic_function_resolver.py
+bash scripts/run_agentic_function_resolver.sh
+db_tools view
+```
+
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
+|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
 |        nltk        |        764         |    508 (66.49%)    |         0          |      0 (N/A)       |        764         |    508 (66.49%)    |
 |        dask        |        237         |    210 (88.61%)    |         0          |      0 (N/A)       |        237         |    210 (88.61%)    |
 |        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
@@ -50,7 +239,18 @@
 
 ## Attempter only vs no docs
 
+```bash
+cd {TRACEFUZZ}
+# modify config.toml to use tracefuzz-RQ1-100.db
+vim config.toml
+# disable reasoner and doc in agentic_function_resolver.py
+vim src/tracefuzz/agentic_function_resolver.py
+bash scripts/run_agentic_function_resolver.sh
+db_tools view
+```
+
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
+|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
 |        nltk        |        764         |    389 (50.92%)    |         0          |      0 (N/A)       |        764         |    389 (50.92%)    |
 |        dask        |        237         |    176 (74.26%)    |         0          |      0 (N/A)       |        237         |    176 (74.26%)    |
 |        yaml        |         26         |    24 (92.31%)     |         0          |      0 (N/A)       |         26         |    24 (92.31%)     |
