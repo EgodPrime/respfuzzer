@@ -73,6 +73,25 @@ def get_seed(seed_id: int) -> Optional[Seed]:
         )
         return seed
 
+def get_seed_by_function_name(function_name: str) -> Optional[Seed]:
+    with get_db_cursor() as cur:
+        cur.execute("SELECT * FROM seed WHERE func_name = ?", (function_name,))
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        # 解析 JSON 字符串回模型
+        args = [Argument(**arg) for arg in json.loads(row[4])]
+
+        seed = Seed(
+            id=row[0],
+            func_id=row[1],
+            library_name=row[2],
+            func_name=row[3],
+            args=args,
+            function_call=row[5],
+        )
+        return seed
 
 def get_seed_by_function_id(func_id: int) -> Optional[Seed]:
     with get_db_cursor() as cur:
