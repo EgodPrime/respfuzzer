@@ -63,6 +63,63 @@ res = a.b.c(x, y)
 {history}
 </history>
 """
+
+# =============================================================================================
+# Uncomment below to not take use of function information such as docstring and source code
+#         from inspect import _ParameterKind
+#         func_name = function.func_name
+#         func_args = function.args
+#         func_sig = f"def {func_name}("
+#         if func_args:
+#             for i, arg in enumerate(func_args):
+#                 if i > 0:
+#                     func_sig += ", "
+#                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+#                     func_sig += "*" + arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+#                     func_sig += arg.arg_name
+#                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+#                     func_sig += "**" + arg.arg_name
+#         func_sig += "): ..."
+#         prompt = f"""任务:
+# 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+# 注意：
+# 1. 你生成的代码应该用<code></code>包裹。
+# 2. 不要生成``` 
+# 3. 不要生成`code`以外的任何内容 
+# 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+
+# 例子：
+# <function>
+# {{
+#     func_name: "a.b.c",
+#     ...  // 其他字段省略
+# }}
+# </function>
+# <history>
+# ...
+# </history>
+# <code>
+# import a
+# x = 2
+# y = "str"
+# res = a.b.c(x, y)
+# </code>
+
+# 现在任务开始：
+# <function>
+# {func_sig}
+# </function>
+# <history>
+# {history}
+# </history>
+# """
+# =============================================================================================
         # Add a small retry loop for transient API errors
         last_exc = None
         for attempt in range(3):
@@ -328,7 +385,10 @@ def solve(function: Function) -> Optional[str]:
                 solved = True
                 break
             else:
-                break
+                # =============================================================================================
+                # Uncomment below to stop at first failure
+                # break 
+                # =============================================================================================
                 # try to get an explanation; if reasoner fails, record the failure and continue
                 try:
                     reason = reasoner.explain(code, result)
