@@ -20,6 +20,7 @@ from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
+from tracefuzz.fuzz.fuzz_library import manage_process_with_timeout, kill_process_tree_linux
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -30,83 +31,24 @@ def safe_fuzz(seed: Seed) -> None:
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
-
+    
     try:
-        target = importlib.import_module(seed.library_name)
-        instrument_function_via_path(target, seed.func_name)
-        exec(seed.function_call)
+        from importlib import util as importlib_util
+        spec = importlib_util.find_spec(seed.library_name)
+        origin = spec.origin
     except Exception as e:
-        logger.error(f"Error during fuzzing seed {seed.id}: {e}")
-        raise  # 重新抛出，便于上层处理
-
-def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):
-    """
-    安全杀死进程及其所有子进程（Linux 专用）。
-    使用进程组发送信号，确保所有子进程被杀死。
-    """
-    if not process.is_alive():
+        logger.error(f"Error finding root dir of library {seed.library_name}: {e}")
         return
 
-    try:
-        pgid = os.getpgid(process.pid)
-    except OSError:
-        return
-
-    # 先尝试优雅终止
-    os.killpg(pgid, signal.SIGTERM)
-    try:
-        process.join(timeout)
-    except:
-        pass
-
-    if process.is_alive():
-        os.killpg(pgid, signal.SIGKILL)
+    with dcov.LoaderWrapper() as l:
+        l.add_source(origin)
         try:
-            process.join(timeout)
-        except:
-            pass
-
-def manage_process_with_timeout(process: multiprocessing.Process, timeout: float, seed_id: int) -> bool:
-    """
-    Manage a process with timeout and resource monitoring.
-    Returns True if completed successfully, False if timed out.
-    """
-    start_time = time.time()
-    process.start()
-
-    while process.is_alive() and (time.time() - start_time) < timeout:
-        time.sleep(0.1)
-        try:
-            p = psutil.Process(process.pid)
-            if p.cpu_percent() > 150 or p.memory_percent() > 80:
-                logger.warning(f"Seed {seed_id} resource usage too high, killing...")
-                process.terminate()
-                break
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            break
+            target = importlib.import_module(seed.library_name)
+            instrument_function_via_path(target, seed.func_name)
+            exec(seed.function_call)
         except Exception as e:
-            logger.error(f"Error monitoring process {seed_id}: {e}")
-            break
-
-    if process.is_alive():
-        logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
-        process.terminate()
-        try:
-            process.join(1)
-        except:
-            pass
-
-        if process.is_alive():
-            logger.warning(f"Process still alive, force killing with kill_process_tree...")
-            kill_process_tree_linux(process)
-        return False
-
-    # 进程正常结束，需要 join 回收
-    try:
-        process.join(1)
-    except:
-        pass
-    return True
+            logger.error(f"Error during fuzzing seed {seed.id}: {e}")
+            raise  # 重新抛出，便于上层处理
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
     """

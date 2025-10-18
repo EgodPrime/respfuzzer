@@ -24,6 +24,7 @@ def safe_fuzz(seed: Seed) -> None:
     """
     Safely and silently execute the fuzzing process for a given seed.
     """
+    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
