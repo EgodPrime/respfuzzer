@@ -31,11 +31,16 @@ export_dyfuzz  # you will get a json named tracefuzz_seeds.json
 ## Run TraceFuzz
 
 ```bash
-cd {TRACEFUZZ}/run_data
+cd {TRACEFUZZ}
 # modify config.toml to use tracefuzz-RQ2.db
-vim ../config.toml
+vim config.toml
 # run TraceFuzz
-bash ../scripts/run_fuzz_library.sh
+cd ./experiments/RQ2/
+# All fuzzing work should be performed in a separate directory for saving your project structure :>
+mkdir -p run_data
+cd run_data
+# run TraceFuzz
+fuzz_dataset ../tracefuzz_seeds.json
 ```
 
 ## Run Fuzz4All Mutation
