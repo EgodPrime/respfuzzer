@@ -2,11 +2,11 @@ import copy
 from typing import Dict, FrozenSet, List, Set, Tuple
 
 from tracefuzz.mutate import (
-    randint,
     mutate_bytes,
     mutate_float,
     mutate_int,
     mutate_str,
+    randint,
 )
 
 VALUE_TYPES = [

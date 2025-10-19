@@ -1,16 +1,14 @@
 import importlib
 
-import fire
-
-from tracefuzz.db.function_table import get_db_cursor, get_function_iter
-from tracefuzz.db.seed_table import get_seed_by_function_id
 from tracefuzz.models import Function, Seed
+from tracefuzz.repos.function_table import get_db_cursor, get_function_iter
+from tracefuzz.repos.seed_table import get_seed_by_function_id
 
 
 def view(library_name=None):
     """View database statistics for the specified library or all libraries"""
-    function_table: dict[str,dict[str, Function]] = {}
-    seed_table: dict[str,dict[str, Seed]] = {}
+    function_table: dict[str, dict[str, Function]] = {}
+    seed_table: dict[str, dict[str, Seed]] = {}
     for function in get_function_iter(library_name):
         if not function.library_name in function_table:
             function_table[function.library_name] = {}
@@ -23,7 +21,7 @@ def view(library_name=None):
         seed = get_seed_by_function_id(function.id)
         if seed:
             seed_table[function.library_name][function.func_name] = seed
-    
+
     # | Library Name | UDF Count | UDF Solved | BF Count | BF Solved | TF Count | TF Solved |
     # |a | 200 | 199 (99.50%) | 100 | 88 (88.00%) | 300 | 287 (95.67%) |
     # ...
@@ -52,11 +50,13 @@ def view(library_name=None):
         tf_count = udf_count + bf_count
         tf_solved = udf_solved + bf_solved
 
-        udf_percent = f"{(udf_solved / udf_count * 100):.2f}%" if udf_count > 0 else 'N/A'
+        udf_percent = (
+            f"{(udf_solved / udf_count * 100):.2f}%" if udf_count > 0 else "N/A"
+        )
         udf_solved_str = f"{udf_solved} ({udf_percent})"
-        bf_percent = f"{(bf_solved / bf_count * 100):.2f}%" if bf_count > 0 else 'N/A'
+        bf_percent = f"{(bf_solved / bf_count * 100):.2f}%" if bf_count > 0 else "N/A"
         bf_solved_str = f"{bf_solved} ({bf_percent})"
-        tf_percent = f"{(tf_solved / tf_count * 100):.2f}%" if tf_count > 0 else 'N/A'
+        tf_percent = f"{(tf_solved / tf_count * 100):.2f}%" if tf_count > 0 else "N/A"
         tf_solved_str = f"{tf_solved} ({tf_percent})"
 
         res += f"|{lib_name:^20}|{udf_count:^20}|{udf_solved_str:^20}|{bf_count:^20}|{bf_solved_str:^20}|{tf_count:^20}|{tf_solved_str:^20}|\n"
@@ -147,19 +147,3 @@ def delete_seed_records(library_name: str = None):
                 print(f"Deleted {count_after} seed records for library: {library_name}")
             else:
                 print(f"No seed records found for library: {library_name}")
-
-
-def main():
-    """Main entry point for the db_tools command-line interface"""
-    fire.Fire(
-        {
-            "view": view,
-            "cleanup-invalid": cleanup_invalid_function_records,
-            "delete-duplicate": delete_duplicate_function_records,
-            "delete-seed": delete_seed_records,
-        }
-    )
-
-
-if __name__ == "__main__":
-    main()

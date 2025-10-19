@@ -1,8 +1,8 @@
 import json
 from typing import List, Optional
 
-from tracefuzz.db.base import get_db_cursor
 from tracefuzz.models import Function
+from tracefuzz.repos.base import get_db_cursor
 
 # Create the solve history table
 with get_db_cursor() as cur:

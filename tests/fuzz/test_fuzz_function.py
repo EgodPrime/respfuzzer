@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tracefuzz.fuzz.fuzz_function import (
+from tracefuzz.lib.fuzz.fuzz_function import (
     convert_to_param_list,
     execute_once,
     fuzz_function,
@@ -43,7 +43,7 @@ def test_reconvert_param_list():
     assert result_kwargs == {"a": 4, "b": 5}
 
 
-@patch("tracefuzz.fuzz.fuzz_function.logger")
+@patch("tracefuzz.lib.fuzz.fuzz_function.logger")
 def test_fuzz_function_no_args(
     mock_logger,
 ):
@@ -56,7 +56,7 @@ def test_fuzz_function_no_args(
     )
 
 
-@patch("tracefuzz.fuzz.fuzz_function.logger")
+@patch("tracefuzz.lib.fuzz.fuzz_function.logger")
 def test_fuzz_function_with_args(
     mock_logger,
 ):

@@ -6,14 +6,13 @@ import time
 import traceback
 from typing import List, Optional
 
-import fire
 import openai
 from loguru import logger
 
-from tracefuzz.db.function_table import get_functions
-from tracefuzz.db.seed_table import create_seed
-from tracefuzz.db.solve_history_table import create_solve_history
 from tracefuzz.models import ExecutionResultType, Function, Seed
+from tracefuzz.repos.function_table import get_functions
+from tracefuzz.repos.seed_table import create_seed
+from tracefuzz.repos.solve_history_table import create_solve_history
 from tracefuzz.utils.config import get_config
 
 cfg = get_config("reflective_seeder")
@@ -64,62 +63,62 @@ res = a.b.c(x, y)
 </history>
 """
 
-# =============================================================================================
-# Uncomment below to not take use of function information such as docstring and source code
-#         from inspect import _ParameterKind
-#         func_name = function.func_name
-#         func_args = function.args
-#         func_sig = f"def {func_name}("
-#         if func_args:
-#             for i, arg in enumerate(func_args):
-#                 if i > 0:
-#                     func_sig += ", "
-#                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
-#                     func_sig += "*" + arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
-#                     func_sig += "**" + arg.arg_name
-#         func_sig += "): ..."
-#         prompt = f"""任务:
-# 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+        # =============================================================================================
+        # Uncomment below to not take use of function information such as docstring and source code
+        #         from inspect import _ParameterKind
+        #         func_name = function.func_name
+        #         func_args = function.args
+        #         func_sig = f"def {func_name}("
+        #         if func_args:
+        #             for i, arg in enumerate(func_args):
+        #                 if i > 0:
+        #                     func_sig += ", "
+        #                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+        #                     func_sig += arg.arg_name
+        #                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+        #                     func_sig += arg.arg_name
+        #                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+        #                     func_sig += "*" + arg.arg_name
+        #                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+        #                     func_sig += arg.arg_name
+        #                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+        #                     func_sig += "**" + arg.arg_name
+        #         func_sig += "): ..."
+        #         prompt = f"""任务:
+        # 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
-# 注意：
-# 1. 你生成的代码应该用<code></code>包裹。
-# 2. 不要生成``` 
-# 3. 不要生成`code`以外的任何内容 
-# 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+        # 注意：
+        # 1. 你生成的代码应该用<code></code>包裹。
+        # 2. 不要生成```
+        # 3. 不要生成`code`以外的任何内容
+        # 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
 
-# 例子：
-# <function>
-# {{
-#     func_name: "a.b.c",
-#     ...  // 其他字段省略
-# }}
-# </function>
-# <history>
-# ...
-# </history>
-# <code>
-# import a
-# x = 2
-# y = "str"
-# res = a.b.c(x, y)
-# </code>
+        # 例子：
+        # <function>
+        # {{
+        #     func_name: "a.b.c",
+        #     ...  // 其他字段省略
+        # }}
+        # </function>
+        # <history>
+        # ...
+        # </history>
+        # <code>
+        # import a
+        # x = 2
+        # y = "str"
+        # res = a.b.c(x, y)
+        # </code>
 
-# 现在任务开始：
-# <function>
-# {func_sig}
-# </function>
-# <history>
-# {history}
-# </history>
-# """
-# =============================================================================================
+        # 现在任务开始：
+        # <function>
+        # {func_sig}
+        # </function>
+        # <history>
+        # {history}
+        # </history>
+        # """
+        # =============================================================================================
         # Add a small retry loop for transient API errors
         last_exc = None
         for attempt in range(3):
@@ -387,7 +386,7 @@ def solve(function: Function) -> Optional[str]:
             else:
                 # =============================================================================================
                 # Uncomment below to stop at first failure, not using reasoner to analyze failures
-                # break 
+                # break
                 # =============================================================================================
                 # try to get an explanation; if reasoner fails, record the failure and continue
                 try:
@@ -416,42 +415,34 @@ def solve(function: Function) -> Optional[str]:
         return None
 
 
-def _mainC(library_name: str):
-    functions = get_functions(library_name)
+def solve_and_save(function: Function) -> None:
+    logger.info(f"Try solving {function.func_name} ...")
+    code = None
+    try:
+        code = solve(function)
+    except Exception:
+        pass
+    if code:
+        seed = Seed(
+            func_id=function.id,
+            library_name=function.library_name,
+            func_name=function.func_name,
+            args=function.args,
+            function_call=code,
+        )
+        create_seed(seed)
+        logger.info(f"Seed found for {function.func_name}:\n{code}")
+    else:
+        logger.info(f"Failed to solve {function.func_name}")
 
-    def process_function(function: Function):
-        logger.info(f"Try solving {function.func_name} ...")
-        code = None
-        try:
-            code = solve(function)
-        except Exception:
-            pass
-        if code:
-            seed = Seed(
-                func_id=function.id,
-                library_name=function.library_name,
-                func_name=function.func_name,
-                args=function.args,
-                function_call=code,
-            )
-            create_seed(seed)
-            logger.info(f"Seed found for {function.func_name}:\n{code}")
-        else:
-            logger.info(f"Failed to solve {function.func_name}")
+
+def solve_library_functions(library_name: str) -> None:
+    """Load all functions of the given library from the database and attempt to generate seeds for them."""
+    functions = get_functions(library_name)
 
     # 使用线程池，最多3个线程并发执行
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=int(cfg.get("concurrency", 4))
     ) as executor:
-        futures = [
-            executor.submit(process_function, function) for function in functions
-        ]
+        futures = [executor.submit(solve_and_save, function) for function in functions]
         concurrent.futures.wait(futures)
-
-
-def main():
-    fire.Fire(_mainC)
-
-
-if __name__ == "__main__":
-    main()

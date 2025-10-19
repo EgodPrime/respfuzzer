@@ -4,7 +4,7 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
 
-from tracefuzz.fuzz.fuzz_function import fuzz_function, replay_fuzz
+from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz
 
 fuzzed_set = set()
 
@@ -35,6 +35,7 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
     """
     Return a instrumented version of `func`, which should replay the last fuzz
@@ -42,6 +43,7 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     Random state should be set outside before the function call.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         res = func(*args, **kwargs)
@@ -49,6 +51,7 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
         return res
 
     return wrapper
+
 
 def instrument_function_via_path(mod: ModuleType, path: str):
     """
@@ -90,6 +93,7 @@ def instrument_function_via_path(mod: ModuleType, path: str):
 
     setattr(parent, mods[-1], new_func)
     # logger.debug(f"Instrumented {path}")
+
 
 def instrument_function_via_path_replay(mod: ModuleType, path: str):
     mods = path.split(".")

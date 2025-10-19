@@ -1,8 +1,8 @@
 import json
 from typing import Iterator, List, Optional
 
-from tracefuzz.db.base import get_db_cursor
 from tracefuzz.models import Argument, Seed
+from tracefuzz.repos.base import get_db_cursor
 
 # 创建数据库表
 with get_db_cursor() as cur:
@@ -73,6 +73,7 @@ def get_seed(seed_id: int) -> Optional[Seed]:
         )
         return seed
 
+
 def get_seed_by_function_name(function_name: str) -> Optional[Seed]:
     with get_db_cursor() as cur:
         cur.execute("SELECT * FROM seed WHERE func_name = ?", (function_name,))
@@ -92,6 +93,7 @@ def get_seed_by_function_name(function_name: str) -> Optional[Seed]:
             function_call=row[5],
         )
         return seed
+
 
 def get_seed_by_function_id(func_id: int) -> Optional[Seed]:
     with get_db_cursor() as cur:

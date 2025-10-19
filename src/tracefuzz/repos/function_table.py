@@ -1,8 +1,8 @@
 import json
 from typing import Iterator, List, Optional
 
-from tracefuzz.db.base import get_db_cursor
 from tracefuzz.models import Function
+from tracefuzz.repos.base import get_db_cursor
 
 with get_db_cursor() as cur:
     cur.execute(

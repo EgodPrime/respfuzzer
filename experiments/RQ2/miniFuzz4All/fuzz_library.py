@@ -5,15 +5,14 @@ from multiprocessing import Process
 
 import fire
 import psutil
+from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 from redis import Redis
 
-from tracefuzz.db.seed_table import get_seeds_iter
 from tracefuzz.models import Seed
+from tracefuzz.repos.seed_table import get_seeds_iter
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
-
-from f4a_mutator import Fuzz4AllMutator
 
 
 def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:

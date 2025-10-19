@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from tracefuzz.agentic_function_resolver import Judger
+from tracefuzz.lib.agentic_function_resolver import Judger
 from tracefuzz.models import Argument, Function
 
 
@@ -23,7 +23,7 @@ def test_judge_parses_json_response(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         lambda *a, **k: mock_response,
     )
 
@@ -40,7 +40,7 @@ def test_judge_fallback_heuristic_true(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         lambda *a, **k: mock_response,
     )
 
@@ -56,7 +56,7 @@ def test_judge_fallback_heuristic_false(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         lambda *a, **k: mock_response,
     )
 
@@ -71,7 +71,8 @@ def test_judge_raises_on_api_error(monkeypatch):
         raise Exception("api down")
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create", raise_err
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
+        raise_err,
     )
 
     with pytest.raises(Exception):
@@ -86,7 +87,7 @@ def test_judge_parses_json_embedded_in_text(monkeypatch):
     mock_response.choices = [mock.Mock(message=mock.Mock(content=content))]
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         lambda *a, **k: mock_response,
     )
 

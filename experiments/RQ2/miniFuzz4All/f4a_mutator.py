@@ -1,9 +1,9 @@
 import random
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 import openai
-from loguru import logger
-from concurrent.futures import ThreadPoolExecutor
+
 from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 
@@ -166,14 +166,14 @@ class Fuzz4AllMutator:
             top_p=1,
             presence_penalty=1,
             n=1,
-            stop=self.stop_sequences
+            stop=self.stop_sequences,
         )
         # logger.debug(f"LLM response: {response}")
         new_code = response.content.strip()
 
         self.current_code = self.prompt_used["begin"] + "\n" + self.clean(new_code)
         return self.current_code
-    
+
     def generate_n(self, cnt: int) -> list[str]:
         """
         生成多个变异体。
@@ -193,17 +193,16 @@ class Fuzz4AllMutator:
                     top_p=1,
                     presence_penalty=1,
                     n=1,
-                    stop=self.stop_sequences
+                    stop=self.stop_sequences,
                 )
                 for _ in range(cnt)
             ]
             for future in futures:
                 response = future.result()
                 new_code = response.content.strip()
-                mutant_code = self.prompt_used["begin"] + "\n" + self.clean_code(
-                    new_code
+                mutant_code = (
+                    self.prompt_used["begin"] + "\n" + self.clean_code(new_code)
                 )
                 mutants.append(mutant_code)
-        
-        
+
         return mutants

@@ -1,7 +1,7 @@
 import subprocess
 from unittest import mock
 
-from tracefuzz.agentic_function_resolver import QueitExecutor
+from tracefuzz.lib.agentic_function_resolver import QueitExecutor
 from tracefuzz.models import ExecutionResultType
 
 
@@ -11,7 +11,7 @@ def test_execute_ok(monkeypatch):
     mock_proc.returncode = 0
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        "tracefuzz.lib.agentic_function_resolver.subprocess.Popen",
         lambda *a, **k: mock_proc,
     )
 
@@ -27,7 +27,7 @@ def test_execute_abnormal(monkeypatch):
     mock_proc.returncode = 1
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        "tracefuzz.lib.agentic_function_resolver.subprocess.Popen",
         lambda *a, **k: mock_proc,
     )
 
@@ -44,7 +44,7 @@ def test_execute_timeout(monkeypatch):
     )
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.subprocess.Popen",
+        "tracefuzz.lib.agentic_function_resolver.subprocess.Popen",
         lambda *a, **k: mock_proc,
     )
 
@@ -60,7 +60,7 @@ def test_execute_callfail(monkeypatch):
         raise Exception("spawn failed")
 
     monkeypatch.setattr(
-        "tracefuzz.agentic_function_resolver.subprocess.Popen", raise_on_popen
+        "tracefuzz.lib.agentic_function_resolver.subprocess.Popen", raise_on_popen
     )
 
     res = QueitExecutor().execute("print('x')")

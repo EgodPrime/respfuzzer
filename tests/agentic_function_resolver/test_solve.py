@@ -1,7 +1,7 @@
 from unittest import mock
 
-import tracefuzz.agentic_function_resolver as afr
-from tracefuzz.agentic_function_resolver import (
+import tracefuzz.lib.agentic_function_resolver as afr
+from tracefuzz.lib.agentic_function_resolver import (
     Attempter,
     Judger,
     QueitExecutor,

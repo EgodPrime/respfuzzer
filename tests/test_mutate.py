@@ -1,15 +1,26 @@
-from tracefuzz.mutate import mutate_bytes, mutate_int, mutate_str, mutate_float, set_random_state, get_random_state, randint
+from tracefuzz.mutate import (
+    get_random_state,
+    mutate_bytes,
+    mutate_float,
+    mutate_int,
+    mutate_str,
+    randint,
+    set_random_state,
+)
+
 
 def test_set_get_random_state():
     s1 = get_random_state()
-    set_random_state(s1*2)
+    set_random_state(s1 * 2)
     s2 = get_random_state()
-    assert s2 == s1*2
+    assert s2 == s1 * 2
+
 
 def test_randint():
     max_value = 100
     r = randint(max_value)
     assert 0 <= r < max_value
+
 
 def test_chain_rand():
     for _ in range(10):
@@ -24,11 +35,13 @@ def test_chain_rand():
         sample2.append(randint(123456))
     assert sample1 == sample2
 
+
 def test_int_mutate():
     original = 234123
     mutated = mutate_int(original)
     assert isinstance(mutated, int)
-    assert mutated != original  # Ensure mutation occurred  
+    assert mutated != original  # Ensure mutation occurred
+
 
 def test_float_mutate():
     original = 3.14
@@ -36,17 +49,20 @@ def test_float_mutate():
     assert isinstance(mutated, float)
     assert mutated != original  # Ensure mutation occurred
 
+
 def test_str_mutate():
     original = "hello"
     mutated = mutate_str(original)
     assert isinstance(mutated, str)
     assert mutated != original  # Ensure mutation occurred
 
+
 def test_bytes_mutate():
     original = b"hello"
     mutated = mutate_bytes(original)
     assert isinstance(mutated, bytes)
     assert mutated != original  # Ensure mutation occurred
+
 
 def test_a_lot_of_mutations():
     original_int = 123456

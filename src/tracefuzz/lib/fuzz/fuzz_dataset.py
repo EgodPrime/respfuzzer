@@ -1,34 +1,35 @@
+import importlib
 import io
 import json
+import os
 import sys
 from multiprocessing import Process
 
 import dcov
-import fire
-from f4a_mutator import Fuzz4AllMutator
+import redis
 from loguru import logger
-from redis import Redis
 
 from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout
+from tracefuzz.lib.fuzz.instrument import instrument_function_via_path
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 
 
-def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
+def safe_fuzz(seed: Seed) -> None:
     """
     Safely and silently execute the fuzzing process for a given seed.
     """
-
+    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
 
-    f4a_mutator = Fuzz4AllMutator(seed)
-    cfg = get_config("fuzz4all")
-    concurrency = cfg.get("concurrency", 12)
+    logger.info(
+        f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}"
+    )
 
     try:
         from importlib import util as importlib_util
@@ -41,79 +42,61 @@ def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
 
     with dcov.LoaderWrapper() as l:
         l.add_source(origin)
-        for i in range(0, cnt, concurrency):
-            batch_size = min(concurrency, cnt - i)
-            mutated_calls = f4a_mutator.generate_n(batch_size)
-            logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id}")
-            for j, mutated_call in enumerate(mutated_calls):
-                try:
-                    redis_client.hincrby("fuzz", "exec_cnt", 1)
-                    p0 = dcov.count_bits_py()
-                    # logger.debug(mutated_call)
-                    exec(mutated_call)
-                    logger.debug(
-                        f"Successfully executed mutated call {i+j+1} for seed {seed.id}"
-                    )
-                    p1 = dcov.count_bits_py()
-                    if p1 > p0:
-                        logger.info(
-                            f"New coverage found for seed {seed.id}: {p1 - p0} new bits."
-                        )
-
-                except Exception as e:
-                    continue
-                    # logger.error(f"Error executing mutated call {i+j+1} for seed {seed.id}: {e}")
-
-        # for i in range(cnt):
-        #     try:
-        #         mutated_call = f4a_mutator.generate()
-        #         logger.debug(f"Generated mutant {i+1}/{cnt} for seed {seed.id}")
-        #         # logger.debug(f"New mutant:\n{mutated_call}")
-        #         redis_client.hincrby("fuzz", "exec_cnt", 1)
-        #         p0 = dcov.count_bits_py()
-        #         exec(mutated_call)
-        #         p1 = dcov.count_bits_py()
-        #         if p1 > p0:
-        #             logger.info(f"New coverage found for seed {seed.id}: {p1 - p0} new bits.")
-        #         logger.debug(f"Successfully executed mutated call for seed {seed.id}")
-        #     except Exception as e:
-        #         continue
-        #         # logger.error(f"Error executing mutated call for seed {seed.id}: {e}")
+        try:
+            target = importlib.import_module(seed.library_name)
+            instrument_function_via_path(target, seed.func_name)
+            exec(seed.function_call)
+        except Exception as e:
+            logger.error(f"Error during fuzzing seed {seed.id}: {e}")
+            raise  # 重新抛出，便于上层处理
 
 
-def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
-    execution_timeout = (
-        config.get("execution_timeout") + 5
-    )  # additional time for LLM response
+def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
+    """
+    Fuzz a single seed with retries and monitoring.
+    Returns the number of executions.
+    """
+    execution_timeout = config.get("execution_timeout")
     mutants_per_seed = config.get("mutants_per_seed")
     max_try_per_seed = config.get("max_try_per_seed")
 
     if len(seed.args) == 0:
         max_try_per_seed = 1
 
+    redis_client.hset("fuzz", "current_func", seed.func_name)
     redis_client.hset("fuzz", "exec_cnt", 0)
+    redis_client.delete("exec_record")
 
     logger.debug(f"seed is :\n{seed.function_call}")
 
     for attempt in range(1, max_try_per_seed + 1):
         exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
+        randome_state = redis_client.hget("exec_record", exec_cnt + 1)
         if exec_cnt >= mutants_per_seed:
             break
 
         logger.info(
             f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={mutants_per_seed-exec_cnt}."
         )
-        process = Process(
-            target=safe_fuzz,
-            args=(
-                seed,
-                mutants_per_seed - exec_cnt,
-                redis_client,
-            ),
-        )
-        # give additional 5 seconds for LLM response time
-        timeout = (mutants_per_seed - exec_cnt) * execution_timeout
+        process = Process(target=safe_fuzz, args=(seed,))
+        """动态调整超时时间
+        总时间 = 动态固定时间 + 动态浮动时间
+        动态固定时间=(max_try_per_seed - attempt + 1) * execution_timeout
+        动态浮动时间=(mutants_per_seed - exec_cnt) / 100
+        解释：
+        1. 随着尝试次数的增加，动态固定时间线性减少，意味着对一个种子的容忍度降低。
+        2. 动态浮动时间根据剩余需要执行的变异数调整，确保有足够时间完成剩余任务。
+        3. 动态浮动时间的一个基本假设是大部分测试用例的执行都在10ms以内完成，因此除以100。
+        """
+        timeout = (max_try_per_seed - attempt + 1) * execution_timeout + (
+            mutants_per_seed - exec_cnt
+        ) / 100
         success = manage_process_with_timeout(process, timeout, seed.id)
+
+        if process.exitcode not in (0, None):
+            logger.warning(
+                f"Seed {seed.id} attempt {attempt} did not complete successfully, last random state: {randome_state}."
+            )
 
         if not success:
             continue  # 重试
@@ -124,6 +107,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
 
 
 def fuzz_dataset(dataset_path: str) -> None:
+    """Fuzz functions specified in the dataset JSON file."""
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
 
@@ -148,11 +132,3 @@ def fuzz_dataset(dataset_path: str) -> None:
             fuzz_single_seed(seed, config, redis_client)
             p = dcov.count_bits_py()
             logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
-
-
-def main():
-    fire.Fire(fuzz_dataset)
-
-
-if __name__ == "__main__":
-    main()

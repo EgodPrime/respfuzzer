@@ -3,16 +3,15 @@ import os
 from types import BuiltinFunctionType, FunctionType, ModuleType
 from typing import Dict, Iterator, Set
 
-import fire
 from loguru import logger
 
-from tracefuzz.db.function_table import create_function
-from tracefuzz.models import Function
-from tracefuzz.parsers.function_parser import (
+from tracefuzz.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from tracefuzz.parsers.pyi_parser import _find_all_pyi_files
+from tracefuzz.lib.parsers.pyi_parser import _find_all_pyi_files
+from tracefuzz.models import Function
+from tracefuzz.repos.function_table import create_function
 
 logger.level("INFO")
 
@@ -155,19 +154,12 @@ class LibraryVisitor:
                         yield function
 
 
-def _main(library_name: str):
-    logger.info(f"Parsing functions in library {library_name}")
+def extract_functions_from_library(library_name: str) -> None:
+    """Extract functions from a library and store them in the database."""
+    logger.info(f"Start extracting functions from library {library_name}")
     lv = LibraryVisitor(library_name)
     cnt = 0
     for function in lv.visit():
         create_function(function)
         cnt += 1
-    logger.info(f"Finished parsing {cnt} functions in library {library_name}")
-
-
-def main():
-    fire.Fire(_main)
-
-
-if __name__ == "__main__":
-    main()
+    logger.info(f"Finished extracting {cnt} functions from library {library_name}")

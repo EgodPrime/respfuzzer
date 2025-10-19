@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from tracefuzz.agentic_function_resolver import Attempter
+from tracefuzz.lib.agentic_function_resolver import Attempter
 from tracefuzz.models import Function
 
 
@@ -21,7 +21,7 @@ def test_generate_extracts_code_tag_and_returns_inner_content():
     ]
 
     with mock.patch(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         return_value=mock_response,
     ):
         code = at.generate(MockFunction(), [])
@@ -37,7 +37,7 @@ def test_generate_accepts_triple_backticks_fallback():
     ]
 
     with mock.patch(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         return_value=mock_response,
     ):
         code = at.generate(MockFunction(), [])
@@ -49,7 +49,7 @@ def test_generate_raises_after_retries_on_errors():
     at = Attempter()
 
     with mock.patch(
-        "tracefuzz.agentic_function_resolver.client.chat.completions.create",
+        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
         side_effect=Exception("boom"),
     ):
         with pytest.raises(Exception):

@@ -1,26 +1,22 @@
 import importlib
 import io
+import multiprocessing
 import os
 import signal
 import sys
 import time
-import multiprocessing
 from multiprocessing import Process
 
-import fire
 import psutil  # 新增：用于监控资源
 import redis
-import json
 from loguru import logger
-import dcov
 
-from tracefuzz.db.seed_table import get_seed_by_function_name
-from tracefuzz.fuzz.instrument import instrument_function_via_path
+from tracefuzz.lib.fuzz.instrument import instrument_function_via_path
 from tracefuzz.models import Seed
+from tracefuzz.repos.seed_table import get_seeds_iter
 from tracefuzz.utils.config import get_config
-from tracefuzz.utils.redis_util import get_redis_client
 from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
-from tracefuzz.fuzz.fuzz_library import manage_process_with_timeout, kill_process_tree_linux
+from tracefuzz.utils.redis_util import get_redis_client
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -33,25 +29,83 @@ def safe_fuzz(seed: Seed) -> None:
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
 
-    logger.info(f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}")
-    
+    logger.info(
+        f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}"
+    )
+
     try:
-        from importlib import util as importlib_util
-        spec = importlib_util.find_spec(seed.library_name)
-        origin = spec.origin
+        target = importlib.import_module(seed.library_name)
+        instrument_function_via_path(target, seed.func_name)
+        exec(seed.function_call)
     except Exception as e:
-        logger.error(f"Error finding root dir of library {seed.library_name}: {e}")
+        # logger.error(f"Error during fuzzing seed {seed.id}: {e}")
+        raise  # 重新抛出，便于上层处理
+
+
+def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):
+    """
+    安全杀死进程及其所有子进程（Linux 专用）。
+    使用进程组发送信号，确保所有子进程被杀死。
+    """
+    if not process.is_alive():
         return
 
-    with dcov.LoaderWrapper() as l:
-        l.add_source(origin)
+    try:
+        pgid = os.getpgid(process.pid)
+    except OSError:
+        return
+
+    # 先尝试优雅终止
+    os.killpg(pgid, signal.SIGTERM)
+    try:
+        process.join(timeout)
+    except:
+        pass
+
+    if process.is_alive():
+        os.killpg(pgid, signal.SIGKILL)
         try:
-            target = importlib.import_module(seed.library_name)
-            instrument_function_via_path(target, seed.func_name)
-            exec(seed.function_call)
+            process.join(timeout)
+        except:
+            pass
+
+
+def manage_process_with_timeout(
+    process: multiprocessing.Process, timeout: float, seed_id: int
+) -> bool:
+    """
+    Manage a process with timeout and resource monitoring.
+    Returns True if completed successfully, False if timed out.
+    """
+    start_time = time.time()
+    process.start()
+
+    while process.is_alive() and (time.time() - start_time) < timeout:
+        time.sleep(0.1)
+        try:
+            p = psutil.Process(process.pid)
+            if p.cpu_percent() > 150 or p.memory_percent() > 80:
+                logger.warning(f"Seed {seed_id} resource usage too high, killing...")
+                process.terminate()
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            break
         except Exception as e:
-            logger.error(f"Error during fuzzing seed {seed.id}: {e}")
-            raise  # 重新抛出，便于上层处理
+            logger.error(f"Error monitoring process {seed_id}: {e}")
+            break
+
+    if process.is_alive():
+        logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
+        kill_process_tree_linux(process)
+        return False
+
+    # 进程正常结束，需要 join 回收
+    try:
+        process.join(1)
+    except:
+        pass
+    return True
+
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
     """
@@ -78,7 +132,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
             break
 
         logger.info(
-            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={mutants_per_seed-exec_cnt}."
+            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}."
         )
         process = Process(target=safe_fuzz, args=(seed,))
         """动态调整超时时间
@@ -108,30 +162,22 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
     return final_exec_cnt
 
 
-def fuzz_dataset(dataset_path: str) -> None:
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
-
+def fuzz_one_library(library_name: str) -> None:
+    """
+    Fuzz the specified library with seeds from the database.
+    """
     config = get_config("fuzz")
     redis_client = get_redis_client()
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
+    redis_client.delete("fuzz")
 
-    dataset:dict[str, dict[str, dict[str,list[int]]]] = json.load(open(dataset_path, "r"))
+    blacklist = set()
+    if FUZZ_BLACKLIST_PATH.exists():
+        with open(FUZZ_BLACKLIST_PATH, "r") as f:
+            for line in f:
+                blacklist.add(line.strip())
 
-    for library_name in dataset:
-        logger.info(f"Fuzzing library: {library_name}")
-        for api_name in dataset[library_name]:
-            full_api_name = f"{library_name}.{api_name}"
-            seed = get_seed_by_function_name(full_api_name)
-            if not seed:
-                logger.warning(f"Seed not found for function: {full_api_name}, skipping.")
-                continue
-            fuzz_single_seed(seed, config, redis_client)
-            p = dcov.count_bits_py()
-            logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
-
-def main():
-    fire.Fire(fuzz_dataset)
-
-if __name__ == "__main__":
-    main()
+    for seed in get_seeds_iter(library_name):
+        if seed.func_name in blacklist:
+            logger.info(f"Skipping blacklisted function: {seed.func_name}")
+            continue
+        fuzz_single_seed(seed, config, redis_client)

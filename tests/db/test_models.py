@@ -1,5 +1,6 @@
 from tracefuzz.models import Function
 
+
 def test_function_str():
     func = Function(
         func_name="math.add",
@@ -11,4 +12,4 @@ def test_function_str():
         ret_type="int",
     )
     expected_str = "math.add(a[positional]:int, b[positional]:int)->int"
-    assert str(func) == expected_str    
+    assert str(func) == expected_str

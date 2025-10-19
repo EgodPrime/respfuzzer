@@ -132,6 +132,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
 
     logger.info(f"Fuzz {full_name} done")
 
+
 def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
     param_list = convert_to_param_list(*args, **kwargs)

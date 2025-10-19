@@ -1,11 +1,11 @@
 import inspect
 from unittest.mock import Mock, patch
 
-from tracefuzz.models import Argument
-from tracefuzz.parsers.function_parser import (
+from tracefuzz.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
+from tracefuzz.models import Argument
 
 
 @patch("inspect.getsource")
@@ -130,3 +130,20 @@ def test_from_builtin_function_type():
     assert result.args[1].arg_name == "b"
     assert result.args[1].type == "str"
     assert result.ret_type == "bool"
+
+
+@patch("inspect.signature")
+def test_from_function_type_signature_value_error(mock_signature):
+    """If inspect.signature raises ValueError, from_function_type should return None"""
+    mock_func = Mock()
+    mock_func.__name__ = "broken"
+    mock_func.__module__ = "test_module"
+
+    # Make signature() raise ValueError
+    mock_signature.side_effect = ValueError
+
+    mod = Mock()
+    mod.__name__ = "test_module"
+
+    result = from_function_type(mod, mock_func)
+    assert result is None
