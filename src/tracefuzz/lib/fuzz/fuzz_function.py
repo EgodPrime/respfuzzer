@@ -5,8 +5,8 @@ from typing import Callable
 
 from loguru import logger
 
-from tracefuzz.mutate import get_random_state, set_random_state
-from tracefuzz.mutator import mutate_param_list
+from tracefuzz.lib.fuzz.mutate import get_random_state, set_random_state
+from tracefuzz.lib.fuzz.mutator import mutate_param_list
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 

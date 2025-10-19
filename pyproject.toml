@@ -54,12 +54,13 @@ select = ["F401", "F403"]
 line-length = 88
 target-version = ["py313"]
 
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-module-name = "tracefuzz.mutate"
+module-name = "tracefuzz.lib.fuzz.mutate"
 python-packages = ["tracefuzz"]
 python-source = "src"
 

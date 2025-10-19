@@ -7,6 +7,6 @@ source $config_file
 # Fuzz each library
 for library in "${libraries[@]}"
 do
-    echo "fuzz_library $library"
-    fuzz_library "$library"
+    echo "fuzz fuzz_library $library"
+    fuzz fuzz_library "$library"
 done

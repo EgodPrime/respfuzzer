@@ -8,7 +8,7 @@ from loguru import logger
 
 from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_replay
-from tracefuzz.mutate import set_random_state
+from tracefuzz.lib.fuzz.mutate import set_random_state
 from tracefuzz.repos.seed_table import get_seed
 
 

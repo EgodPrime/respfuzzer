@@ -40,7 +40,7 @@ cd ./experiments/RQ2/
 mkdir -p run_data
 cd run_data
 # run TraceFuzz
-fuzz_dataset ../tracefuzz_seeds.json
+fuzz fuzz_dataset ../tracefuzz_seeds.json
 ```
 
 ## Run Fuzz4All Mutation

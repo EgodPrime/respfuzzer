@@ -6,14 +6,14 @@
 ## Architecture
 
  - ReflectiveSeeder
-   - src/tracefuzz/library_visitor.py
-   - src/tracefuzz/agentic_function_resolver.py
+   - src/tracefuzz/lib/library_visitor.py
+   - src/tracefuzz/lib/agentic_function_resolver.py
  - FuzzTrigger
-   - src/tracefuzz/fuzz/instrument.py
+   - src/tracefuzz/lib/fuzz/instrument.py
  - FuzzEngine
-   - src/tracefuzz/mutator.py
-   - src/tracefuzz/fuzz/fuzz_function.py
-   - src/tracefuzz/fuzz/fuzz_library.py
+   - src/tracefuzz/lib/mutator.py
+   - src/tracefuzz/lib/fuzz/fuzz_function.py
+   - src/tracefuzz/lib/fuzz/fuzz_library.py
    - src/lib.rs
    - src/chain_rng.rs
    - src/mutator.rs
@@ -89,14 +89,14 @@ The framework uses `config.toml` for configuration. Key settings include:
 
 ### Extract Functions from a Library
 ```bash
-library_visitor numpy
+reflective_seeder extract_functions numpy
 ```
 
 There will be a new SQLite database file (`<db_name>.db` where `<db_name>` is set in `config.toml`) created in the `run_data` folder containing the extracted functions.
 
 ## Generate Function Calls
 ```bash
-agentic_function_resolver numpy
+reflective_seeder generate_seeds numpy
 ```
 
 ## View the Database
@@ -112,7 +112,7 @@ db_tools view
 
 ### Fuzz a Specific Library
 ```bash
-fuzz_library numpy
+fuzz fuzz_library numpy
 ```
 
 ## Libraries Under Test

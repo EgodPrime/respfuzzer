@@ -5,9 +5,9 @@ config_file="$current_dir/libraries.conf"
 # Source the library list
 source $config_file
 
-# Generate function calls for each library
+# Extract function information for each library
 for library in "${libraries[@]}"
 do
-    echo "agentic_function_resolver $library"
-    agentic_function_resolver "$library"
+    echo "reflective_seeder extract_functions $library"
+    reflective_seeder extract_functions "$library"
 done

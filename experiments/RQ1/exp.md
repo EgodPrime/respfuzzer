@@ -2,7 +2,7 @@
 
 ## How to disable Reasoner
 
-Do the following change in `agentic_function_resolver.py`:
+Do the following change in `src/tracefuzz/lib/agentic_function_resolver.py`:
 
 ```python
 # agentic_function_resolver.py:solve
@@ -28,7 +28,7 @@ Do the following change in `agentic_function_resolver.py`:
 
 ## How to disable the full docs
 
-Do the following change in `agentic_function_resolver.py`:
+Do the following change in `src/tracefuzz/lib/agentic_function_resolver.py`:
 
 ```python
 # agentic_function_resolver.py:Attempter:generate
@@ -146,7 +146,7 @@ Extract Functions from the libraries:
 
 ```bash
 cd {TRACEFUZZ}
-bash scripts/run_library_visitor.sh
+bash scripts/run_extract_functions.sh
 ```
 
 functions will be extracted and stored in the database `{TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db`.
@@ -164,7 +164,7 @@ cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-
 
 ```bash
 cd {TRACEFUZZ}
-bash scripts/run_agentic_function_resolver.sh
+bash scripts/run_generate_seeds.sh
 db_tools view
 ```
 
@@ -190,8 +190,8 @@ cd {TRACEFUZZ}
 # modify config.toml to use tracefuzz-RQ1-110.db
 vim config.toml
 # disable reasoner in agentic_function_resolver.py
-vim src/tracefuzz/agentic_function_resolver.py
-bash scripts/run_agentic_function_resolver.sh
+vim src/tracefuzz/lib/agentic_function_resolver.py
+bash scripts/run_generate_seeds.sh
 db_tools view
 ```
 
@@ -217,8 +217,8 @@ cd {TRACEFUZZ}
 # modify config.toml to use tracefuzz-RQ1-101.db
 vim config.toml
 # modify agentic_function_resolver.py to enable reasoner but not use docs
-vim src/tracefuzz/agentic_function_resolver.py
-bash scripts/run_agentic_function_resolver.sh
+vim src/tracefuzz/lib/agentic_function_resolver.py
+bash scripts/run_generate_seeds.sh
 db_tools view
 ```
 
@@ -244,8 +244,8 @@ cd {TRACEFUZZ}
 # modify config.toml to use tracefuzz-RQ1-100.db
 vim config.toml
 # disable reasoner and doc in agentic_function_resolver.py
-vim src/tracefuzz/agentic_function_resolver.py
-bash scripts/run_agentic_function_resolver.sh
+vim src/tracefuzz/lib/agentic_function_resolver.py
+bash scripts/run_generate_seeds.sh
 db_tools view
 ```
 

@@ -1,7 +1,7 @@
 import copy
 from typing import Dict, FrozenSet, List, Set, Tuple
 
-from tracefuzz.mutate import (
+from tracefuzz.lib.fuzz.mutate import (
     mutate_bytes,
     mutate_float,
     mutate_int,
