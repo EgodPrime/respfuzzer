@@ -180,13 +180,19 @@ def tt():
     f2 = open("timeout/%s/%s/%s.py" % (mod, api, number), "w")
     f2.write(code)
     f2.close()
+    
 
 
 @timeout.set_timeout(5, tt)
 def fuzzapi(mod, api, n):
-    spec = importlib.util.find_spec(mod)
-    origin = spec.origin
-    assert origin is not None, f"module {mod} not found"
+    try:
+        from importlib import util
+        spec = util.find_spec(mod)
+        origin = spec.origin
+        assert origin is not None, f"module {mod} not found"
+    except Exception as e:
+        logger.error(f"Import module {mod} error: {e}")
+        return
 
     with dcov.LoaderWrapper() as l:
         l.add_source(origin)
@@ -242,6 +248,5 @@ def fuzzapi(mod, api, n):
         p1 = dcov.count_bits_py()
         if p1 > p0:
             logger.info(f"Coverage increased {p1-p0}, now: {p1}")
-
 
 fuzzapi(mod, api, n)

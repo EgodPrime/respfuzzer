@@ -10,6 +10,7 @@ import json
 from loguru import logger
 import time
 import dcov
+import subprocess
 
 # print(platform.system())
 
@@ -121,8 +122,28 @@ def run(mod, api, n):
 
 def run_limit_n(mod, api, n, buget):
     global totalAPI
-    for _ in range(buget):
-        s = os.system("'python'  apifuzzer.py %s %s %s" % (mod, api, n))
+    timeout_cnt = 0
+    for i in range(buget):
+        # s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
+        
+        try:
+            p = subprocess.Popen(
+                ["python", "apifuzzer.py", mod, api, str(n)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+            logger.info(f"Started {i+1}th subprocess with PID {p.pid} (PGID {os.getpgid(p.pid)}) for {mod}.{api} with {n} params")
+            p.communicate(timeout=6)
+        except subprocess.TimeoutExpired:
+            logger.warning("Subprocess timed out")
+            os.killpg(os.getpgid(p.pid), 9)
+            timeout_cnt += 1
+            if timeout_cnt >= 5:
+                logger.warning("Too many timeouts, skipping this API.")
+                break
+            
+        s = p.returncode
         totalAPI = totalAPI + 1
         gen_log(mod, api, n, s)
 
@@ -147,8 +168,8 @@ def load_apis_already_run(mod_name: str) -> list[str]:
     import re
 
     need_skip = []
-    # 2025-07-24 23:46:54.177 | INFO     | __main__:<module>:170 - run torch set_num_threads 1
-    pattern = r"run " + mod_name + r" ([a-zA-Z\_\.]+) [0-9]+"
+    # 2025-07-24 23:46:54.177 | INFO     | __main__:<module>:170 - DyFuzz torch set_num_threads 1
+    pattern = r"DyFuzz " + mod_name + r" ([a-zA-Z\_\.]+) [0-9]+"
     with open("./20250722_torch.log", "r") as f:
         while True:
             line = f.readline()
@@ -178,7 +199,6 @@ for mod in list(moddic.keys()):
     logger.info(f"DyFuzz test {mod}")
 
     # need_skip = load_apis_already_run(mod)
-    logger.info(f"skip {len(need_skip)} apis")
     logger.info(f"{mod} has {len(moddic[mod])} apis")
 
     # mcount = mcount + 1
@@ -186,17 +206,17 @@ for mod in list(moddic.keys()):
         if api in need_skip:
             continue
         else:
-            logger.info(f"Fuzz {mod}.{api} start")
             n = moddic[mod][api]["pn"][1]
-            logger.info(f"run {mod} {api} {n}")
+            logger.info(f"DyFuzz {mod} {api} {n}")
             if n == 0:
-                s = os.system("'python'  apifuzzer.py %s %s %s" % (mod, api, n))
+                logger.debug(f"{mod}.{api} has 0 params, run once")
+                s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
                 gen_log(mod, api, n, s)
                 totalAPI = totalAPI + 1
             else:
-                # run(mod,api,n)
+                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2)} times")
                 run_limit_n(mod, api, n, int(1e2))
-            logger.info(f"Fuzz {mod}.{api} done")
+            logger.info(f"Fuzz {mod}.{api} {n} done")
             logger.info(f"Coverage now: {dcov.count_bits_py()}")
 
     # print(mcount, mod,api,moddic[mod][api]["pn"])
