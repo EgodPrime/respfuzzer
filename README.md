@@ -1,25 +1,32 @@
-# TraceFuzz: Intelligent Fuzzing Framework
+# TraceFuzz
 
-TraceFuzz is an advanced fuzzing framework that combines traditional fuzzing techniques with agentic intelligence to automatically discover and exploit vulnerabilities in Python libraries. The framework uses a combination of function parsing, parameter mutation, and intelligent reasoning to systematically test code for edge cases and security vulnerabilities.
-
-## Key Features
-
+> This repository contains the implementation and all necessary scripts to reproduce the results of our paper: [TraceFuzz: xxx](https://egodprime.github.io/papers/tracefuzz.pdf)
 
 
 ## Architecture
 
  - ReflectiveSeeder
-   - library_visitor.py
-   - agentic_function_resolver.py
+   - src/tracefuzz/library_visitor.py
+   - src/tracefuzz/agentic_function_resolver.py
  - FuzzTrigger
-   - fuzz/instrument.py
+   - src/tracefuzz/fuzz/instrument.py
  - FuzzEngine
-   - c
-   - mutator.py
-   - fuzz/fuzz_function.py
-   - fuzz/fuzz_library.py
+   - src/tracefuzz/mutator.py
+   - src/tracefuzz/fuzz/fuzz_function.py
+   - src/tracefuzz/fuzz/fuzz_library.py
+   - src/lib.rs
+   - src/chain_rng.rs
+   - src/mutator.rs
 
 ## Installation
+
+0. Prerequisites:
+  - `uv` tool for virtual environment management (https://docs.astral.sh/uv/getting-started/installation/)
+  - Python 3.13 (Based on `uv`)
+  - `rust` and `cargo` for building native extensions (https://rust-lang.org/tools/install/)
+  - `clang 14.0+` compiler for building native extensions
+  - (Optional) `dcov` for coverage analysis (To reproduce experiments)
+    - https://github.com/EgodPrime/dcov
 
 1. Clone the repository:
 ```bash
@@ -53,52 +60,7 @@ bash scripts/install_lut.sh
 ```bash
 cp config.toml.default config.toml
 # Edit config.toml to set your model API key and other settings
-```
-
-## Usage Examples
-
-### Fuzz a Specific Library
-```bash
-fuzz_library numpy
-```
-
-### Run Agentic Function Resolution
-```bash
-agentic_function_resolver numpy
-```
-
-### Instrument a Function for Fuzzing
-```python
-from src.tracefuzz.fuzz.instrument import instrument_function
-
-def my_function(x, y):
-    return x / y
-
-# Instrument the function
-instrumented_func = instrument_function(my_function)
-
-# Execute with fuzzed parameters
-result = instrumented_func(10, 0)  # Will trigger crash detection
-```
-
-### Run Library Visitor Script
-```bash
-bash scripts/run_library_visitor.sh
-```
-
-### Run Agentic Function Solver
-```bashbash
-bash scripts/run_agentic_function_solver.sh
-```
-
-### Run Fuzzing Script
-```bash
-bash scripts/run_fuzz_library.sh
-```
-
-### Analyze Results
-```python
-db_tools view
+vim config.toml
 ```
 
 ## Configuration
@@ -122,19 +84,40 @@ The framework uses `config.toml` for configuration. Key settings include:
 - `execution_timeout`: Timeout for function execution.
 - `mutants_per_seed`: Number of mutations per seed.
 
-## Testing
 
-Run the test suite:
+## Usage Examples
+
+### Extract Functions from a Library
 ```bash
-pytest tests/
+library_visitor numpy
 ```
 
-Generate a coverage report:
+There will be a new SQLite database file (`<db_name>.db` where `<db_name>` is set in `config.toml`) created in the `run_data` folder containing the extracted functions.
+
+## Generate Function Calls
 ```bash
-pytest --cov=src --cov-report=html
+agentic_function_resolver numpy
+```
+
+## View the Database
+```bash
+# Approach 1: Using the `sqlite_web`
+# This will automatically open a web page in your browser if you are using VSCode
+# You can also access it according to the host and port shown in the terminal
+sqlite_web run_data/<db_name>.db
+
+# Approach 2: Using the `db_tools` CLI
+db_tools view
+```
+
+### Fuzz a Specific Library
+```bash
+fuzz_library numpy
 ```
 
 ## Libraries Under Test
+
+> The following libraries are used for testing and evaluation of the TraceFuzz framework:
 
 | Library | Type | Composition | URL|
 |---------|------|-------------|----|

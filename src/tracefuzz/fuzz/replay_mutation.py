@@ -2,7 +2,7 @@ from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 from loguru import logger
 from tracefuzz.db.seed_table import get_seed
-from tracefuzz.mutate import chain_rng_init
+from tracefuzz.mutate import set_random_state
 from tracefuzz.fuzz.instrument import instrument_function_via_path_replay
 from tracefuzz.fuzz.fuzz_library import manage_process_with_timeout
 from multiprocessing import Process
@@ -28,7 +28,7 @@ def replay_mutation(seed_id: int, random_state: int):
     func_path = seed.func_name
     instrument_function_via_path_replay(lib, func_path)
 
-    chain_rng_init(random_state)
+    set_random_state(random_state)
     try:
         exec(seed.function_call)
     except Exception as e:

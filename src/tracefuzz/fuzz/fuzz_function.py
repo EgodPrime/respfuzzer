@@ -5,7 +5,7 @@ from typing import Callable
 
 from loguru import logger
 
-from tracefuzz.mutate import chain_rng_get_current_state, chain_rng_init
+from tracefuzz.mutate import get_random_state, set_random_state
 from tracefuzz.mutator import mutate_param_list
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
@@ -109,7 +109,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
             # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
             return
 
-    chain_rng_init(int(time.time()))
+    set_random_state(int(time.time()))
 
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:
@@ -122,7 +122,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
 
     for i in range(exec_cnt + 1, mutants_per_seed + 1):
         # logger.debug(f"{i}th mutation")
-        seed = chain_rng_get_current_state()
+        seed = get_random_state()
         rc.hset(f"exec_record", i, seed)
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
@@ -135,7 +135,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
 def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
     param_list = convert_to_param_list(*args, **kwargs)
-    seed = chain_rng_get_current_state()
+    seed = get_random_state()
     logger.info(f"Replay fuzz {full_name} with seed {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)

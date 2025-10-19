@@ -22,7 +22,7 @@ class Function(BaseModel):
         """
         Return a string representation of the function signature.
         """
-        return f"{self.func_name}({', '.join(f'{arg.arg_name}[{arg.pos_type}]' for arg in self.args)})->{self.ret_type}"
+        return f"{self.func_name}({', '.join(f'{arg.arg_name}[{arg.pos_type}]:{arg.type}' for arg in self.args)})->{self.ret_type}"
 
     def __str__(self):
         """

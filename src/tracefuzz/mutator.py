@@ -2,7 +2,7 @@ import copy
 from typing import Dict, FrozenSet, List, Set, Tuple
 
 from tracefuzz.mutate import (
-    chain_rng_rand_range,
+    randint,
     mutate_bytes,
     mutate_float,
     mutate_int,
@@ -79,10 +79,10 @@ def mutate_list_clip(old_val: list) -> list:
     if a <= 1:
         return old_val
 
-    b = chain_rng_rand_range(a)
-    c = chain_rng_rand_range(a)
+    b = randint(a)
+    c = randint(a)
     while b == c:
-        c = chain_rng_rand_range(a)
+        c = randint(a)
     if b > c:
         tmp = b
         b = c
@@ -91,7 +91,7 @@ def mutate_list_clip(old_val: list) -> list:
 
 
 def mutate_list_dup(old_val: list) -> list:
-    dup_times = 2 + chain_rng_rand_range(8)
+    dup_times = 2 + randint(8)
     new_val = old_val * dup_times
     MAX_LEN = 100000
     new_val = new_val[:MAX_LEN]
@@ -102,7 +102,7 @@ def mutate_list_expand(old_val: list) -> list:
     a = len(old_val)
     if a == 0:
         return old_val
-    index = chain_rng_rand_range(len(old_val) - 1)
+    index = randint(len(old_val) - 1)
     t = old_val[index]
     new_t = mutate_auto(t)
     new_val = copy.deepcopy(old_val)
@@ -116,14 +116,14 @@ def mutate_list_random_one(old_val: list) -> list:
         return old_val
     elif a == 1:
         return [mutate_auto(old_val[0])]
-    b = chain_rng_rand_range(a - 1)
+    b = randint(a - 1)
     new_val = mutate_auto(old_val[b])
     return old_val[:b] + [new_val] + old_val[b + 1 :]
 
 
 def mutate_list(old_val: list) -> list:
     a = [mutate_list_dup, mutate_list_random_one, mutate_list_expand, mutate_list_clip]
-    b = chain_rng_rand_range(len(a))
+    b = randint(len(a))
     mt = a[b]
     return mt(old_val)
 
@@ -140,7 +140,7 @@ def mutate_bytearray(old_val: bytearray) -> bytearray:
 
 def mutate_set(old_val: set) -> set:
     a = [mutate_list_random_one, mutate_list_expand]
-    b = chain_rng_rand_range(len(a))
+    b = randint(len(a))
     mt = a[b]
     return set(mt(list(old_val)))
 
@@ -154,7 +154,7 @@ def mutate_dict(old_val: dict) -> dict:
     keys = list(new_val.keys())
     if len(keys) == 0:
         return old_val
-    a = chain_rng_rand_range(len(keys))
+    a = randint(len(keys))
     mt_key = keys[a]
     new_val[mt_key] = mutate_auto(new_val[mt_key])
     return new_val
@@ -167,7 +167,7 @@ def mutate_instance(old_val: object) -> object:
         members = [x for x in members if not x.startswith("__")]
         if len(members) == 0:
             return old_val
-        a = chain_rng_rand_range(len(members))
+        a = randint(len(members))
         mt_member = members[a]
         new_member = mutate_auto(getattr(new_val, mt_member))
         setattr(new_val, mt_member, new_member)
@@ -181,10 +181,10 @@ def mutate_param_list(old_val: List[object]) -> List:
     if a <= 1:
         return old_val
     new_val = copy.deepcopy(old_val)
-    mt_num = chain_rng_rand_range(a) + 1
+    mt_num = randint(a) + 1
     mt_idx = []
     while mt_num > 0:
-        x = chain_rng_rand_range(a)
+        x = randint(a)
         if x not in mt_idx:
             mt_idx.append(x)
             mt_num -= 1

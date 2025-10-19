@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools", "Cython"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tracefuzz"
 version = "0.1.0"
@@ -30,18 +26,13 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-
 addopts = "--cov=src --cov-report=html:htmlcov --cov-report=term-missing -q"
-
 # 改变用例的查找路径规则，当前目录的testcase文件夹
 testpaths = ["tests"]
-
 # 模块名的规则，配置测试搜索的模块文件名称
 python_files = ["test_*.py"]
-
 # 类名的规则，配置测试搜索的测试类名
 python_classes = ["Test*"]
-
 # 方法名的规则，配置测试搜索的测试函数名
 python_functions = ["test_*"]
 
@@ -62,6 +53,18 @@ select = ["F401", "F403"]
 [tool.black]
 line-length = 88
 target-version = ["py313"]
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "tracefuzz.mutate"
+python-packages = ["tracefuzz"]
+python-source = "src"
+
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
 
 [[tool.uv.index]]
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"

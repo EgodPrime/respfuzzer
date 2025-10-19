@@ -21,3 +21,5 @@ dump.rdb
 temp*.rdb
 config.toml
 **/DyFuzz/**
+target
+Cargo.lock
