@@ -89,15 +89,7 @@ def manage_process_with_timeout(process: multiprocessing.Process, timeout: float
 
     if process.is_alive():
         logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
-        process.terminate()
-        try:
-            process.join(1)
-        except:
-            pass
-
-        if process.is_alive():
-            logger.warning(f"Process still alive, force killing with kill_process_tree...")
-            kill_process_tree_linux(process)
+        kill_process_tree_linux(process)
         return False
 
     # 进程正常结束，需要 join 回收
