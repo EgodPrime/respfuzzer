@@ -30,12 +30,14 @@ def safe_fuzz(seed: Seed) -> None:
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
 
+    logger.info(f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}")
+
     try:
         target = importlib.import_module(seed.library_name)
         instrument_function_via_path(target, seed.func_name)
         exec(seed.function_call)
     except Exception as e:
-        logger.error(f"Error during fuzzing seed {seed.id}: {e}")
+        # logger.error(f"Error during fuzzing seed {seed.id}: {e}")
         raise  # 重新抛出，便于上层处理
 
 def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):

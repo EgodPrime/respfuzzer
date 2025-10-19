@@ -126,9 +126,9 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
         rc.hset(f"exec_record", i, seed)
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
+        rc.hincrby("fuzz", "exec_cnt", 1)
         execute_once(func, *args, **kwargs)
         # rc.hset("exec_cnt", full_name, i)
-        rc.hset("fuzz", "exec_cnt", i)
 
     logger.info(f"Fuzz {full_name} done")
 

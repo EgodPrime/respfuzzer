@@ -27,10 +27,13 @@ def safe_fuzz(seed: Seed) -> None:
     """
     Safely and silently execute the fuzzing process for a given seed.
     """
+    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
+
+    logger.info(f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}")
     
     try:
         from importlib import util as importlib_util
@@ -75,7 +78,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
             break
 
         logger.info(
-            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt={exec_cnt}."
+            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={mutants_per_seed-exec_cnt}."
         )
         process = Process(target=safe_fuzz, args=(seed,))
         """动态调整超时时间
