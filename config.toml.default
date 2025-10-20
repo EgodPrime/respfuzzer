@@ -21,3 +21,4 @@ concurrency = 12 # number of threads for seeding
 
 [fuzz4all]
 strategy = 1
+concurrency = 10

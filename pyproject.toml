@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "argparse>=1.4.0",
+    "autoflake>=2.3.1",
     "fire>=0.7.1",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
