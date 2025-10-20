@@ -90,6 +90,10 @@ class Fuzz4AllMutator:
             ]
         )
         return code
+    
+    def remove_unsed_imports(self, code: str) -> str:
+        import autoflake
+        return autoflake.fix_code(code, remove_all_unused_imports=True)
 
     def _comment_remover(self, code: str) -> str:
         """
@@ -172,6 +176,7 @@ class Fuzz4AllMutator:
         new_code = response.content.strip()
 
         self.current_code = self.prompt_used["begin"] + "\n" + self.clean(new_code)
+        self.current_code = self.remove_unsed_imports(self.current_code)
         return self.current_code
 
     def generate_n(self, cnt: int) -> list[str]:
@@ -203,6 +208,7 @@ class Fuzz4AllMutator:
                 mutant_code = (
                     self.prompt_used["begin"] + "\n" + self.clean_code(new_code)
                 )
+                mutant_code = self.remove_unsed_imports(mutant_code)
                 mutants.append(mutant_code)
 
         return mutants
