@@ -132,3 +132,30 @@ def fuzz_dataset(dataset_path: str) -> None:
             fuzz_single_seed(seed, config, redis_client)
             p = dcov.count_bits_py()
             logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
+
+def fuzz_dataset_infinite(dataset_path: str) -> None:
+    """Continuously fuzz functions specified in the dataset JSON file."""
+    dcov.open_bitmap_py()
+    dcov.clear_bitmap_py()
+    config = get_config("fuzz")
+    redis_client = get_redis_client()
+    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
+    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
+        open(dataset_path, "r")
+    )
+    while True:
+        for library_name in dataset:
+            logger.info(f"Fuzzing library: {library_name}")
+            for api_name in dataset[library_name]:
+                full_api_name = f"{library_name}.{api_name}"
+                seed = get_seed_by_function_name(full_api_name)
+                if not seed:
+                    logger.warning(
+                        f"Seed not found for function: {full_api_name}, skipping."
+                    )
+                    continue
+                fuzz_single_seed(seed, config, redis_client)
+                p = dcov.count_bits_py()
+                logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
+
+        
