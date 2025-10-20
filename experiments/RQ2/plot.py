@@ -173,4 +173,4 @@ if __name__ == "__main__":
 
     plot_all(tracefuzz_data, dyfuzz_data, fuzz4all_data)
 
-    plt.savefig("RQ2.png", dpi=300)
+    plt.savefig("RQ2.pdf", dpi=300)

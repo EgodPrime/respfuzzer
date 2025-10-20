@@ -23,5 +23,6 @@ config.toml
 **/DyFuzz/**
 target
 Cargo.lock
-experiments/**/*.png
-experiments/**/*.jpg
+experiments/**/RQ*.png
+experiments/**/RQ*.jpg
+experiments/**/RQ*.pdf

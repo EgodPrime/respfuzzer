@@ -82,14 +82,27 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     fig, ax = plt.subplots(figsize=(10, 6))
 
     y_data_111 = [float(data_111[lib_name]["tf_solved_percent"].strip('%')) for lib_name in library_names]
+    average_111 = sum(y_data_111) / len(y_data_111)
     y_data_110 = [float(data_110[lib_name]["tf_solved_percent"].strip('%')) for lib_name in library_names]
+    average_110 = sum(y_data_110) / len(y_data_110)
     y_data_101 = [float(data_101[lib_name]["tf_solved_percent"].strip('%')) for lib_name in library_names]
+    average_101 = sum(y_data_101) / len(y_data_101)
     y_data_100 = [float(data_100[lib_name]["tf_solved_percent"].strip('%')) for lib_name in library_names]
+    average_100 = sum(y_data_100) / len(y_data_100)
 
-    top_values_111 = [data_111[lib_name]["tf_solved_str"] for lib_name in library_names]
-    top_values_110 = [data_110[lib_name]["tf_solved_str"] for lib_name in library_names]
-    top_values_101 = [data_101[lib_name]["tf_solved_str"] for lib_name in library_names]
-    top_values_100 = [data_100[lib_name]["tf_solved_str"] for lib_name in library_names]
+    report  = (
+        f"Average Semantic Pass Rate:\n"
+        f"Attempter + Reasoner + full docs: {average_111:.2f}%\n"
+        f"Attempter + Reasoner + no docs: {average_110:.2f}%\n"
+        f"Attempter + no Reasoner + full docs: {average_101:.2f}%\n"
+        f"Attempter + no Reasoner + no docs: {average_100:.2f}%\n"
+    )
+    print(report)
+
+    top_values_111 = [data_111[lib_name]["tf_solved_percent"] for lib_name in library_names]
+    top_values_110 = [data_110[lib_name]["tf_solved_percent"] for lib_name in library_names]
+    top_values_101 = [data_101[lib_name]["tf_solved_percent"] for lib_name in library_names]
+    top_values_100 = [data_100[lib_name]["tf_solved_percent"] for lib_name in library_names]
 
     plot_one_bar(x_data, y_data_111, top_values=top_values_111, offset=-0.3, x_ticks=library_names, ax=ax, label="Attempter + Reasoner + full docs")
     plot_one_bar(x_data, y_data_110, top_values=top_values_110, offset=-0.1, x_ticks=library_names, ax=ax, label="Attempter + Reasoner + no docs")
@@ -98,9 +111,10 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
     ax.set_xticks(x_data)
     ax.set_xticklabels(library_names, rotation=45, ha='right')
-    ax.set_ylabel('Functions Solved Percentage (%)')
-    ax.set_title('RQ1 ')
-    ax.legend()
+    ax.set_ylabel('Semantic Pass Rate (%)')
+    ax.set_title('RQ1 (Draft)')
+    # bottom right
+    ax.legend(loc='lower right')
     ax.grid(axis='y')
 
     plt.tight_layout()
@@ -124,4 +138,4 @@ if __name__ == "__main__":
         data_100=data_results["Attempter + no Reasoner + no docs"]
     )
 
-    plt.savefig("RQ1.png", dpi=300)
+    plt.savefig("RQ1.pdf", dpi=300)

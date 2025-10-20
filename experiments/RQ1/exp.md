@@ -263,3 +263,15 @@ db_tools view
 |       spacy        |        403         |    202 (50.12%)    |         0          |      0 (N/A)       |        403         |    202 (50.12%)    |
 |       torch        |         62         |    42 (67.74%)     |        642         |    352 (54.83%)    |        704         |    394 (55.97%)    |
 |       paddle       |        423         |    302 (71.39%)    |         0          |      0 (N/A)       |        423         |    302 (71.39%)    |
+
+## How to plot a similar figure in our paper
+```bash
+cd {TRACEFUZZ}/experiments/RQ1
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db ./
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-110.db ./
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-101.db ./
+cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-100.db ./
+
+# This will generate a figure named `RQ1.pdf` in the current directory.
+python plot.py
+```
