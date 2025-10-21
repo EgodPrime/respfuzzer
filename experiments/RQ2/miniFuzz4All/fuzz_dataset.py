@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import sys
 from multiprocessing import Process
 
@@ -15,20 +16,18 @@ from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 
+def validate_test_case(mutated_call: str) -> bool:
+    exec(mutated_call)
 
-def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
+def safe_fuzz(seed: Seed, mutated_call: str, redis_client: Redis) -> None:
     """
     Safely and silently execute the fuzzing process for a given seed.
     """
-
+    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
-
-    f4a_mutator = Fuzz4AllMutator(seed)
-    cfg = get_config("fuzz4all")
-    concurrency = cfg.get("concurrency", 12)
 
     try:
         from importlib import util as importlib_util
@@ -41,44 +40,17 @@ def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:
 
     with dcov.LoaderWrapper() as l:
         l.add_source(origin)
-        for i in range(0, cnt, concurrency):
-            batch_size = min(concurrency, cnt - i)
-            mutated_calls = f4a_mutator.generate_n(batch_size)
-            logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id}")
-            for j, mutated_call in enumerate(mutated_calls):
-                try:
-                    redis_client.hincrby("fuzz", "exec_cnt", 1)
-                    p0 = dcov.count_bits_py()
-                    # logger.debug(mutated_call)
-                    exec(mutated_call)
-                    logger.debug(
-                        f"Successfully executed mutated call {i+j+1} for seed {seed.id}"
-                    )
-                    p1 = dcov.count_bits_py()
-                    if p1 > p0:
-                        logger.info(
-                            f"New coverage found for seed {seed.id}: {p1 - p0} new bits."
-                        )
-
-                except Exception as e:
-                    continue
-                    # logger.error(f"Error executing mutated call {i+j+1} for seed {seed.id}: {e}")
-
-        # for i in range(cnt):
-        #     try:
-        #         mutated_call = f4a_mutator.generate()
-        #         logger.debug(f"Generated mutant {i+1}/{cnt} for seed {seed.id}")
-        #         # logger.debug(f"New mutant:\n{mutated_call}")
-        #         redis_client.hincrby("fuzz", "exec_cnt", 1)
-        #         p0 = dcov.count_bits_py()
-        #         exec(mutated_call)
-        #         p1 = dcov.count_bits_py()
-        #         if p1 > p0:
-        #             logger.info(f"New coverage found for seed {seed.id}: {p1 - p0} new bits.")
-        #         logger.debug(f"Successfully executed mutated call for seed {seed.id}")
-        #     except Exception as e:
-        #         continue
-        #         # logger.error(f"Error executing mutated call for seed {seed.id}: {e}")
+        p0 = dcov.count_bits_py()
+        try:
+            redis_client.hincrby("fuzz", "exec_cnt", 1)
+            exec(mutated_call)
+        except Exception as e:
+            pass
+        p1 = dcov.count_bits_py()
+        if p1 > p0:
+            logger.info(
+                f"New coverage found for seed {seed.id}: {p1 - p0} new bits."
+            )
 
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
@@ -86,37 +58,45 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
         config.get("execution_timeout") + 5
     )  # additional time for LLM response
     mutants_per_seed = config.get("mutants_per_seed")
-    max_try_per_seed = config.get("max_try_per_seed")
-
-    if len(seed.args) == 0:
-        max_try_per_seed = 1
 
     redis_client.hset("fuzz", "exec_cnt", 0)
 
     logger.debug(f"seed is :\n{seed.function_call}")
 
-    for attempt in range(1, max_try_per_seed + 1):
-        exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
-        if exec_cnt >= mutants_per_seed:
-            break
+    f4a_mutator = Fuzz4AllMutator(seed)
+    cfg = get_config("fuzz4all")
+    concurrency = cfg.get("concurrency", 12)
+    mutated_calls = []
+    for i in range(0, mutants_per_seed, concurrency):
+        batch_size = min(concurrency, mutants_per_seed - i)
+        mutated_calls.extend(f4a_mutator.generate_n(batch_size))
+        logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id}")
 
-        logger.info(
-            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={mutants_per_seed-exec_cnt}."
+    logger.info(f"Start fuzz seed {seed.id}.")
+    for mutated_call in mutated_calls:
+        p1 = Process(
+            target=validate_test_case,
+            args=(
+                mutated_call,
+            ),
         )
+        res = manage_process_with_timeout(p1, 5, seed.id)
+        if not res:
+            logger.warning(
+                f"Mutated call for seed {seed.id} is invalid, skipping:\n{mutated_call}"
+            )
+            continue
+
         process = Process(
             target=safe_fuzz,
             args=(
                 seed,
-                mutants_per_seed - exec_cnt,
+                mutated_call,
                 redis_client,
             ),
         )
-        # give additional 5 seconds for LLM response time
-        timeout = (mutants_per_seed - exec_cnt) * execution_timeout
-        success = manage_process_with_timeout(process, timeout, seed.id)
-
-        if not success:
-            continue  # 重试
+        timeout = execution_timeout
+        manage_process_with_timeout(process, timeout, seed.id)
 
     final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
     logger.info(f"Fuzz seed {seed.id} done with {final_exec_cnt} executions.")
