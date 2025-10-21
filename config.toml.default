@@ -18,6 +18,8 @@ max_try_per_seed = 10
 
 [reflective_seeder]
 concurrency = 12 # number of threads for seeding
+use_reasoner = true
+use_docs = true
 
 [fuzz4all]
 strategy = 1

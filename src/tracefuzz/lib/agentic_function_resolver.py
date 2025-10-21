@@ -28,6 +28,7 @@ class Attempter:
         Raises:
             Exception: If code generation fails or response format is invalid.
         """
+        package_path, func_name = function.func_name.rsplit(".", 1)
         prompt = f"""任务:
 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
@@ -36,6 +37,8 @@ class Attempter:
 2. 不要生成``` 
 3. 不要生成`code`以外的任何内容 
 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
 
 例子：
 <function>
@@ -48,10 +51,10 @@ class Attempter:
 ...
 </history>
 <code>
-import a
+from a.b import c
 x = 2
 y = "str"
-res = a.b.c(x, y)
+res = c(x, y)
 </code>
 
 现在任务开始：
@@ -62,64 +65,65 @@ res = a.b.c(x, y)
 {history}
 </history>
 """
+        
+        if cfg.get("use_docs", True) is False:
+            from inspect import _ParameterKind
+            func_name = function.func_name
+            func_args = function.args
+            func_sig = f"def {func_name}("
+            if func_args:
+                for i, arg in enumerate(func_args):
+                    if i > 0:
+                        func_sig += ", "
+                    if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+                        func_sig += arg.arg_name
+                    elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+                        func_sig += arg.arg_name
+                    elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+                        func_sig += "*" + arg.arg_name
+                    elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+                        func_sig += arg.arg_name
+                    elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+                        func_sig += "**" + arg.arg_name
+            func_sig += "): ..."
+            prompt = f"""任务:
+请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
-        # =============================================================================================
-        # Uncomment below to not take use of function information such as docstring and source code
-        #         from inspect import _ParameterKind
-        #         func_name = function.func_name
-        #         func_args = function.args
-        #         func_sig = f"def {func_name}("
-        #         if func_args:
-        #             for i, arg in enumerate(func_args):
-        #                 if i > 0:
-        #                     func_sig += ", "
-        #                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
-        #                     func_sig += arg.arg_name
-        #                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
-        #                     func_sig += arg.arg_name
-        #                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
-        #                     func_sig += "*" + arg.arg_name
-        #                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
-        #                     func_sig += arg.arg_name
-        #                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
-        #                     func_sig += "**" + arg.arg_name
-        #         func_sig += "): ..."
-        #         prompt = f"""任务:
-        # 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成```
+3. 不要生成`code`以外的任何内容
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
 
-        # 注意：
-        # 1. 你生成的代码应该用<code></code>包裹。
-        # 2. 不要生成```
-        # 3. 不要生成`code`以外的任何内容
-        # 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<history>
+...
+</history>
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
 
-        # 例子：
-        # <function>
-        # {{
-        #     func_name: "a.b.c",
-        #     ...  // 其他字段省略
-        # }}
-        # </function>
-        # <history>
-        # ...
-        # </history>
-        # <code>
-        # import a
-        # x = 2
-        # y = "str"
-        # res = a.b.c(x, y)
-        # </code>
-
-        # 现在任务开始：
-        # <function>
-        # {func_sig}
-        # </function>
-        # <history>
-        # {history}
-        # </history>
-        # """
-        # =============================================================================================
-        # Add a small retry loop for transient API errors
+现在任务开始：
+<function>
+{func_sig}
+</function>
+<history>
+{history}
+</history>
+"""
+            
+# Add a small retry loop for transient API errors
         last_exc = None
         for attempt in range(3):
             try:
@@ -231,7 +235,7 @@ class Reasoner:
         Raises:
             Exception: If explanation generation fails or response format is invalid.
         """
-        prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。"""
+        prompt = f"""<code>\n{code}\n</code>\n<result>\n{result["stderr"]}\n</result>\n`code`中的代码在执行后得到报错`result`，请对这一执行结果进行解释，以指导代码编写人员进行修正指导。输出结果应为一段话，用<explain></explain>包裹。如果缺少文件，则提示Attempter通过open创建相应的临时文件。如果是参数错误，则提示Attempter调整参数的创建和初始化过程。请确保解释内容具体且有针对性。"""
         # small retry loop for transient API issues
         last_exc = None
         for attempt in range(3):
@@ -271,11 +275,14 @@ class Judger:
     """
 
     def judge(self, code: str, function: Function) -> dict:
+        package_path, func_name = function.func_name.rsplit(".", 1)
         prompt = (
             f"<function>\n{function.model_dump_json()}\n</function>\n"
             f"<code>\n{code}\n</code>\n"
             "请判断上面的 `code` 是否包含对 `function` 的有效调用（例如完整包路径的函数调用或显式的通过别名能够唯一映射到目标函数的调用）。"
             ' 输出应为 JSON 对象，形如 {"valid": true, "reason": "..."}。'
+            f'合理的import形式为"from {package_path} import {func_name}"'
+            f'合理的调用形式为"{func_name}(...) "'
         )
 
         last_exc = None
@@ -384,11 +391,9 @@ def solve(function: Function) -> Optional[str]:
                 solved = True
                 break
             else:
-                # =============================================================================================
-                # Uncomment below to stop at first failure, not using reasoner to analyze failures
-                # break
-                # =============================================================================================
-                # try to get an explanation; if reasoner fails, record the failure and continue
+                if cfg.get("use_reasoner", True) is False:
+                    break
+                
                 try:
                     reason = reasoner.explain(code, result)
                 except Exception as e:
