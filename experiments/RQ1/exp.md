@@ -1,134 +1,5 @@
 # RQ1 Experiment
 
-## How to disable Reasoner
-
-Do the following change in `src/tracefuzz/lib/agentic_function_resolver.py`:
-
-```python
-# agentic_function_resolver.py:solve
-# ...
-
-            if result["result_type"] == ExecutionResultType.OK:
-                solved = True
-                break
-            else:
-                # =============================================================================================
-                # Uncomment below to stop at first failure, not using reasoner to analyze failures
-                # break 
-                # =============================================================================================
-                # try to get an explanation; if reasoner fails, record the failure and continue
-                try:
-                    reason = reasoner.explain(code, result)
-                except Exception as e:
-                    reason = f"Reasoner error: {str(e)}"
-                    logger.debug(reason)
-
-# ...
-```
-
-## How to disable the full docs
-
-Do the following change in `src/tracefuzz/lib/agentic_function_resolver.py`:
-
-```python
-# agentic_function_resolver.py:Attempter:generate
-# ...
-
-        prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
-
-注意：
-1. 你生成的代码应该用<code></code>包裹。
-2. 不要生成``` 
-3. 不要生成`code`以外的任何内容 
-4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
-
-例子：
-<function>
-{{
-    func_name: "a.b.c",
-    ...  // 其他字段省略
-}}
-</function>
-<history>
-...
-</history>
-<code>
-import a
-x = 2
-y = "str"
-res = a.b.c(x, y)
-</code>
-
-现在任务开始：
-<function>
-{function.model_dump_json()}
-</function>
-<history>
-{history}
-</history>
-"""
-
-# =============================================================================================
-# Uncomment below to not take use of function information such as docstring and source code
-#         from inspect import _ParameterKind
-#         func_name = function.func_name
-#         func_args = function.args
-#         func_sig = f"def {func_name}("
-#         if func_args:
-#             for i, arg in enumerate(func_args):
-#                 if i > 0:
-#                     func_sig += ", "
-#                 if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
-#                     func_sig += "*" + arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
-#                     func_sig += arg.arg_name
-#                 elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
-#                     func_sig += "**" + arg.arg_name
-#         func_sig += "): ..."
-#         prompt = f"""任务:
-# 请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
-
-# 注意：
-# 1. 你生成的代码应该用<code></code>包裹。
-# 2. 不要生成``` 
-# 3. 不要生成`code`以外的任何内容 
-# 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
-
-# 例子：
-# <function>
-# {{
-#     func_name: "a.b.c",
-#     ...  // 其他字段省略
-# }}
-# </function>
-# <history>
-# ...
-# </history>
-# <code>
-# import a
-# x = 2
-# y = "str"
-# res = a.b.c(x, y)
-# </code>
-
-# 现在任务开始：
-# <function>
-# {func_sig}
-# </function>
-# <history>
-# {history}
-# </history>
-# """
-# =============================================================================================
-
-# ...
-```
-
 ## Setup
 
 > Note: we use {TRACEFUZZ} to denote the root directory of the TraceFuzz repo.
@@ -160,109 +31,128 @@ cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-
 cp {TRACEFUZZ}/run_data/tracefuzz-RQ1-111.db {TRACEFUZZ}/run_data/tracefuzz-RQ1-100.db
 ```
 
+### Step 4
+LLM may generate some files during the experiment, create a directory to store them:
+
+```bash
+mkdir -p {TRACEFUZZ}/run_data
+```
+
 ## Attempter + Reasoner vs full docs
 
 ```bash
 cd {TRACEFUZZ}
-bash scripts/run_generate_seeds.sh
+# modify config.toml to use tracefuzz-RQ1-111.db and enable both reasoner and docs
+vim config.toml
+cd run_data
+# generate seeds
+bash ../scripts/run_generate_seeds.sh
+# view results
 db_tools view
 ```
 
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
 |--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
-|        nltk        |        764         |    558 (73.04%)    |         0          |      0 (N/A)       |        764         |    558 (73.04%)    |
-|        dask        |        237         |    215 (90.72%)    |         0          |      0 (N/A)       |        237         |    215 (90.72%)    |
-|        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
-|      prophet       |         39         |    30 (76.92%)     |         0          |      0 (N/A)       |         39         |    30 (76.92%)     |
-|       numpy        |        550         |    537 (97.64%)    |        121         |    112 (92.56%)    |        671         |    649 (96.72%)    |
-|       pandas       |        346         |    262 (75.72%)    |         2          |    2 (100.00%)     |        348         |    264 (75.86%)    |
-|      sklearn       |        383         |    345 (90.08%)    |         0          |      0 (N/A)       |        383         |    345 (90.08%)    |
-|       scipy        |        1412        |   1386 (98.16%)    |         1          |    1 (100.00%)     |        1413        |   1387 (98.16%)    |
+|        nltk        |        764         |    601 (78.66%)    |         0          |      0 (N/A)       |        764         |    601 (78.66%)    |
+|        dask        |        237         |    216 (91.14%)    |         0          |      0 (N/A)       |        237         |    216 (91.14%)    |
+|        yaml        |         26         |    25 (96.15%)     |         0          |      0 (N/A)       |         26         |    25 (96.15%)     |
+|      prophet       |         39         |    39 (100.00%)    |         0          |      0 (N/A)       |         39         |    39 (100.00%)    |
+|       numpy        |        550         |    542 (98.55%)    |        121         |    114 (94.21%)    |        671         |    656 (97.76%)    |
+|       pandas       |        346         |    271 (78.32%)    |         2          |    2 (100.00%)     |        348         |    273 (78.45%)    |
+|      sklearn       |        383         |    361 (94.26%)    |         0          |      0 (N/A)       |        383         |    361 (94.26%)    |
+|       scipy        |        1412        |   1381 (97.80%)    |         1          |    1 (100.00%)     |        1413        |   1382 (97.81%)    |
 |      requests      |        112         |    110 (98.21%)    |         0          |      0 (N/A)       |        112         |    110 (98.21%)    |
-|       spacy        |        403         |    277 (68.73%)    |         0          |      0 (N/A)       |        403         |    277 (68.73%)    |
-|       torch        |         62         |    57 (91.94%)     |        642         |    565 (88.01%)    |        704         |    622 (88.35%)    |
-|       paddle       |        423         |    419 (99.05%)    |         0          |      0 (N/A)       |        423         |    419 (99.05%)    |
+|       spacy        |        403         |    310 (76.92%)    |         0          |      0 (N/A)       |        403         |    310 (76.92%)    |
+|       torch        |         62         |    60 (96.77%)     |        643         |    573 (89.11%)    |        705         |    633 (89.79%)    |
+|       paddle       |        423         |    399 (94.33%)    |         0          |      0 (N/A)       |        423         |    399 (94.33%)    |
+
+
+## Attempter + Reasoner vs no docs
+
+
+```bash
+cd {TRACEFUZZ}
+# modify config.toml to use tracefuzz-RQ1-110.db and enable reasoner but disable docs
+vim config.toml
+cd run_data
+# generate seeds
+bash ../scripts/run_generate_seeds.sh
+# view results
+db_tools view
+```
+
+|    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
+|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
+|        nltk        |        764         |    569 (74.48%)    |         0          |      0 (N/A)       |        764         |    569 (74.48%)    |
+|        dask        |        237         |    215 (90.72%)    |         0          |      0 (N/A)       |        237         |    215 (90.72%)    |
+|        yaml        |         26         |    25 (96.15%)     |         0          |      0 (N/A)       |         26         |    25 (96.15%)     |
+|      prophet       |         39         |    39 (100.00%)    |         0          |      0 (N/A)       |         39         |    39 (100.00%)    |
+|       numpy        |        550         |    543 (98.73%)    |        121         |    114 (94.21%)    |        671         |    657 (97.91%)    |
+|       pandas       |        346         |    265 (76.59%)    |         2          |    2 (100.00%)     |        348         |    267 (76.72%)    |
+|      sklearn       |        383         |    346 (90.34%)    |         0          |      0 (N/A)       |        383         |    346 (90.34%)    |
+|       scipy        |        1412        |   1350 (95.61%)    |         1          |    1 (100.00%)     |        1413        |   1351 (95.61%)    |
+|      requests      |        112         |    109 (97.32%)    |         0          |      0 (N/A)       |        112         |    109 (97.32%)    |
+|       spacy        |        403         |    264 (65.51%)    |         0          |      0 (N/A)       |        403         |    264 (65.51%)    |
+|       torch        |         62         |    59 (95.16%)     |        643         |    546 (84.91%)    |        705         |    605 (85.82%)    |
+|       paddle       |        423         |    395 (93.38%)    |         0          |      0 (N/A)       |        423         |    395 (93.38%)    |
+
+
 
 ## Attempter only vs full docs
 
 ```bash
 cd {TRACEFUZZ}
-# modify config.toml to use tracefuzz-RQ1-110.db
+# modify config.toml to use tracefuzz-RQ1-101.db and disable reasoner but enable docs
 vim config.toml
-# disable reasoner in agentic_function_resolver.py
-vim src/tracefuzz/lib/agentic_function_resolver.py
-bash scripts/run_generate_seeds.sh
+cd run_data
+# generate seeds
+bash ../scripts/run_generate_seeds.sh
+# view results
 db_tools view
 ```
 
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
 |--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
-|        nltk        |        764         |    471 (61.65%)    |         0          |      0 (N/A)       |        764         |    471 (61.65%)    |
-|        dask        |        237         |    189 (79.75%)    |         0          |      0 (N/A)       |        237         |    189 (79.75%)    |
-|        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
-|      prophet       |         39         |    13 (33.33%)     |         0          |      0 (N/A)       |         39         |    13 (33.33%)     |
-|       numpy        |        535         |    505 (94.39%)    |        120         |    86 (71.67%)     |        655         |    591 (90.23%)    |
-|       pandas       |        346         |    237 (68.50%)    |         2          |     1 (50.00%)     |        348         |    238 (68.39%)    |
-|      sklearn       |        383         |    275 (71.80%)    |         0          |      0 (N/A)       |        383         |    275 (71.80%)    |
-|       scipy        |        1412        |   1322 (93.63%)    |         1          |    1 (100.00%)     |        1413        |   1323 (93.63%)    |
-|      requests      |        112         |    100 (89.29%)    |         0          |      0 (N/A)       |        112         |    100 (89.29%)    |
-|       spacy        |        403         |    196 (48.64%)    |         0          |      0 (N/A)       |        403         |    196 (48.64%)    |
-|       torch        |         62         |    51 (82.26%)     |        642         |    531 (82.71%)    |        704         |    582 (82.67%)    |
-|       paddle       |        423         |    387 (91.49%)    |         0          |      0 (N/A)       |        423         |    387 (91.49%)    |
-
-## Attempter + Reasoner vs no docs
-
-```bash
-cd {TRACEFUZZ}
-# modify config.toml to use tracefuzz-RQ1-101.db
-vim config.toml
-# modify agentic_function_resolver.py to enable reasoner but not use docs
-vim src/tracefuzz/lib/agentic_function_resolver.py
-bash scripts/run_generate_seeds.sh
-db_tools view
-```
-
-|    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
-|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
-|        nltk        |        764         |    508 (66.49%)    |         0          |      0 (N/A)       |        764         |    508 (66.49%)    |
-|        dask        |        237         |    210 (88.61%)    |         0          |      0 (N/A)       |        237         |    210 (88.61%)    |
-|        yaml        |         26         |    26 (100.00%)    |         0          |      0 (N/A)       |         26         |    26 (100.00%)    |
-|      prophet       |         39         |    31 (79.49%)     |         0          |      0 (N/A)       |         39         |    31 (79.49%)     |
-|       numpy        |        535         |    520 (97.20%)    |        120         |    107 (89.17%)    |        655         |    627 (95.73%)    |
-|       pandas       |        346         |    246 (71.10%)    |         2          |    2 (100.00%)     |        348         |    248 (71.26%)    |
-|      sklearn       |        383         |    341 (89.03%)    |         0          |      0 (N/A)       |        383         |    341 (89.03%)    |
-|       scipy        |        1412        |   1340 (94.90%)    |         1          |    1 (100.00%)     |        1413        |   1341 (94.90%)    |
-|      requests      |        112         |    107 (95.54%)    |         0          |      0 (N/A)       |        112         |    107 (95.54%)    |
-|       spacy        |        403         |    251 (62.28%)    |         0          |      0 (N/A)       |        403         |    251 (62.28%)    |
-|       torch        |         62         |    54 (87.10%)     |        642         |    545 (84.89%)    |        704         |    599 (85.09%)    |
-|       paddle       |        423         |    416 (98.35%)    |         0          |      0 (N/A)       |        423         |    416 (98.35%)    |
+|        nltk        |        764         |    507 (66.36%)    |         0          |      0 (N/A)       |        764         |    507 (66.36%)    |
+|        dask        |        237         |    198 (83.54%)    |         0          |      0 (N/A)       |        237         |    198 (83.54%)    |
+|        yaml        |         26         |    13 (50.00%)     |         0          |      0 (N/A)       |         26         |    13 (50.00%)     |
+|      prophet       |         39         |    16 (41.03%)     |         0          |      0 (N/A)       |         39         |    16 (41.03%)     |
+|       numpy        |        535         |    501 (93.64%)    |        120         |    83 (69.17%)     |        655         |    584 (89.16%)    |
+|       pandas       |        346         |    238 (68.79%)    |         2          |     1 (50.00%)     |        348         |    239 (68.68%)    |
+|      sklearn       |        383         |    293 (76.50%)    |         0          |      0 (N/A)       |        383         |    293 (76.50%)    |
+|       scipy        |        1412        |   1262 (89.38%)    |         1          |    1 (100.00%)     |        1413        |   1263 (89.38%)    |
+|      requests      |        112         |    104 (92.86%)    |         0          |      0 (N/A)       |        112         |    104 (92.86%)    |
+|       spacy        |        403         |    244 (60.55%)    |         0          |      0 (N/A)       |        403         |    244 (60.55%)    |
+|       torch        |         62         |    39 (62.90%)     |        643         |    144 (22.40%)    |        705         |    183 (25.96%)    |
+|       paddle       |        423         |    166 (39.24%)    |         0          |      0 (N/A)       |        423         |    166 (39.24%)    |
 
 ## Attempter only vs no docs
 
 ```bash
 cd {TRACEFUZZ}
-# modify config.toml to use tracefuzz-RQ1-100.db
+# modify config.toml to use tracefuzz-RQ1-100.db and disable both reasoner and docs
 vim config.toml
-# disable reasoner and doc in agentic_function_resolver.py
-vim src/tracefuzz/lib/agentic_function_resolver.py
-bash scripts/run_generate_seeds.sh
+cd run_data
+# generate seeds
+bash ../scripts/run_generate_seeds.sh
+# view results
 db_tools view
 ```
 
 |    Library Name    |     UDF Count      |     UDF Solved     |      BF Count      |     BF Solved      |      TF Count      |     TF Solved      |
 |--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|--------------------|
-|        nltk        |        764         |    389 (50.92%)    |         0          |      0 (N/A)       |        764         |    389 (50.92%)    |
-|        dask        |        237         |    176 (74.26%)    |         0          |      0 (N/A)       |        237         |    176 (74.26%)    |
-|        yaml        |         26         |    24 (92.31%)     |         0          |      0 (N/A)       |         26         |    24 (92.31%)     |
-|      prophet       |         39         |     7 (17.95%)     |         0          |      0 (N/A)       |         39         |     7 (17.95%)     |
-|       numpy        |        550         |    481 (87.45%)    |        121         |    69 (57.02%)     |        671         |    550 (81.97%)    |
-|       pandas       |        346         |    209 (60.40%)    |         2          |     1 (50.00%)     |        348         |    210 (60.34%)    |
-|      sklearn       |        383         |    153 (39.95%)    |         0          |      0 (N/A)       |        383         |    153 (39.95%)    |
-|       scipy        |        1412        |    998 (70.68%)    |         1          |    1 (100.00%)     |        1413        |    999 (70.70%)    |
-|      requests      |        112         |    99 (88.39%)     |         0          |      0 (N/A)       |        112         |    99 (88.39%)     |
-|       spacy        |        403         |    202 (50.12%)    |         0          |      0 (N/A)       |        403         |    202 (50.12%)    |
-|       torch        |         62         |    42 (67.74%)     |        642         |    352 (54.83%)    |        704         |    394 (55.97%)    |
-|       paddle       |        423         |    302 (71.39%)    |         0          |      0 (N/A)       |        423         |    302 (71.39%)    |
+|        nltk        |        764         |    388 (50.79%)    |         0          |      0 (N/A)       |        764         |    388 (50.79%)    |
+|        dask        |        237         |    175 (73.84%)    |         0          |      0 (N/A)       |        237         |    175 (73.84%)    |
+|        yaml        |         26         |     8 (30.77%)     |         0          |      0 (N/A)       |         26         |     8 (30.77%)     |
+|      prophet       |         39         |     6 (15.38%)     |         0          |      0 (N/A)       |         39         |     6 (15.38%)     |
+|       numpy        |        535         |    445 (83.18%)    |        120         |    44 (36.67%)     |        655         |    489 (74.66%)    |
+|       pandas       |        346         |    177 (51.16%)    |         2          |     1 (50.00%)     |        348         |    178 (51.15%)    |
+|      sklearn       |        383         |    124 (32.38%)    |         0          |      0 (N/A)       |        383         |    124 (32.38%)    |
+|       scipy        |        1412        |    863 (61.12%)    |         1          |     0 (0.00%)      |        1413        |    863 (61.08%)    |
+|      requests      |        112         |    100 (89.29%)    |         0          |      0 (N/A)       |        112         |    100 (89.29%)    |
+|       spacy        |        403         |    211 (52.36%)    |         0          |      0 (N/A)       |        403         |    211 (52.36%)    |
+|       torch        |         62         |    29 (46.77%)     |        643         |     44 (6.84%)     |        705         |    73 (10.35%)     |
+|       paddle       |        423         |    50 (11.82%)     |         0          |      0 (N/A)       |        423         |    50 (11.82%)     |
 
 ## How to plot a similar figure in our paper
 ```bash
