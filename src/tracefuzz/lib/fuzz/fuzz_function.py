@@ -143,3 +143,24 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Replayed params: args={args}, kwargs={kwargs}")
     func(*args, **kwargs)
     logger.info(f"Replay fuzz {full_name} done")
+
+def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
+    full_name = f"{func.__module__}.{func.__name__}"
+
+    set_random_state(int(time.time()))
+
+    logger.debug(f"Tracefuzz start fuzz {full_name}")
+
+    param_list = convert_to_param_list(*args, **kwargs)
+    if len(param_list) == 0:
+        execute_once(func, *args, **kwargs)
+        return
+
+    for i in range(1, mutants_per_seed + 1):
+        # logger.debug(f"{i}th mutation")
+        mt_param_list = mutate_param_list(param_list)
+        args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
+        execute_once(func, *args, **kwargs)
+        # rc.hset("exec_cnt", full_name, i)
+
+    # logger.info(f"Tracefuzz fuzz {full_name} done")

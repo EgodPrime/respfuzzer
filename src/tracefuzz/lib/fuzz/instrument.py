@@ -4,7 +4,7 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
 
-from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz
+from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz, fuzz_function_f4a
 
 fuzzed_set = set()
 
@@ -52,6 +52,23 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        """
+        Wrapper function that executes the original function and triggers fuzzing on first call.
+        Args:
+            *args: Positional arguments for the function.
+            **kwargs: Keyword arguments for the function.
+        Returns:
+            The result of the original function.
+        """
+        res = func(*args, **kwargs)
+        logger.debug(f"Fuzz triggered for {func.__module__}.{func.__name__}")
+        fuzz_function_f4a(func, *args, **kwargs)
+        return res
+
+    return wrapper
 
 def instrument_function_via_path(mod: ModuleType, path: str):
     """
@@ -117,6 +134,28 @@ def instrument_function_via_path_replay(mod: ModuleType, path: str):
     setattr(parent, mods[-1], new_func)
     logger.info(f"Instrumented {path} for replay")
 
+def instrument_function_via_path_f4a(mod: ModuleType, path: str):
+    mods = path.split(".")
+    if mods[0] != mod.__name__:
+        logger.error(
+            f"Invalid package path: {path} does not start with {mod.__name__}!"
+        )
+        return
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {path}!")
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {path}!")
+        return
+    new_func = instrument_function_f4a(orig_func)
+    setattr(new_func, "orig_func", orig_func)
+
+    setattr(parent, mods[-1], new_func)
+    # logger.debug(f"Instrumented {path} for f4a")
 
 mod_has_been_seen = set()
 top_mod = None
