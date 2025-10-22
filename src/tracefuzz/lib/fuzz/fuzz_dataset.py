@@ -112,7 +112,7 @@ def fuzz_single_seed(seed: Seed) -> int:
     return final_exec_cnt
 
 
-def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: Callable) -> None:
+def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
@@ -122,7 +122,7 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: 
             seed = get_seed_by_function_name(full_func_name)
             if not seed:
                 continue
-            fuzz_single_seed(seed, exec_fn)
+            fuzz_single_seed(seed)
             p = dcov.count_bitmap_py()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
 
@@ -149,7 +149,8 @@ def fuzz_dataset(dataset_path: str) -> None:
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
-    _fuzz_dataset(dataset, safe_fuzz)
+    calc_initial_seed_coverage_dataset(dataset)
+    _fuzz_dataset(dataset)
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:
     """Continuously fuzz functions specified in the dataset JSON file."""
