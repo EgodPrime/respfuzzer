@@ -162,11 +162,11 @@ def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data:
 
 
 if __name__ == "__main__":
-    with open("20251019-RQ2-tracefuzz.log", "r") as f:
+    with open("20251022-RQ2-tracefuzz.log", "r") as f:
         tracefuzz_lines = f.readlines()
     with open("20251019-RQ2-dyfuzz.log", "r") as f:
         dyfuzz_lines = f.readlines()
-    with open("20251021-RQ2-fuzz4all.log", "r") as f:
+    with open("20251022-RQ2-fuzz4all.log", "r") as f:
         fuzz4all_lines = f.readlines()
     with open("20251021-RQ2-fuzz4all-mix.log", "r") as f:
         fuzz4all_mix_lines = f.readlines()
