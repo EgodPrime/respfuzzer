@@ -17,6 +17,21 @@ from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
 
+def safe_execute(seed: Seed) -> None:
+    """
+    Safely and silently execute the `mutated_call` for a given seed.
+    """
+    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
+    fake_stdout = io.StringIO()
+    fake_stderr = io.StringIO()
+    sys.stdout = fake_stdout
+    sys.stderr = fake_stderr
+
+    with dcov.LoaderWrapper(seed.library_name) as l:
+        try:
+            exec(seed.function_call)
+        except Exception as e:
+            pass
 
 def safe_fuzz(seed: Seed) -> None:
     """
@@ -110,6 +125,21 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: 
             fuzz_single_seed(seed, exec_fn)
             p = dcov.count_bitmap_py()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
+
+def calc_initial_seed_coverage_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> int:
+    logger.info("Calculating initial seed coverage for the dataset....")
+    for library_name in dataset:
+        for func_name in dataset[library_name]:
+            full_func_name = f"{library_name}.{func_name}"
+            seed = get_seed_by_function_name(full_func_name)
+            if not seed:
+                continue
+            process = Process(target=safe_execute, args=(seed,))
+            timeout = 5
+            manage_process_with_timeout(process, timeout, seed.id)
+    p = dcov.count_bitmap_py()
+    logger.info(f"Initial coverage after executing all seeds: {p} bits.")
+
 
 def fuzz_dataset(dataset_path: str) -> None:
     """Fuzz functions specified in the dataset JSON file."""

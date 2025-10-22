@@ -133,7 +133,6 @@ def run_limit_n(mod, api, n, buget):
                 stderr=subprocess.PIPE,
                 start_new_session=True,
             )
-            logger.info(f"Started {i+1}th subprocess with PID {p.pid} (PGID {os.getpgid(p.pid)}) for {mod}.{api} with {n} params")
             p.communicate(timeout=6)
         except subprocess.TimeoutExpired:
             logger.warning("Subprocess timed out")
@@ -194,6 +193,8 @@ ignorelist = []
 
 dcov.open_bitmap_py()
 dcov.clear_bitmap_py()
+from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
+calc_initial_seed_coverage_dataset(moddic)
 for mod in list(moddic.keys()):
     need_skip = ["set_num_threads"]
     logger.info(f"DyFuzz test {mod}")
@@ -217,7 +218,7 @@ for mod in list(moddic.keys()):
                 logger.debug(f"{mod}.{api} has {n} params, run {int(1e2)} times")
                 run_limit_n(mod, api, n, int(1e2))
             logger.info(f"Fuzz {mod}.{api} {n} done")
-            logger.info(f"Coverage now: {dcov.count_bitmap_py()}")
+            logger.info(f"Current coverage after fuzzing {mod}.{api}: {dcov.count_bitmap_py()} bits")
 
     # print(mcount, mod,api,moddic[mod][api]["pn"])
     # stest(stresslist,mod,api,moddic[mod][api]["pn"][1])
