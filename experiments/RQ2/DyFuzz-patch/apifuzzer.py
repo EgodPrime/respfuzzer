@@ -196,7 +196,7 @@ def fuzzapi(mod, api, n):
 
     with dcov.LoaderWrapper() as l:
         l.add_source(origin)
-        p0 = dcov.count_bits_py()
+        p0 = dcov.count_bitmap_py()
         if n == 0:
             codeprefix = "import %s;\n" % mod
             code = codeprefix + mod + "." + api + "(" + ")"
@@ -245,7 +245,7 @@ def fuzzapi(mod, api, n):
 
             # paramlist = get_mulist(paramlist)
             # print("____________\n\n\n\n")
-        p1 = dcov.count_bits_py()
+        p1 = dcov.count_bitmap_py()
         if p1 > p0:
             logger.info(f"Coverage increased {p1-p0}, now: {p1}")
 

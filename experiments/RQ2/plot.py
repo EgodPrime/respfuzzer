@@ -136,7 +136,7 @@ def plot_time_used(data: list[dict], title: str, marker:str, ax: plt.Axes):
         ax=ax
     )
 
-def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data: list[dict]):
+def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data: list[dict], fuzz4all_mix_data: list[dict]):
     """Plot coverage and time used for all three fuzzers.
 
     Args:
@@ -149,12 +149,14 @@ def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data:
     plot_coverage(tracefuzz_data, 'Coverage Comparison', marker='o', ax=ax1)
     plot_coverage(dyfuzz_data, 'Coverage Comparison', marker='s', ax=ax1)
     plot_coverage(fuzz4all_data, 'Coverage Comparison', marker='^', ax=ax1)
-    ax1.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All'])
+    plot_coverage(fuzz4all_mix_data, 'Coverage Comparison', marker='d', ax=ax1)
+    ax1.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All', 'Fuzz4All Mix'])
 
     plot_time_used(tracefuzz_data, 'Time Used Comparison', marker='o', ax=ax2)
     plot_time_used(dyfuzz_data, 'Time Used Comparison', marker='s', ax=ax2)
     plot_time_used(fuzz4all_data, 'Time Used Comparison', marker='^', ax=ax2)
-    ax2.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All'])
+    plot_time_used(fuzz4all_mix_data, 'Time Used Comparison', marker='d', ax=ax2)
+    ax2.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All', 'Fuzz4All Mix'])
 
     plt.tight_layout()
 
@@ -164,13 +166,16 @@ if __name__ == "__main__":
         tracefuzz_lines = f.readlines()
     with open("20251019-RQ2-dyfuzz.log", "r") as f:
         dyfuzz_lines = f.readlines()
-    with open("20251019-RQ2-fuzz4all.log", "r") as f:
+    with open("20251021-RQ2-fuzz4all.log", "r") as f:
         fuzz4all_lines = f.readlines()
+    with open("20251021-RQ2-fuzz4all-mix.log", "r") as f:
+        fuzz4all_mix_lines = f.readlines()
 
     tracefuzz_data = extract_fuzz_data(tracefuzz_lines, tracefuzz_pattern)
     dyfuzz_data = extract_fuzz_data(dyfuzz_lines, dyfuzz_pattern)
     fuzz4all_data = extract_fuzz_data(fuzz4all_lines, fuzz4all_pattern)
+    fuzz4all_mix_data = extract_fuzz_data(fuzz4all_mix_lines, fuzz4all_pattern)
 
-    plot_all(tracefuzz_data, dyfuzz_data, fuzz4all_data)
+    plot_all(tracefuzz_data, dyfuzz_data, fuzz4all_data, fuzz4all_mix_data)
 
     plt.savefig("RQ2.pdf", dpi=300)

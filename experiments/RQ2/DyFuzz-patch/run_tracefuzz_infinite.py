@@ -217,7 +217,7 @@ while True:
                     else:
                         run_limit_n(mod, api, n, 10)
                     logger.info(f"Fuzz {mod}.{api} {n} done")
-                    logger.info(f"Current coverage after fuzzing {mod}.{api}: {dcov.count_bits_py()} bits")
+                    logger.info(f"Current coverage after fuzzing {mod}.{api}: {dcov.count_bitmap_py()} bits")
     # CTRL+C to stop fuzzing
     except KeyboardInterrupt:
         logger.info("Fuzzing stopped by user, have a nice day!")

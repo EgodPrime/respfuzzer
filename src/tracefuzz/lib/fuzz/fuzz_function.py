@@ -50,7 +50,6 @@ def execute_once(func: Callable, *args, **kwargs):
     except TimeoutError as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
         logger.warning(e)
-        exit(-1)
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
 
@@ -157,10 +156,6 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         return
 
     for i in range(1, mutants_per_seed + 1):
-        # logger.debug(f"{i}th mutation")
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
-        # rc.hset("exec_cnt", full_name, i)
-
-    # logger.info(f"Tracefuzz fuzz {full_name} done")

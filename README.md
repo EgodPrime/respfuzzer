@@ -24,9 +24,6 @@
   - `uv` tool for virtual environment management (https://docs.astral.sh/uv/getting-started/installation/)
   - Python 3.13 (Based on `uv`)
   - `rust` and `cargo` for building native extensions (https://rust-lang.org/tools/install/)
-  - `clang 14.0+` compiler for building native extensions
-  - (Optional) `dcov` for coverage analysis (To reproduce experiments)
-    - https://github.com/EgodPrime/dcov
 
 1. Clone the repository:
 ```bash
@@ -43,11 +40,13 @@ source .venv/bin/activate
 3. Install the project and its dependencies:
 ```bash
 uv pip install -e .
+# (Optional) Developer mode:
+# uv pip install -e .[dev]
 ```
 
-4. (Optional) Developer mode:
+4. install dcov for coverage analysis:
 ```bash
-uv pip install -e .[dev]
+uv pip install git+https://github.com/EgodPrime/dcov.git@pure-python
 ```
 
 5. Install the libraries under test:

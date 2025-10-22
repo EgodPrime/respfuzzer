@@ -38,8 +38,7 @@ def safe_fuzz(seed: Seed) -> None:
         instrument_function_via_path(target, seed.func_name)
         exec(seed.function_call)
     except Exception as e:
-        # logger.error(f"Error during fuzzing seed {seed.id}: {e}")
-        raise  # 重新抛出，便于上层处理
+        pass
 
 
 def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):
@@ -95,7 +94,7 @@ def manage_process_with_timeout(
             break
 
     if process.is_alive():
-        logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
+        # logger.warning(f"Seed {seed_id} timed out after {timeout}s, killing...")
         kill_process_tree_linux(process)
         return False
 
@@ -104,6 +103,9 @@ def manage_process_with_timeout(
         process.join(1)
     except:
         pass
+
+    if process.exitcode != 0:
+        return False
     return True
 
 
@@ -149,12 +151,10 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
         ) / 100
         success = manage_process_with_timeout(process, timeout, seed.id)
 
-        if process.exitcode not in (0, None):
+        if not success:
             logger.warning(
                 f"Seed {seed.id} attempt {attempt} did not complete successfully, last random state: {randome_state}."
             )
-
-        if not success:
             continue  # 重试
 
     final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
@@ -173,8 +173,7 @@ def fuzz_one_library(library_name: str) -> None:
     blacklist = set()
     if FUZZ_BLACKLIST_PATH.exists():
         with open(FUZZ_BLACKLIST_PATH, "r") as f:
-            for line in f:
-                blacklist.add(line.strip())
+            blacklist = {line.strip() for line in f}
 
     for seed in get_seeds_iter(library_name):
         if seed.func_name in blacklist:

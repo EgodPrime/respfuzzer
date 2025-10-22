@@ -24,3 +24,5 @@ use_docs = true
 [fuzz4all]
 strategy = 1
 concurrency = 10
+execution_timeout = 5.0
+mutants_per_seed = 100

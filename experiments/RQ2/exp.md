@@ -51,7 +51,7 @@ cd {TRACEFUZZ}/experiments/RQ2/
 mkdir -p run_data
 cd run_data
 # run Fuzz4All mutation
-python3 ../miniFuzz4All/fuzz_dataset.py ../tracefuzz_seeds.json
+python ../miniFuzz4All/fuzz_dataset.py normal ../tracefuzz_seeds.json
 ```
 
 ## Run DyFuzz

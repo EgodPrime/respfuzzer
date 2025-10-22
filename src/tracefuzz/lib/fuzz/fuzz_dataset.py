@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from multiprocessing import Process
+from typing import Callable
 
 import dcov
 import redis
@@ -31,31 +32,22 @@ def safe_fuzz(seed: Seed) -> None:
         f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}"
     )
 
-    try:
-        from importlib import util as importlib_util
-
-        spec = importlib_util.find_spec(seed.library_name)
-        origin = spec.origin
-    except Exception as e:
-        logger.error(f"Error finding root dir of library {seed.library_name}: {e}")
-        return
-
-    with dcov.LoaderWrapper() as l:
-        l.add_source(origin)
+    with dcov.LoaderWrapper(seed.library_name) as l:
+        target = importlib.import_module(seed.library_name)
+        instrument_function_via_path(target, seed.func_name)
         try:
-            target = importlib.import_module(seed.library_name)
-            instrument_function_via_path(target, seed.func_name)
             exec(seed.function_call)
         except Exception as e:
-            logger.error(f"Error during fuzzing seed {seed.id}: {e}")
-            raise  # 重新抛出，便于上层处理
+            logger.debug(f"Error executing mutated call for seed {seed.id}: {e}")
+            pass
 
 
-def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int:
+def fuzz_single_seed(seed: Seed) -> int:
     """
     Fuzz a single seed with retries and monitoring.
     Returns the number of executions.
     """
+    config = get_config("fuzz")
     execution_timeout = config.get("execution_timeout")
     mutants_per_seed = config.get("mutants_per_seed")
     max_try_per_seed = config.get("max_try_per_seed")
@@ -63,6 +55,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
     if len(seed.args) == 0:
         max_try_per_seed = 1
 
+    redis_client = get_redis_client()
     redis_client.hset("fuzz", "current_func", seed.func_name)
     redis_client.hset("fuzz", "exec_cnt", 0)
     redis_client.delete("exec_record")
@@ -93,12 +86,10 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
         ) / 100
         success = manage_process_with_timeout(process, timeout, seed.id)
 
-        if process.exitcode not in (0, None):
+        if not success:
             logger.warning(
                 f"Seed {seed.id} attempt {attempt} did not complete successfully, last random state: {randome_state}."
             )
-
-        if not success:
             continue  # 重试
 
     final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
@@ -106,56 +97,39 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
     return final_exec_cnt
 
 
+def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: Callable) -> None:
+    """
+    Fuzz the dataset by iterating over all functions and query related seeds.
+    """
+    for library_name in dataset:
+        for func_name in dataset[library_name]:
+            full_func_name = f"{library_name}.{func_name}"
+            seed = get_seed_by_function_name(full_func_name)
+            if not seed:
+                continue
+            fuzz_single_seed(seed, exec_fn)
+            p = dcov.count_bitmap_py()
+            logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
+
 def fuzz_dataset(dataset_path: str) -> None:
     """Fuzz functions specified in the dataset JSON file."""
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
-
-    config = get_config("fuzz")
-    redis_client = get_redis_client()
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
-
-    for library_name in dataset:
-        logger.info(f"Fuzzing library: {library_name}")
-        for api_name in dataset[library_name]:
-            full_api_name = f"{library_name}.{api_name}"
-            seed = get_seed_by_function_name(full_api_name)
-            if not seed:
-                logger.warning(
-                    f"Seed not found for function: {full_api_name}, skipping."
-                )
-                continue
-            fuzz_single_seed(seed, config, redis_client)
-            p = dcov.count_bits_py()
-            logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
+    _fuzz_dataset(dataset, safe_fuzz)
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:
     """Continuously fuzz functions specified in the dataset JSON file."""
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
-    config = get_config("fuzz")
-    redis_client = get_redis_client()
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
     while True:
-        for library_name in dataset:
-            logger.info(f"Fuzzing library: {library_name}")
-            for api_name in dataset[library_name]:
-                full_api_name = f"{library_name}.{api_name}"
-                seed = get_seed_by_function_name(full_api_name)
-                if not seed:
-                    logger.warning(
-                        f"Seed not found for function: {full_api_name}, skipping."
-                    )
-                    continue
-                fuzz_single_seed(seed, config, redis_client)
-                p = dcov.count_bits_py()
-                logger.info(f"Current coverage after fuzzing {full_api_name}: {p} bits.")
+        _fuzz_dataset(dataset, safe_fuzz)
 
         

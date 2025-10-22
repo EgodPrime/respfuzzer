@@ -64,8 +64,11 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
             The result of the original function.
         """
         res = func(*args, **kwargs)
-        logger.debug(f"Fuzz triggered for {func.__module__}.{func.__name__}")
-        fuzz_function_f4a(func, *args, **kwargs)
+        func_name = f"{func.__module__}.{func.__name__}"
+        if not func_name in fuzzed_set:
+            logger.debug(f"Fuzz triggered for {func.__module__}.{func.__name__}")
+            fuzzed_set.add(func_name)
+            fuzz_function_f4a(func, *args, **kwargs)
         return res
 
     return wrapper
