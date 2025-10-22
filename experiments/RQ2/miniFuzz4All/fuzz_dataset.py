@@ -12,6 +12,7 @@ import fire
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout
+from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_f4a
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
@@ -141,7 +142,7 @@ def fuzz_dataset(dataset_path: str) -> None:
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
-
+    calc_initial_seed_coverage_dataset(dataset)
     _fuzz_dataset(dataset, safe_execute)
 
 def fuzz_dataset_mix(dataset_path: str) -> None:
@@ -156,7 +157,7 @@ def fuzz_dataset_mix(dataset_path: str) -> None:
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
-
+    calc_initial_seed_coverage_dataset(dataset)
     _fuzz_dataset(dataset, safe_fuzz)
 
 
@@ -172,7 +173,7 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
-
+    calc_initial_seed_coverage_dataset(dataset)
     while True:
         try:
             _fuzz_dataset(dataset, safe_execute)
