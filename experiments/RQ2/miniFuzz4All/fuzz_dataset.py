@@ -3,7 +3,7 @@ import io
 import json
 import os
 import sys
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 
 import time
 from typing import Callable
@@ -11,8 +11,8 @@ import dcov
 import fire
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
-from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout
-from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
+from tracefuzz.lib.fuzz.fuzz_library import kill_process_tree_linux, manage_process_with_timeout
+from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset, continue_safe_execute
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_f4a
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
@@ -76,6 +76,10 @@ def fuzz_single_seed(seed: Seed, exec_fn: Callable) -> None:
 
     logger.debug(f"seed is :\n{seed.function_call}")
 
+    send, recv = Queue(), Queue()
+    process = Process(target=continue_safe_execute, args=(send, recv))
+    process.start()
+
     f4a_mutator = Fuzz4AllMutator(seed)
 
     logger.info(f"Start fuzz seed {seed.id}.")
@@ -87,32 +91,30 @@ def fuzz_single_seed(seed: Seed, exec_fn: Callable) -> None:
         logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds.")
 
         for mutated_call in batch:
-            p1 = Process(
-                target=validate_test_case,
-                args=(
-                    mutated_call,
-                ),
-            )
-            res = manage_process_with_timeout(p1, 3, seed.id)
+            process = Process(target=validate_test_case, args=(mutated_call,))
+            res = manage_process_with_timeout(process, execution_timeout)
             if not res:
-                continue # skip this invalid mutant
+                continue
 
-            process = Process(
-                target=exec_fn,
-                args=(
-                    seed,
-                    mutated_call,
-                ),
-            )
-            timeout = execution_timeout
-            p0 = dcov.count_bitmap_py()
-            manage_process_with_timeout(process, timeout, seed.id)
-            p1 = dcov.count_bitmap_py()
-            if p1 > p0:
-                logger.info(
-                    f"New coverage found for seed {seed.id}: {p1 - p0} new bits."
-                )
-    
+            t_seed = seed.model_copy()
+            t_seed.function_call = mutated_call
+            c0 = dcov.count_bitmap_py()
+            send.put(("execute", t_seed))
+            try:
+                recv.get(timeout=execution_timeout)
+            except Exception:
+                logger.warning(f"Mutated call execution timeout after {execution_timeout} seconds, restarting worker process.")
+                if process.is_alive():
+                    kill_process_tree_linux(process)
+                send, recv = Queue(), Queue()
+                process = Process(target=continue_safe_execute, args=(send, recv))
+                process.start()
+            c1 = dcov.count_bitmap_py()
+            if c1 > c0:
+                logger.info(f"New coverage found by seed {seed.id}: {c1 - c0} new bits.")
+    send.put(("exit", None))
+    process.join()
+
     logger.info(f"Fuzz seed {seed.id} done ")
 
 

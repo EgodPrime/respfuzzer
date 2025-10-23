@@ -1,13 +1,15 @@
 import inspect
 from functools import wraps
+from sys import path
 from types import BuiltinFunctionType, FunctionType, ModuleType
 
+from contextlib import contextmanager
 from loguru import logger
+import importlib
 
 from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz, fuzz_function_f4a
 
 fuzzed_set = set()
-
 
 def instrument_function(func: FunctionType | BuiltinFunctionType):
     """
@@ -114,7 +116,6 @@ def instrument_function_via_path(mod: ModuleType, path: str):
     setattr(parent, mods[-1], new_func)
     # logger.debug(f"Instrumented {path}")
 
-
 def instrument_function_via_path_replay(mod: ModuleType, path: str):
     mods = path.split(".")
     if mods[0] != mod.__name__:
@@ -159,6 +160,84 @@ def instrument_function_via_path_f4a(mod: ModuleType, path: str):
 
     setattr(parent, mods[-1], new_func)
     # logger.debug(f"Instrumented {path} for f4a")
+
+@contextmanager
+def instrument_function_via_path_ctx(full_func_path: str):
+    mods = full_func_path.split(".")
+    mod = importlib.import_module(mods[0])
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {full_func_path}!")
+        yield
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {full_func_path}!")
+        yield
+        return
+    new_func = instrument_function(orig_func)
+    
+    try:
+        setattr(parent, mods[-1], new_func)
+        logger.debug(f"Instrumented {full_func_path}")
+        yield
+    finally:
+        setattr(parent, mods[-1], orig_func)
+        logger.debug(f"Restored original function for {full_func_path}")
+
+@contextmanager
+def instrument_function_via_path_replay_ctx(full_func_path: str):
+    mods = full_func_path.split(".")
+    mod = importlib.import_module(mods[0])
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {full_func_path}!")
+        yield
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {full_func_path}!")
+        yield
+        return
+    new_func = instrument_function_replay(orig_func)
+    
+    try:
+        setattr(parent, mods[-1], new_func)
+        logger.debug(f"Instrumented {full_func_path} for replay")
+        yield
+    finally:
+        setattr(parent, mods[-1], orig_func)
+        logger.debug(f"Restored original function for {full_func_path}")
+
+@contextmanager
+def instrument_function_via_path_f4a_ctx(full_func_path: str):
+    mods = full_func_path.split(".")
+    mod = importlib.import_module(mods[0])
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {full_func_path}!")
+        yield
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {full_func_path}!")
+        yield
+        return
+    new_func = instrument_function_f4a(orig_func)
+    
+    try:
+        setattr(parent, mods[-1], new_func)
+        logger.debug(f"Instrumented {full_func_path} for f4a")
+        yield
+    finally:
+        setattr(parent, mods[-1], orig_func)
+        logger.debug(f"Restored original function for {full_func_path}")
 
 mod_has_been_seen = set()
 top_mod = None
