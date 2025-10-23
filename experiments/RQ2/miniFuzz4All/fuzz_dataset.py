@@ -42,32 +42,12 @@ def safe_execute(seed: Seed, mutated_call: str) -> None:
         except Exception as e:
             pass
 
-def safe_fuzz(seed: Seed, mutated_call: str) -> None:
-    """
-    Safely and silently execute the fuzzing process for a given seed.
-    """
-    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
-    fake_stdout = io.StringIO()
-    fake_stderr = io.StringIO()
-    sys.stdout = fake_stdout
-    sys.stderr = fake_stderr
-
-    with dcov.LoaderWrapper(seed.library_name) as l:
-        target = importlib.import_module(seed.library_name)
-        instrument_function_via_path_f4a(target, seed.func_name)
-        try:
-            exec(mutated_call)
-        except Exception as e:
-            logger.debug(f"Error executing mutated call for seed {seed.id}: {e}")
-            pass
-
-
-def fuzz_single_seed(seed: Seed, exec_fn: Callable) -> None:
+def fuzz_single_seed(seed: Seed, command: str) -> None:
     """
     Fuzz a single seed by generating mutants and executing them.
     Args:
         seed (Seed): The seed to fuzz.
-        exec_fn (Callable): The function to execute the mutated call.
+        command (str): The command to execute the mutated calls.
     """
     cfg = get_config("fuzz4all")
     execution_timeout = cfg.get("execution_timeout")
@@ -92,14 +72,14 @@ def fuzz_single_seed(seed: Seed, exec_fn: Callable) -> None:
 
         for mutated_call in batch:
             process = Process(target=validate_test_case, args=(mutated_call,))
-            res = manage_process_with_timeout(process, execution_timeout)
+            res = manage_process_with_timeout(process, execution_timeout, seed.id)
             if not res:
                 continue
 
             t_seed = seed.model_copy()
             t_seed.function_call = mutated_call
             c0 = dcov.count_bitmap_py()
-            send.put(("execute", t_seed))
+            send.put((command, t_seed))
             try:
                 recv.get(timeout=execution_timeout)
             except Exception:
@@ -118,7 +98,7 @@ def fuzz_single_seed(seed: Seed, exec_fn: Callable) -> None:
     logger.info(f"Fuzz seed {seed.id} done ")
 
 
-def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: Callable) -> None:
+def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], command: str) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
@@ -128,7 +108,7 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], exec_fn: 
             seed = get_seed_by_function_name(full_func_name)
             if not seed:
                 continue
-            fuzz_single_seed(seed, exec_fn)
+            fuzz_single_seed(seed, command)
             p = dcov.count_bitmap_py()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
 
@@ -145,7 +125,7 @@ def fuzz_dataset(dataset_path: str) -> None:
         open(dataset_path, "r")
     )
     calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(dataset, safe_execute)
+    _fuzz_dataset(dataset, "execute")
 
 def fuzz_dataset_mix(dataset_path: str) -> None:
     """
@@ -160,7 +140,7 @@ def fuzz_dataset_mix(dataset_path: str) -> None:
         open(dataset_path, "r")
     )
     calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(dataset, safe_fuzz)
+    _fuzz_dataset(dataset, "fuzz_f4a")
 
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:
@@ -178,7 +158,7 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
     calc_initial_seed_coverage_dataset(dataset)
     while True:
         try:
-            _fuzz_dataset(dataset, safe_execute)
+            _fuzz_dataset(dataset, "execute")
         except KeyboardInterrupt:
             logger.info("Fuzzing interrupted by user. Have a nice day!")
             break
@@ -198,7 +178,7 @@ def fuzz_dataset_mix_infinite(dataset_path: str) -> None:
 
     while True:
         try:
-            _fuzz_dataset(dataset, safe_fuzz)
+            _fuzz_dataset(dataset, "fuzz_f4a")
         except KeyboardInterrupt:
             logger.info("Fuzzing interrupted by user. Have a nice day!")
             break
