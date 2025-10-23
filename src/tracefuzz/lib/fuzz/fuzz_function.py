@@ -50,6 +50,7 @@ def execute_once(func: Callable, *args, **kwargs):
     except TimeoutError as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
         logger.warning(e)
+        raise e
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
 
