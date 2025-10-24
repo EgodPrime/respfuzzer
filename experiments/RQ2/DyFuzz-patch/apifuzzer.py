@@ -249,4 +249,5 @@ def fuzzapi(mod, api, n):
         if p1 > p0:
             logger.info(f"Coverage increased {p1-p0}, now: {p1}")
 
+dcov.open_bitmap_py()
 fuzzapi(mod, api, n)
