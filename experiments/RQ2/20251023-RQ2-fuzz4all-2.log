@@ -1,0 +1,3014 @@
+2025-10-23 05:30:51.086 | INFO     | __main__:fuzz_dataset:142 - Starting fuzzing for dataset: ../tracefuzz_seeds.json
+2025-10-23 05:30:51.087 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:147 - Calculating initial seed coverage for the dataset....
+2025-10-23 05:30:59.057 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:179 - Initial coverage after executing all seeds: 108594 bits.
+2025-10-23 05:30:59.066 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.sem import boolean_ops
+
+# Call the function
+boolean_ops()
+
+2025-10-23 05:30:59.071 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 276.
+2025-10-23 05:31:14.467 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 276 in 15.40 seconds.
+2025-10-23 05:32:55.910 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 276 done 
+2025-10-23 05:32:55.912 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.boolean_ops: 108594 bits.
+2025-10-23 05:32:55.926 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.tokenize import word_tokenize
+
+text = "This is a sample sentence for tokenization."
+language = "english"
+preserve_line = False
+
+result = word_tokenize(text, language, preserve_line)
+
+2025-10-23 05:32:55.930 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 355.
+2025-10-23 05:33:30.638 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 355 in 34.71 seconds.
+2025-10-23 05:33:38.130 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 355: 17 new bits.
+2025-10-23 05:35:16.038 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 355 done 
+2025-10-23 05:35:16.041 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.tokenize.word_tokenize: 108611 bits.
+2025-10-23 05:35:16.056 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.tag import TnT
+from nltk.corpus import brown
+
+def demo():
+    sents = list(brown.tagged_sents())
+    test = list(brown.sents())
+
+    tagger = TnT()
+    tagger.train(sents[200:1000])
+
+    tagged_data = tagger.tagdata(test[100:120])
+
+    for j in range(len(tagged_data)):
+        s = tagged_data[j]
+        t = sents[j + 100]
+        for i in range(len(s)):
+            print(s[i], "--", t[i])
+        print()
+
+demo()
+
+2025-10-23 05:35:16.060 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 450.
+2025-10-23 05:36:07.395 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 450 in 51.33 seconds.
+2025-10-23 05:37:32.894 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 450 done 
+2025-10-23 05:37:32.897 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.tag.tnt.demo: 108611 bits.
+2025-10-23 05:37:32.909 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.sem.logic
+s = "P(a) & Q(b)"
+logic_parser = nltk.sem.logic.LogicParser()
+encoding = None
+res = nltk.sem.logic.read_logic(s, logic_parser, encoding)
+
+2025-10-23 05:37:32.913 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 239.
+2025-10-23 05:38:14.563 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 239 in 41.65 seconds.
+2025-10-23 05:38:18.534 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 239: 1 new bits.
+2025-10-23 05:38:19.453 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 239: 5 new bits.
+2025-10-23 05:39:29.248 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 239 done 
+2025-10-23 05:39:29.252 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.logic.read_logic: 108617 bits.
+2025-10-23 05:39:29.263 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.sem.drt
+
+# 调用 demo 函数
+nltk.sem.drt.demo()
+
+2025-10-23 05:39:29.266 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 263.
+2025-10-23 05:39:39.728 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 263 in 10.46 seconds.
+2025-10-23 05:41:17.694 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 263 done 
+2025-10-23 05:41:17.698 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.drt.demo: 108617 bits.
+2025-10-23 05:41:17.711 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+resource_name = "corpora/abc"
+paths = None
+res = nltk.data.find(resource_name, paths)
+
+2025-10-23 05:41:17.715 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 519.
+2025-10-23 05:42:13.815 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 519 in 56.10 seconds.
+2025-10-23 05:42:22.102 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 519: 8 new bits.
+2025-10-23 05:43:40.893 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 519 done 
+2025-10-23 05:43:40.896 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.chunk.named_entity.find: 108625 bits.
+2025-10-23 05:43:40.909 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+source = 'ru-rnc'
+target = 'universal'
+res = nltk.tag.tagset_mapping(source, target)
+
+2025-10-23 05:43:40.913 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 462.
+2025-10-23 05:44:04.491 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 462 in 23.58 seconds.
+2025-10-23 05:45:52.148 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 462 done 
+2025-10-23 05:45:52.151 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.tag.tagset_mapping: 108625 bits.
+2025-10-23 05:45:52.165 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from collections import defaultdict
+
+reldict = {
+    "subjclass": "Person",
+    "subjtext": "Alice",
+    "filler": "knows",
+    "objclass": "Person",
+    "objtext": "Bob",
+    "left_context": "",
+    "right_context": ""
+}
+lcon = ""
+rcon = ""
+
+result = nltk.sem.relextract.rtuple(reldict, lcon, rcon)
+
+2025-10-23 05:45:52.170 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 294.
+2025-10-23 05:46:29.655 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 294 in 37.48 seconds.
+2025-10-23 05:48:09.703 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 294 done 
+2025-10-23 05:48:09.707 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.relextract.rtuple: 108625 bits.
+2025-10-23 05:48:09.720 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.ccg.chart
+left = type('Category', (), {'dir': lambda self: type('Dir', (), {'is_backward': lambda self: True})()})()
+right = type('Category', (), {'dir': lambda self: type('Dir', (), {'is_backward': lambda self: True})()})()
+res = nltk.ccg.chart.bothBackward(left, right)
+
+2025-10-23 05:48:09.724 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 736.
+2025-10-23 05:48:27.575 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 736 in 17.85 seconds.
+2025-10-23 05:50:10.827 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 736 done 
+2025-10-23 05:50:10.829 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.ccg.chart.bothBackward: 108625 bits.
+2025-10-23 05:50:10.840 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.sem.logic
+expr = "x123"
+res = nltk.sem.logic.is_indvar(expr)
+
+2025-10-23 05:50:10.843 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 243.
+2025-10-23 05:50:31.768 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 243 in 20.92 seconds.
+2025-10-23 05:52:17.031 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 243 done 
+2025-10-23 05:52:17.033 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.logic.is_indvar: 108625 bits.
+2025-10-23 05:52:17.047 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.parse.dependencygraph
+
+nltk.parse.dependencygraph.demo()
+
+2025-10-23 05:52:17.051 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 477.
+2025-10-23 05:52:46.869 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 477 in 29.82 seconds.
+2025-10-23 05:53:03.068 | WARNING  | __main__:fuzz_single_seed:106 - Mutated call execution timeout after 5.0 seconds, restarting worker process.
+2025-10-23 05:53:03.079 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 477: 22 new bits.
+2025-10-23 05:54:36.114 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 477 done 
+2025-10-23 05:54:36.116 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.parse.dependencygraph.demo: 108647 bits.
+2025-10-23 05:54:36.126 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.sem.evaluate
+s = set()
+res = nltk.sem.evaluate.is_rel(s)
+
+2025-10-23 05:54:36.130 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 260.
+2025-10-23 05:55:10.623 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 260 in 34.49 seconds.
+2025-10-23 05:55:12.680 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 260: 2 new bits.
+2025-10-23 05:56:34.357 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 260 done 
+2025-10-23 05:56:34.358 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.evaluate.is_rel: 108649 bits.
+2025-10-23 05:56:34.367 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.parse.featurechart import Nonterminal
+
+item = "example_terminal"
+res = nltk.parse.featurechart.is_terminal(item)
+
+2025-10-23 05:56:34.372 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 487.
+2025-10-23 05:57:18.485 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 487 in 44.11 seconds.
+2025-10-23 05:58:24.645 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 487: 1 new bits.
+2025-10-23 05:58:47.021 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 487 done 
+2025-10-23 05:58:47.023 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.parse.featurechart.is_terminal: 108650 bits.
+2025-10-23 05:58:47.034 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.translate.bleu_score import modified_precision, Counter, ngrams
+references = [['the', 'cat', 'is', 'on', 'the', 'mat'], ['there', 'is', 'a', 'cat', 'on', 'the', 'mat']]
+hypothesis = ['the', 'the', 'the', 'the', 'the', 'the', 'the']
+n = 1
+result = modified_precision(references, hypothesis, n)
+
+2025-10-23 05:58:47.038 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 628.
+2025-10-23 06:00:02.014 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 628 in 74.98 seconds.
+2025-10-23 06:00:34.247 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 628: 6 new bits.
+2025-10-23 06:01:38.420 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 628 done 
+2025-10-23 06:01:38.427 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.translate.bleu_score.modified_precision: 108737 bits.
+2025-10-23 06:01:38.439 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.grammar import FeatureGrammar
+from nltk.parse import FeatureChartParser
+
+inputs = ["The cat sat on the mat", "The dog ran quickly"]
+grammar = FeatureGrammar.fromstring("""
+    S -> NP VP
+    VP -> V Adv | V NP | V PP | V
+    NP -> Det N | N | NP PP
+    PP -> P NP
+    Adv -> 'quickly'
+    Det -> 'the' | 'a' | 'The'
+    N -> 'cat' | 'dog' | 'mat' | 'man'
+    V -> 'sat' | 'ran' | 'jumped'
+    P -> 'on'
+""")
+
+res = nltk.sem.util.parse_sents(inputs, grammar, trace=0)
+
+2025-10-23 06:01:38.445 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 298.
+2025-10-23 06:03:17.349 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 298 in 98.90 seconds.
+2025-10-23 06:04:42.748 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 298 done 
+2025-10-23 06:04:42.752 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.util.parse_sents: 108737 bits.
+2025-10-23 06:04:42.765 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.sem.logic
+expr = "e123"
+res = nltk.sem.logic.is_eventvar(expr)
+
+2025-10-23 06:04:42.772 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 245.
+2025-10-23 06:05:13.194 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 245 in 30.42 seconds.
+2025-10-23 06:06:42.978 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 245 done 
+2025-10-23 06:06:42.981 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.sem.logic.is_eventvar: 108737 bits.
+2025-10-23 06:06:42.990 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.translate.ribes_score
+
+worder = [7, 8, 9, 10, 6, 0, 1, 2, 3, 4, 5]
+result = list(nltk.translate.ribes_score.find_increasing_sequences(worder))
+
+2025-10-23 06:06:42.994 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 641.
+2025-10-23 06:06:53.644 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 641 in 10.65 seconds.
+2025-10-23 06:08:34.554 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 641 done 
+2025-10-23 06:08:34.558 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.translate.ribes_score.find_increasing_sequences: 108737 bits.
+2025-10-23 06:08:34.572 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
+references = [
+    ['It', 'is', 'a', 'guide', 'to', 'action', 'that', 'ensures', 'that', 'the', 'military', 'will', 'forever', 'heed', 'Party', 'commands'],
+    ['It', 'is', 'the', 'guiding', 'principle', 'which', 'guarantees', 'the', 'military', 'forces', 'always', 'being', 'under', 'the', 'command', 'of', 'the', 'Party'],
+    ['It', 'is', 'the', 'practical', 'guide', 'for', 'the', 'army', 'always', 'to', 'heed', 'the', 'directions', 'of', 'the', 'party']
+]
+
+hypothesis = ['It', 'is', 'a', 'guide', 'to', 'action', 'which', 'ensures', 'that', 'the', 'military', 'always', 'obeys', 'the', 'commands', 'of', 'the', 'party']
+
+weights = (0.25, 0.25, 0.25, 0.25)
+smoothing_function = SmoothingFunction().method1
+
+result = sentence_bleu(references, hypothesis, weights=weights, smoothing_function=smoothing_function, auto_reweigh=False)
+
+2025-10-23 06:08:34.575 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 631.
+2025-10-23 06:09:46.628 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 631 in 72.05 seconds.
+2025-10-23 06:11:28.970 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 631 done 
+2025-10-23 06:11:28.973 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.translate.sentence_bleu: 108737 bits.
+2025-10-23 06:11:28.985 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.ccg.lexicon
+string = "(example (nested) content)"
+result = nltk.ccg.lexicon.matchBrackets(string)
+
+2025-10-23 06:11:28.989 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 713.
+2025-10-23 06:12:22.652 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 713 in 53.66 seconds.
+2025-10-23 06:13:42.817 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 713: 30 new bits.
+2025-10-23 06:14:03.564 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 713 done 
+2025-10-23 06:14:03.565 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.ccg.lexicon.matchBrackets: 108767 bits.
+2025-10-23 06:14:03.575 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk.ccg.logic
+from nltk.ccg.logic import Variable, VariableExpression
+
+_counter = {'count': 0}
+
+def _counter_get():
+    _counter['count'] += 1
+    return _counter['count']
+
+univ_scope = None
+res = nltk.ccg.logic.skolem_function(univ_scope)
+
+2025-10-23 06:14:03.579 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 721.
+2025-10-23 06:14:51.483 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 721 in 47.90 seconds.
+2025-10-23 06:16:16.403 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 721 done 
+2025-10-23 06:16:16.406 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.ccg.logic.skolem_function: 108767 bits.
+2025-10-23 06:16:16.421 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+node = 'root'
+dic = {'root': ['child1', 'child2'], 'child1': ['grandchild1'], 'child2': [], 'grandchild1': []}
+res = nltk.acyclic_dic2tree(node, dic)
+
+2025-10-23 06:16:16.425 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 369.
+2025-10-23 06:16:44.531 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 369 in 28.11 seconds.
+2025-10-23 06:18:14.052 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 369 done 
+2025-10-23 06:18:14.056 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.acyclic_dic2tree: 108767 bits.
+2025-10-23 06:18:14.068 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+graph = {'A': {'B', 'C'}, 'B': {'D'}, 'C': {'D'}, 'D': set()}
+inverted_graph = nltk.invert_graph(graph)
+
+2025-10-23 06:18:14.072 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 375.
+2025-10-23 06:18:53.766 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 375 in 39.69 seconds.
+2025-10-23 06:20:31.180 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 375 done 
+2025-10-23 06:20:31.182 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.invert_graph: 108767 bits.
+2025-10-23 06:20:31.196 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import nltk
+reference = set([1, 2, 3, 4, 5])
+test = set([2, 3, 4])
+res = nltk.recall(reference, test)
+
+2025-10-23 06:20:31.199 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 596.
+2025-10-23 06:20:39.080 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 596 in 7.88 seconds.
+2025-10-23 06:22:25.492 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 596 done 
+2025-10-23 06:22:25.493 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing nltk.recall: 108767 bits.
+2025-10-23 06:22:25.501 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.multiprocessing
+from collections.abc import Mapping
+
+d = {"key": "value"}
+res = dask.multiprocessing.ensure_dict(d, copy=False)
+
+2025-10-23 06:22:25.506 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 945.
+2025-10-23 06:23:04.748 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 945 in 39.24 seconds.
+2025-10-23 06:23:15.764 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 945 done 
+2025-10-23 06:23:15.767 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.multiprocessing.ensure_dict: 108767 bits.
+2025-10-23 06:23:15.780 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.utils
+seq = (1, 2, 3, 4, 5)
+res = dask.utils.cached_max(seq)
+
+2025-10-23 06:23:15.784 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 841.
+2025-10-23 06:23:36.134 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 841 in 20.35 seconds.
+2025-10-23 06:23:47.431 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 841 done 
+2025-10-23 06:23:47.433 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.utils.cached_max: 108767 bits.
+2025-10-23 06:23:47.444 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask
+from dask.optimization import get_dependencies
+
+dsk = {'x': 1, 'y': (lambda x: x + 1, 'x'), 'z': (lambda x, y: x + y, 'x', 'y'), 'w': (lambda x: x + 1, 'z'), 'a': (lambda x, y: x + y, (lambda x: x + 1, 'x'), 1)}
+res = get_dependencies(dsk, key='z')
+
+2025-10-23 06:23:47.448 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 927.
+2025-10-23 06:24:35.549 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 927 in 48.10 seconds.
+2025-10-23 06:24:46.407 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 927 done 
+2025-10-23 06:24:46.408 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.optimization.get_dependencies: 108767 bits.
+2025-10-23 06:24:46.413 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.base
+key = ("example_name", 1, 2)
+res = dask.base.get_name_from_key(key)
+
+2025-10-23 06:24:46.416 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 960.
+2025-10-23 06:25:09.411 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 960 in 22.99 seconds.
+2025-10-23 06:25:29.861 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 960 done 
+2025-10-23 06:25:29.864 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.base.get_name_from_key: 108767 bits.
+2025-10-23 06:25:29.879 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.order
+x = (lambda x: x + 1, 1)
+res = dask.order.istask(x)
+
+2025-10-23 06:25:29.882 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 898.
+2025-10-23 06:25:42.907 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 898 in 13.02 seconds.
+2025-10-23 06:25:47.519 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 898: 76 new bits.
+2025-10-23 06:25:53.764 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 898 done 
+2025-10-23 06:25:53.766 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.order.istask: 108843 bits.
+2025-10-23 06:25:53.779 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.utils
+n = 1234
+k = 1
+base = 10
+res = dask.utils.digit(n, k, base)
+
+2025-10-23 06:25:53.783 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 817.
+2025-10-23 06:26:05.223 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 817 in 11.44 seconds.
+2025-10-23 06:26:16.033 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 817 done 
+2025-10-23 06:26:16.036 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.utils.digit: 108843 bits.
+2025-10-23 06:26:16.047 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.optimization
+seq = [[1, 2], [3, 4]]
+container = list
+res = list(dask.optimization.flatten(seq, container=container))
+
+2025-10-23 06:26:16.051 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 926.
+2025-10-23 06:26:27.658 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 926 in 11.61 seconds.
+2025-10-23 06:26:38.512 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 926 done 
+2025-10-23 06:26:38.515 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.optimization.flatten: 108843 bits.
+2025-10-23 06:26:38.529 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask.optimization
+x = 42
+res = dask.optimization.ishashable(x)
+
+2025-10-23 06:26:38.532 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 928.
+2025-10-23 06:27:06.876 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 928 in 28.34 seconds.
+2025-10-23 06:27:07.911 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 928: 2 new bits.
+2025-10-23 06:27:17.536 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 928 done 
+2025-10-23 06:27:17.538 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.optimization.ishashable: 108845 bits.
+2025-10-23 06:27:17.550 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import dask
+from collections import defaultdict
+
+dsk = {'x': 1, 'y': 2, 'z': (lambda x: x + 1, 'x'), 'w': (lambda x, y: x + y, 'z', 'y')}
+cache = None
+sortkey = None
+keys = None
+
+res = dask.local.start_state_from_dask(dsk, cache, sortkey, keys)
+
+2025-10-23 06:27:17.553 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 910.
+2025-10-23 06:27:43.900 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 910 in 26.35 seconds.
+2025-10-23 06:27:54.724 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 910 done 
+2025-10-23 06:27:54.725 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing dask.local.start_state_from_dask: 108845 bits.
+2025-10-23 06:27:54.731 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import yaml
+stream = "example: value"
+Loader = yaml.Loader
+res = yaml.parse(stream, Loader)
+
+2025-10-23 06:27:54.734 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 987.
+2025-10-23 06:29:25.100 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 987 in 90.37 seconds.
+2025-10-23 06:29:25.455 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 987: 784 new bits.
+2025-10-23 06:29:27.841 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 987: 919 new bits.
+2025-10-23 06:29:33.140 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 987: 4 new bits.
+2025-10-23 06:29:35.043 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 987: 3 new bits.
+2025-10-23 06:29:35.887 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 987 done 
+2025-10-23 06:29:35.889 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing yaml.parse: 110555 bits.
+2025-10-23 06:29:35.895 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import yaml
+
+tag = "tag:yaml.org,2002:custom"
+def custom_constructor(loader, node):
+    # Example constructor that returns a simple string
+    return "Custom object created from YAML node"
+
+yaml.add_constructor(tag, custom_constructor)
+
+2025-10-23 06:29:35.897 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1007.
+2025-10-23 06:30:11.692 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1007 in 35.79 seconds.
+2025-10-23 06:30:11.831 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1007: 3 new bits.
+2025-10-23 06:30:22.487 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1007 done 
+2025-10-23 06:30:22.490 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing yaml.add_constructor: 110558 bits.
+2025-10-23 06:30:22.501 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import pandas as pd
+from prophet.diagnostics import mape
+
+# Create sample data for demonstration
+df = pd.DataFrame({
+    'horizon': [1, 2, 3, 1, 2, 3],
+    'y': [10, 20, 30, 12, 18, 32],
+    'yhat': [9, 22, 28, 11, 19, 31]
+})
+
+w = 1
+result = mape(df, w)
+
+2025-10-23 06:30:22.505 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1019.
+2025-10-23 06:30:52.204 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1019 in 29.70 seconds.
+2025-10-23 06:32:05.607 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1019 done 
+2025-10-23 06:32:05.609 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing prophet.diagnostics.mape: 110558 bits.
+2025-10-23 06:32:05.615 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+import numpy as np
+from prophet.diagnostics import smape
+
+# Create sample data for demonstration
+df = pd.DataFrame({
+    'y': [10, 20, 30, 40, 50],
+    'yhat': [12, 18, 32, 38, 52],
+    'horizon': [1, 2, 3, 4, 5]
+})
+
+# Define window size
+w = 2
+
+# Call the smape function
+result = smape(df, w)
+
+2025-10-23 06:32:05.618 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1021.
+2025-10-23 06:33:05.761 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1021 in 60.14 seconds.
+2025-10-23 06:34:07.067 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1021 done 
+2025-10-23 06:34:07.069 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing prophet.diagnostics.smape: 110558 bits.
+2025-10-23 06:34:07.083 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import numpy.ma as ma
+obj = np.int8()
+res = ma.minimum_fill_value(obj)
+
+2025-10-23 06:34:07.087 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1258.
+2025-10-23 06:34:54.715 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1258 in 47.63 seconds.
+2025-10-23 06:34:56.286 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1258: 4993 new bits.
+2025-10-23 06:34:58.815 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1258: 1 new bits.
+2025-10-23 06:35:02.599 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1258: 19 new bits.
+2025-10-23 06:35:05.089 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1258: 4 new bits.
+2025-10-23 06:35:06.246 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1258 done 
+2025-10-23 06:35:06.247 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.minimum_fill_value: 115575 bits.
+2025-10-23 06:35:06.253 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+
+iterable = [1, 2, 3, 4, 5]
+dtype = int
+count = 5
+result = np._core.numeric.fromiter(iterable, dtype, count)
+
+2025-10-23 06:35:06.256 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1623.
+2025-10-23 06:35:17.318 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1623 in 11.06 seconds.
+2025-10-23 06:35:18.168 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1623: 114 new bits.
+2025-10-23 06:35:28.001 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1623 done 
+2025-10-23 06:35:28.002 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy._core.numeric.fromiter: 115689 bits.
+2025-10-23 06:35:28.007 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+c = [1.0, 2.0, 3.0, 4.0]
+m = 2
+scl = 1.0
+axis = 0
+res = np.polynomial.hermite.hermder(c, m, scl, axis)
+
+2025-10-23 06:35:28.010 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1413.
+2025-10-23 06:35:40.606 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1413 in 12.60 seconds.
+2025-10-23 06:35:40.803 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1413: 502 new bits.
+2025-10-23 06:35:51.282 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1413 done 
+2025-10-23 06:35:51.286 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.polynomial.hermite.hermder: 116191 bits.
+2025-10-23 06:35:51.295 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+a = np.array(["NumPy is a Python library"])
+sub = "Python"
+start = 0
+end = None
+res = np.char.find(a, sub, start, end)
+
+2025-10-23 06:35:51.298 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1499.
+2025-10-23 06:36:15.837 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1499 in 24.54 seconds.
+2025-10-23 06:36:16.345 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1499: 210 new bits.
+2025-10-23 06:36:26.410 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1499 done 
+2025-10-23 06:36:26.412 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.char.find: 116401 bits.
+2025-10-23 06:36:26.424 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy.testing
+import concurrent.futures
+import threading
+
+def test_function(i, *args):
+    # Example function that takes thread index i and variable additional arguments
+    pass
+
+max_workers = 8
+pass_count = False
+pass_barrier = False
+outer_iterations = 1
+prepare_args = lambda: (10, 20)  # Returns a tuple of extra arguments to pass to test_function
+
+numpy.testing.run_threaded(test_function, max_workers=max_workers, pass_count=pass_count, pass_barrier=pass_barrier, outer_iterations=outer_iterations, prepare_args=prepare_args)
+
+2025-10-23 06:36:26.427 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1123.
+2025-10-23 06:37:01.067 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1123 in 34.64 seconds.
+2025-10-23 06:37:01.280 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1123: 178 new bits.
+2025-10-23 06:37:06.416 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1123: 1 new bits.
+2025-10-23 06:37:13.173 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1123 done 
+2025-10-23 06:37:13.177 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.testing.run_threaded: 116580 bits.
+2025-10-23 06:37:13.191 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+
+# Define a sample function to test, using np.add as an example
+test_func = np.add
+
+# Call the allows_array_function_override function
+result = np.testing.overrides.allows_array_function_override(test_func)
+
+2025-10-23 06:37:13.195 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1075.
+2025-10-23 06:37:26.663 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1075 in 13.47 seconds.
+2025-10-23 06:37:27.069 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1075: 1 new bits.
+2025-10-23 06:37:37.219 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1075 done 
+2025-10-23 06:37:37.220 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.testing.overrides.allows_array_function_override: 116581 bits.
+2025-10-23 06:37:37.232 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import numpy.ma as ma
+
+# Create a masked array
+a = ma.masked_equal([[1, 2], [3, 4]], 2)
+
+# Call getdata function
+res = ma.getdata(a, subok=True)
+
+2025-10-23 06:37:37.235 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1121.
+2025-10-23 06:38:48.447 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1121 in 71.21 seconds.
+2025-10-23 06:38:48.750 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 24 new bits.
+2025-10-23 06:38:48.960 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 27 new bits.
+2025-10-23 06:38:50.528 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 35 new bits.
+2025-10-23 06:38:51.370 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 10 new bits.
+2025-10-23 06:38:52.219 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 7 new bits.
+2025-10-23 06:38:52.437 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 1 new bits.
+2025-10-23 06:38:58.245 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 77 new bits.
+2025-10-23 06:38:58.354 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1121: 23 new bits.
+2025-10-23 06:38:59.291 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1121 done 
+2025-10-23 06:38:59.292 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.core.getdata: 116785 bits.
+2025-10-23 06:38:59.300 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+
+arrayList = [np.array([1, 2, 3]), np.array(['a', 'b', 'c']), np.array([1.1, 2.2, 3.3])]
+names = 'a,b,c'
+res = np.rec.fromarrays(arrayList, names=names)
+
+2025-10-23 06:38:59.305 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1097.
+2025-10-23 06:39:32.640 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1097 in 33.33 seconds.
+2025-10-23 06:39:43.084 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1097 done 
+2025-10-23 06:39:43.086 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.rec.fromarrays: 116785 bits.
+2025-10-23 06:39:43.094 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import numpy.ma as ma
+x = np.arange(4)
+value = 2
+res = ma.masked_greater(x, value)
+
+2025-10-23 06:39:43.097 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1244.
+2025-10-23 06:40:32.559 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1244 in 49.46 seconds.
+2025-10-23 06:40:43.210 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1244 done 
+2025-10-23 06:40:43.212 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.masked_greater: 116785 bits.
+2025-10-23 06:40:43.218 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from numpy.polynomial.laguerre import lagmulx
+
+c = [1, 2, 3]
+res = lagmulx(c)
+
+2025-10-23 06:40:43.221 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1458.
+2025-10-23 06:40:59.302 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1458 in 16.08 seconds.
+2025-10-23 06:40:59.718 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1458: 30 new bits.
+2025-10-23 06:41:10.304 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1458 done 
+2025-10-23 06:41:10.306 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.polynomial.laguerre.lagmulx: 116815 bits.
+2025-10-23 06:41:10.312 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from numpy.testing.overrides import get_overridable_numpy_ufuncs
+res = get_overridable_numpy_ufuncs()
+
+2025-10-23 06:41:10.315 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1072.
+2025-10-23 06:41:55.348 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1072 in 45.03 seconds.
+2025-10-23 06:41:56.483 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1072: 3 new bits.
+2025-10-23 06:42:05.896 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1072 done 
+2025-10-23 06:42:05.899 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.testing.overrides.get_overridable_numpy_ufuncs: 116818 bits.
+2025-10-23 06:42:05.907 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from numpy.polynomial import polynomial as P
+
+x = np.array([-1, 2])
+y = np.array([1, 3])
+deg = [1, 2]
+
+res = P.polyvander2d(x=x, y=y, deg=deg)
+
+2025-10-23 06:42:05.910 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1348.
+2025-10-23 06:42:15.791 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1348 in 9.88 seconds.
+2025-10-23 06:42:16.101 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1348: 22 new bits.
+2025-10-23 06:42:27.092 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1348 done 
+2025-10-23 06:42:27.093 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.polynomial.polynomial.polyvander2d: 116840 bits.
+2025-10-23 06:42:27.098 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+
+# Create two masked arrays with the same fill value
+a = np.ma.array([1, 2, 3], fill_value=999)
+b = np.ma.array([4, 5, 6], fill_value=999)
+
+# Call the common_fill_value function
+res = np.ma.core.common_fill_value(a, b)
+
+2025-10-23 06:42:27.101 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1109.
+2025-10-23 06:43:26.023 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1109 in 58.92 seconds.
+2025-10-23 06:43:28.750 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1109: 24 new bits.
+2025-10-23 06:43:36.812 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1109 done 
+2025-10-23 06:43:36.815 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.core.common_fill_value: 116864 bits.
+2025-10-23 06:43:36.826 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+a = np.array([1.0, -1.0, np.nan, np.inf, 2.0])
+mask = [False, False, True, False, False]
+res = np.ma.fix_invalid(a, mask=mask, copy=True, fill_value=0.0)
+
+2025-10-23 06:43:36.830 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1223.
+2025-10-23 06:44:18.380 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1223 in 41.55 seconds.
+2025-10-23 06:44:18.589 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1223: 8 new bits.
+2025-10-23 06:44:28.966 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1223 done 
+2025-10-23 06:44:28.968 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.fix_invalid: 116872 bits.
+2025-10-23 06:44:28.975 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+dtype = np.dtype(np.int64)
+object_val = b'\x2a\x00\x00\x00\x00\x00\x00\x00'
+res = np._core.multiarray.scalar(dtype, object_val)
+
+2025-10-23 06:44:28.978 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1574.
+2025-10-23 06:45:07.171 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1574 in 38.19 seconds.
+2025-10-23 06:45:17.889 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1574 done 
+2025-10-23 06:45:17.890 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy._core.multiarray.scalar: 116872 bits.
+2025-10-23 06:45:17.896 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import numpy.ma as ma
+
+# 创建一个示例masked array
+data = np.array([[1, 2], [3, 4]])
+mask = np.array([[False, True], [False, False]])
+ma_array = ma.masked_array(data, mask=mask)
+
+# 调用 numpy.ma.core.size 函数
+res = np.ma.core.size(ma_array, axis=None)
+
+2025-10-23 06:45:17.898 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1168.
+2025-10-23 06:46:06.515 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1168 in 48.62 seconds.
+2025-10-23 06:46:06.826 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1168: 5 new bits.
+2025-10-23 06:46:17.204 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1168 done 
+2025-10-23 06:46:17.205 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.core.size: 116877 bits.
+2025-10-23 06:46:17.214 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+data = [1, 2, 3, 4, 5]
+mask = [False, True, False, True, False]
+res = np.ma.array(data, mask=mask)
+
+2025-10-23 06:46:17.217 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1210.
+2025-10-23 06:46:25.937 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1210 in 8.72 seconds.
+2025-10-23 06:46:36.784 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1210 done 
+2025-10-23 06:46:36.786 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.array: 116877 bits.
+2025-10-23 06:46:36.795 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from numpy.polynomial.laguerre import lagsub
+
+c1 = [1, 2, 3, 4]
+c2 = [1, 2, 3]
+res = lagsub(c1, c2)
+
+2025-10-23 06:46:36.798 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1457.
+2025-10-23 06:47:07.252 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1457 in 30.45 seconds.
+2025-10-23 06:47:07.453 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1457: 5 new bits.
+2025-10-23 06:47:08.302 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1457: 4 new bits.
+2025-10-23 06:47:11.158 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1457: 3 new bits.
+2025-10-23 06:47:17.976 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1457 done 
+2025-10-23 06:47:17.978 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.polynomial.laguerre.lagsub: 116889 bits.
+2025-10-23 06:47:17.992 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+import numpy.ma as ma
+
+x = [0.31, 1.2, 0.01, 0.2, -0.4, -1.1]
+v1 = -0.3
+v2 = 0.3
+copy = True
+
+res = ma.masked_outside(x, v1, v2, copy)
+
+2025-10-23 06:47:17.996 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1252.
+2025-10-23 06:47:48.306 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1252 in 30.31 seconds.
+2025-10-23 06:47:48.515 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1252: 4 new bits.
+2025-10-23 06:47:59.056 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1252 done 
+2025-10-23 06:47:59.059 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.masked_outside: 116893 bits.
+2025-10-23 06:47:59.071 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+a = [1, 2, 3, 4, 5]
+res = np.ma.asanyarray(a, dtype=np.float64)
+
+2025-10-23 06:47:59.076 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1211.
+2025-10-23 06:48:48.363 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1211 in 49.29 seconds.
+2025-10-23 06:48:49.197 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1211: 2 new bits.
+2025-10-23 06:48:50.146 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1211: 1 new bits.
+2025-10-23 06:48:56.353 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1211: 1 new bits.
+2025-10-23 06:48:59.166 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1211 done 
+2025-10-23 06:48:59.167 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.ma.asanyarray: 116897 bits.
+2025-10-23 06:48:59.173 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from numpy.polynomial.laguerre import lagvander
+
+x = [0, 1, 2]
+deg = 3
+res = lagvander(x, deg)
+
+2025-10-23 06:48:59.176 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1468.
+2025-10-23 06:49:27.111 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1468 in 27.93 seconds.
+2025-10-23 06:49:27.417 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1468: 11 new bits.
+2025-10-23 06:49:37.771 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1468 done 
+2025-10-23 06:49:37.773 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.polynomial.laguerre.lagvander: 116908 bits.
+2025-10-23 06:49:37.781 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+actual = "hello world"
+desired = "hello world"
+np.testing.assert_string_equal(actual, desired)
+
+2025-10-23 06:49:37.785 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1044.
+2025-10-23 06:50:24.929 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1044 in 47.14 seconds.
+2025-10-23 06:50:25.449 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1044: 6 new bits.
+2025-10-23 06:50:25.869 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1044: 13 new bits.
+2025-10-23 06:50:28.062 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1044: 19 new bits.
+2025-10-23 06:50:28.904 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1044: 39 new bits.
+2025-10-23 06:50:31.316 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1044: 18 new bits.
+2025-10-23 06:50:35.932 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1044 done 
+2025-10-23 06:50:35.934 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.testing.assert_string_equal: 117003 bits.
+2025-10-23 06:50:35.939 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+shape = (3, 3)
+dtype = np.float64
+order = 'C'
+res = np._core.multiarray.zeros(shape, dtype, order)
+
+2025-10-23 06:50:35.942 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1560.
+2025-10-23 06:50:44.399 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1560 in 8.46 seconds.
+2025-10-23 06:50:54.824 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1560 done 
+2025-10-23 06:50:54.827 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy._core.multiarray.zeros: 117003 bits.
+2025-10-23 06:50:54.839 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+x = np.int32
+y = np.float64
+res = np._core._internal.promote_types(x, y)
+
+2025-10-23 06:50:54.843 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1532.
+2025-10-23 06:51:21.992 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1532 in 27.15 seconds.
+2025-10-23 06:51:32.560 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1532 done 
+2025-10-23 06:51:32.563 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy._core._internal.promote_types: 117003 bits.
+2025-10-23 06:51:32.572 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+obj = [1, 2, 3]
+dtype = 'int64'
+res = np.array(obj, dtype=dtype)
+
+2025-10-23 06:51:32.575 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1549.
+2025-10-23 06:51:43.700 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1549 in 11.12 seconds.
+2025-10-23 06:51:54.454 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1549 done 
+2025-10-23 06:51:54.456 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy._core.multiarray.array: 117003 bits.
+2025-10-23 06:51:54.466 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+datastring = b'\\x01\\x02\\x03abc'
+dtype = 'u1,u1,u1,S3'
+res = np.rec.fromstring(datastring, dtype=dtype)
+
+2025-10-23 06:51:54.469 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1099.
+2025-10-23 06:52:24.187 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1099 in 29.72 seconds.
+2025-10-23 06:52:24.387 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1099: 24 new bits.
+2025-10-23 06:52:24.493 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1099: 19 new bits.
+2025-10-23 06:52:26.949 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1099: 26 new bits.
+2025-10-23 06:52:35.272 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1099 done 
+2025-10-23 06:52:35.273 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.rec.fromstring: 117072 bits.
+2025-10-23 06:52:35.288 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy.f2py
+include_path = numpy.f2py.get_include()
+
+2025-10-23 06:52:35.291 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1482.
+2025-10-23 06:53:06.902 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1482 in 31.61 seconds.
+2025-10-23 06:53:07.257 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1482: 1659 new bits.
+2025-10-23 06:53:22.567 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1482 done 
+2025-10-23 06:53:22.568 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing numpy.f2py.get_include: 118731 bits.
+2025-10-23 06:53:22.573 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+from pandas.io.common import IOHandles
+
+# Define the parameters for get_handle
+path_or_buf = "example.xml"
+mode = "r"
+encoding = "utf-8"
+compression = None
+memory_map = False
+is_text = True
+errors = "strict"
+storage_options = None
+
+# Call the function
+result = pd.io.xml.get_handle(
+    path_or_buf=path_or_buf,
+    mode=mode,
+    encoding=encoding,
+    compression=compression,
+    memory_map=memory_map,
+    is_text=is_text,
+    errors=errors,
+    storage_options=storage_options
+)
+
+2025-10-23 06:53:22.576 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1905.
+2025-10-23 06:53:45.199 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1905 in 22.62 seconds.
+2025-10-23 06:54:21.245 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1905 done 
+2025-10-23 06:54:21.248 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.xml.get_handle: 118731 bits.
+2025-10-23 06:54:21.258 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+import io
+
+# 创建一个文件类对象用于测试
+file_like_obj = io.StringIO("test data")
+
+# 调用 is_file_like 函数进行检查
+result = pd.io.html.is_file_like(file_like_obj)
+
+2025-10-23 06:54:21.262 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1828.
+2025-10-23 06:55:04.053 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1828 in 42.79 seconds.
+2025-10-23 06:55:04.847 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1828: 22962 new bits.
+2025-10-23 06:55:07.635 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1828: 1 new bits.
+2025-10-23 06:55:44.173 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1828 done 
+2025-10-23 06:55:44.176 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.html.is_file_like: 141694 bits.
+2025-10-23 06:55:44.187 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+
+url = "s3://bucket/key"
+result = pd.io.xml.is_fsspec_url(url)
+
+2025-10-23 06:55:44.197 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1908.
+2025-10-23 06:56:05.473 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1908 in 21.28 seconds.
+2025-10-23 06:56:06.462 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1908: 3 new bits.
+2025-10-23 06:56:47.307 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1908 done 
+2025-10-23 06:56:47.310 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.xml.is_fsspec_url: 141697 bits.
+2025-10-23 06:56:47.321 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+
+url = "https://www.example.com"
+result = pd.io.html.is_url(url)
+
+2025-10-23 06:56:47.325 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1830.
+2025-10-23 06:57:48.640 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1830 in 61.31 seconds.
+2025-10-23 06:57:49.541 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1830: 1 new bits.
+2025-10-23 06:58:28.091 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1830 done 
+2025-10-23 06:58:28.092 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.html.is_url: 141698 bits.
+2025-10-23 06:58:28.100 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+import numpy as np
+
+labels = ['a', 'b', 'c']
+dtype = None
+res = pd.core.common.index_labels_to_array(labels, dtype)
+
+2025-10-23 06:58:28.103 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1751.
+2025-10-23 06:58:42.811 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1751 in 14.71 seconds.
+2025-10-23 06:58:43.614 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1751: 15 new bits.
+2025-10-23 06:59:14.892 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1751 done 
+2025-10-23 06:59:14.895 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.core.common.index_labels_to_array: 141713 bits.
+2025-10-23 06:59:14.905 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+
+levels = [['A', 'A', 'B', 'B', 'B'], ['X', 'Y', 'X', 'Y', 'Z']]
+sentinel = ''
+result = pd.io.formats.format.get_level_lengths(levels, sentinel)
+
+2025-10-23 06:59:14.909 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1782.
+2025-10-23 06:59:36.300 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1782 in 21.39 seconds.
+2025-10-23 06:59:37.028 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1782: 14 new bits.
+2025-10-23 07:00:07.737 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1782 done 
+2025-10-23 07:00:07.739 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.formats.format.get_level_lengths: 141727 bits.
+2025-10-23 07:00:07.752 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+import os
+
+filepath_or_buffer = "example.csv"
+res = pd.io.pytables.stringify_path(filepath_or_buffer, convert_file_like=False)
+
+2025-10-23 07:00:07.755 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1879.
+2025-10-23 07:00:39.586 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1879 in 31.83 seconds.
+2025-10-23 07:00:40.413 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1879: 3 new bits.
+2025-10-23 07:01:04.518 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1879: 1 new bits.
+2025-10-23 07:01:11.225 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1879: 1 new bits.
+2025-10-23 07:01:15.348 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1879 done 
+2025-10-23 07:01:15.351 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.pytables.stringify_path: 141732 bits.
+2025-10-23 07:01:15.363 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+import pickle
+
+# Create a sample object to pickle
+sample_data = {"key": [1, 2, 3], "value": ["a", "b", "c"]}
+obj = sample_data
+
+# Define the file path for the pickle file
+filepath_or_buffer = "./sample.pkl"
+
+# Set the protocol to the highest available
+protocol = pickle.HIGHEST_PROTOCOL
+
+# Call to_pickle function
+pd.io.pickle.to_pickle(obj, filepath_or_buffer, protocol=protocol)
+
+2025-10-23 07:01:15.366 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1850.
+2025-10-23 07:02:16.917 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1850 in 61.55 seconds.
+2025-10-23 07:02:18.346 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1850: 81 new bits.
+2025-10-23 07:02:25.786 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1850: 10 new bits.
+2025-10-23 07:02:31.870 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1850: 255 new bits.
+2025-10-23 07:02:48.646 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1850 done 
+2025-10-23 07:02:48.649 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.pickle.to_pickle: 142078 bits.
+2025-10-23 07:02:48.662 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+from io import StringIO
+
+path_or_buffer = StringIO('<data>\n  <row>\n    <shape>square</shape>\n    <degrees>360</degrees>\n    <sides>4.0</sides>\n  </row>\n  <row>\n    <shape>circle</shape>\n    <degrees>360</degrees>\n    <sides/>\n  </row>\n</data>')
+xpath = './/row'
+namespaces = None
+elems_only = False
+attrs_only = False
+names = None
+dtype = None
+converters = None
+parse_dates = None
+encoding = 'utf-8'
+parser = 'etree'
+stylesheet = None
+iterparse = None
+compression = 'infer'
+storage_options = None
+dtype_backend = 'numpy_nullable'
+
+res = pd.read_xml(path_or_buffer, xpath=xpath, namespaces=namespaces, elems_only=elems_only, attrs_only=attrs_only, names=names, dtype=dtype, converters=converters, parse_dates=parse_dates, encoding=encoding, parser=parser, stylesheet=stylesheet, iterparse=iterparse, compression=compression, storage_options=storage_options, dtype_backend=dtype_backend)
+
+2025-10-23 07:02:48.665 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1916.
+2025-10-23 07:04:06.476 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1916 in 77.81 seconds.
+2025-10-23 07:04:12.173 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1916: 989 new bits.
+2025-10-23 07:04:23.016 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1916: 10 new bits.
+2025-10-23 07:04:29.734 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1916: 53 new bits.
+2025-10-23 07:04:30.463 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1916: 17 new bits.
+2025-10-23 07:04:35.706 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1916 done 
+2025-10-23 07:04:35.709 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.api.read_xml: 143147 bits.
+2025-10-23 07:04:35.717 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import pandas as pd
+
+dtype_backend = "numpy_nullable"
+pd.io.parquet.check_dtype_backend(dtype_backend)
+
+2025-10-23 07:04:35.721 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 1839.
+2025-10-23 07:05:37.159 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 1839 in 61.44 seconds.
+2025-10-23 07:05:52.576 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 1839: 2 new bits.
+2025-10-23 07:06:21.086 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 1839 done 
+2025-10-23 07:06:21.088 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing pandas.io.parquet.check_dtype_backend: 143149 bits.
+2025-10-23 07:06:21.098 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import sklearn.externals.array_api_compat.common as common
+
+x = None  # 示例对象，实际使用时应替换为需要检查的数组对象
+res = common.is_array_api_obj(x)
+
+2025-10-23 07:06:21.101 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2049.
+2025-10-23 07:06:34.355 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2049 in 13.25 seconds.
+2025-10-23 07:06:36.287 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2049: 2097 new bits.
+2025-10-23 07:06:51.122 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2049: 16 new bits.
+2025-10-23 07:08:00.983 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2049 done 
+2025-10-23 07:08:00.986 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.common.is_array_api_obj: 145262 bits.
+2025-10-23 07:08:01.000 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.metrics import root_mean_squared_log_error
+
+y_true = [3, 5, 2.5, 7]
+y_pred = [2.5, 5, 4, 8]
+sample_weight = None
+multioutput = 'uniform_average'
+
+res = root_mean_squared_log_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
+
+2025-10-23 07:08:01.004 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2273.
+2025-10-23 07:08:36.944 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2273 in 35.94 seconds.
+2025-10-23 07:08:39.150 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2273: 2280 new bits.
+2025-10-23 07:10:19.998 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2273 done 
+2025-10-23 07:10:20.001 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.metrics.root_mean_squared_log_error: 147542 bits.
+2025-10-23 07:10:20.013 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import sklearn.datasets
+data_home = None
+res = sklearn.datasets.clear_data_home(data_home)
+
+2025-10-23 07:10:20.018 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2010.
+2025-10-23 07:11:22.116 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2010 in 62.10 seconds.
+2025-10-23 07:11:24.179 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2010: 1353 new bits.
+2025-10-23 07:11:52.183 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2010: 60 new bits.
+2025-10-23 07:13:05.308 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2010 done 
+2025-10-23 07:13:05.312 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.datasets.clear_data_home: 148955 bits.
+2025-10-23 07:13:05.327 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+x = np.array([1, 2, 3, 4], dtype=np.float32)
+n = 8
+axis = -1
+norm = "backward"
+res = np.fft.hfft(x, n=n, axis=axis, norm=norm)
+
+2025-10-23 07:13:05.331 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2112.
+2025-10-23 07:13:22.820 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2112 in 17.49 seconds.
+2025-10-23 07:14:42.989 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2112 done 
+2025-10-23 07:14:42.992 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.fft.hfft: 148955 bits.
+2025-10-23 07:14:43.007 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import sklearn.metrics
+labels_true = [0, 0, 1, 1]
+labels_pred = [0, 0, 1, 1]
+beta = 1.0
+res = sklearn.metrics.v_measure_score(labels_true, labels_pred, beta=beta)
+
+2025-10-23 07:14:43.010 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2277.
+2025-10-23 07:14:55.477 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2277 in 12.47 seconds.
+2025-10-23 07:14:57.556 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2277: 161 new bits.
+2025-10-23 07:16:29.926 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2277 done 
+2025-10-23 07:16:29.927 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.metrics.v_measure_score: 149116 bits.
+2025-10-23 07:16:29.936 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.externals.array_api_compat import numpy as xp
+
+# 创建输入数组 x
+x = np.array([[1, 2], [3, 4]], dtype=np.float64)
+
+# 调用 sklearn.externals.array_api_compat.numpy.linalg.pinv 函数
+res = xp.linalg.pinv(x, rtol=None)
+
+2025-10-23 07:16:29.939 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2095.
+2025-10-23 07:16:44.174 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2095 in 14.23 seconds.
+2025-10-23 07:16:46.091 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2095: 2 new bits.
+2025-10-23 07:18:14.525 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2095 done 
+2025-10-23 07:18:14.527 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.linalg.pinv: 149118 bits.
+2025-10-23 07:18:14.542 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.externals.array_api_compat import numpy as xp
+
+# 创建输入数组 x
+x = np.random.rand(4, 4, 4).astype(np.float32)
+
+# 设置可选参数
+s = None
+axes = None
+norm = "backward"
+
+# 调用 rfftn 函数
+res = xp.fft.rfftn(x, s=s, axes=axes, norm=norm)
+
+2025-10-23 07:18:14.545 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2106.
+2025-10-23 07:18:51.927 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2106 in 37.38 seconds.
+2025-10-23 07:18:53.927 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2106: 3 new bits.
+2025-10-23 07:20:17.972 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2106 done 
+2025-10-23 07:20:17.974 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.fft.rfftn: 149121 bits.
+2025-10-23 07:20:17.984 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.metrics import pairwise_distances_argmin_min
+
+X = np.array([[0, 0, 0], [1, 1, 1]])
+Y = np.array([[1, 0, 0], [1, 1, 0]])
+argmin, distances = pairwise_distances_argmin_min(X, Y, axis=1, metric='euclidean', metric_kwargs=None)
+
+2025-10-23 07:20:17.989 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2261.
+2025-10-23 07:21:05.084 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2261 in 47.09 seconds.
+2025-10-23 07:22:48.085 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2261 done 
+2025-10-23 07:22:48.090 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.metrics.pairwise_distances_argmin_min: 149121 bits.
+2025-10-23 07:22:48.102 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import sklearn.metrics
+y_true = [3, -0.5, 2, 7]
+y_pred = [2.5, 0.0, 2, 8]
+sample_weight = None
+multioutput = 'uniform_average'
+res = sklearn.metrics.mean_absolute_error(y_true, y_pred, sample_weight=sample_weight, multioutput=multioutput)
+
+2025-10-23 07:22:48.106 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2244.
+2025-10-23 07:23:02.292 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2244 in 14.19 seconds.
+2025-10-23 07:23:04.506 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2244: 9 new bits.
+2025-10-23 07:24:45.862 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2244 done 
+2025-10-23 07:24:45.864 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.metrics.mean_absolute_error: 149130 bits.
+2025-10-23 07:24:45.875 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as xp
+start = 0.0
+stop = 10.0
+num = 5
+dtype = None
+endpoint = True
+kwargs = {}
+res = xp.linspace(start, stop, num, dtype=dtype, endpoint=endpoint, **kwargs)
+
+2025-10-23 07:24:45.880 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2077.
+2025-10-23 07:24:58.304 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2077 in 12.42 seconds.
+2025-10-23 07:25:00.905 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2077: 2 new bits.
+2025-10-23 07:26:25.708 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2077 done 
+2025-10-23 07:26:25.710 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.linspace: 149132 bits.
+2025-10-23 07:26:25.724 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.datasets import make_low_rank_matrix
+
+n_samples = 100
+n_features = 100
+effective_rank = 10
+tail_strength = 0.5
+random_state = 42
+
+X = make_low_rank_matrix(n_samples=n_samples, n_features=n_features, effective_rank=effective_rank, tail_strength=tail_strength, random_state=random_state)
+
+2025-10-23 07:26:25.727 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2027.
+2025-10-23 07:27:00.438 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2027 in 34.71 seconds.
+2025-10-23 07:27:03.348 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2027: 25 new bits.
+2025-10-23 07:28:37.584 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2027 done 
+2025-10-23 07:28:37.590 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.datasets.make_low_rank_matrix: 149157 bits.
+2025-10-23 07:28:37.604 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from sklearn.inspection import partial_dependence
+from sklearn.ensemble import GradientBoostingClassifier
+
+# Create sample data
+X = np.array([[0, 0, 2], [1, 0, 0]])
+y = np.array([0, 1])
+
+# Fit an estimator
+estimator = GradientBoostingClassifier(random_state=0).fit(X, y)
+
+# Define parameters
+features = [0]
+sample_weight = None
+categorical_features = None
+feature_names = None
+response_method = 'auto'
+percentiles = (0.05, 0.95)
+grid_resolution = 100
+custom_values = None
+method = 'auto'
+kind = 'average'
+
+# Call the function
+result = partial_dependence(estimator, X, features, sample_weight=sample_weight, categorical_features=categorical_features, feature_names=feature_names, response_method=response_method, percentiles=percentiles, grid_resolution=grid_resolution, custom_values=custom_values, method=method, kind=kind)
+
+2025-10-23 07:28:37.608 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2162.
+2025-10-23 07:29:19.140 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2162 in 41.53 seconds.
+2025-10-23 07:29:21.433 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2162: 2958 new bits.
+2025-10-23 07:31:00.663 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2162 done 
+2025-10-23 07:31:00.666 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.inspection.partial_dependence: 152115 bits.
+2025-10-23 07:31:00.679 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+x = np.array([[1, 2, 3], [4, 5, 6]])
+indices = np.array([[0, 1], [2, 0]])
+res = np.take_along_axis(x, indices, axis=1)
+
+2025-10-23 07:31:00.684 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2127.
+2025-10-23 07:31:26.015 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2127 in 25.33 seconds.
+2025-10-23 07:32:49.283 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2127 done 
+2025-10-23 07:32:49.286 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.take_along_axis: 152115 bits.
+2025-10-23 07:32:49.300 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import sklearn.metrics
+labels_true = [0, 0, 1, 1]
+labels_pred = [1, 1, 0, 0]
+res = sklearn.metrics.completeness_score(labels_true, labels_pred)
+
+2025-10-23 07:32:49.304 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2213.
+2025-10-23 07:32:59.343 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2213 in 10.04 seconds.
+2025-10-23 07:33:01.391 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2213: 1 new bits.
+2025-10-23 07:34:42.714 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2213 done 
+2025-10-23 07:34:42.715 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing sklearn.metrics.completeness_score: 152116 bits.
+2025-10-23 07:34:42.728 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats.mstats
+import numpy as np
+
+x = [0, 0, 0, 2, 2, 2, 3, 3, 4, 5, 6]
+use_missing = False
+res = scipy.stats.mstats.count_tied_groups(x, use_missing)
+
+2025-10-23 07:34:42.732 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3404.
+2025-10-23 07:35:13.897 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3404 in 31.16 seconds.
+2025-10-23 07:35:15.273 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3404: 15088 new bits.
+2025-10-23 07:36:13.501 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3404 done 
+2025-10-23 07:36:13.503 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.mstats.count_tied_groups: 167204 bits.
+2025-10-23 07:36:13.514 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats
+a = [1, 4, 7]
+weights = [3, 1, 3]
+axis = 0
+dtype = None
+res = scipy.stats.hmean(a, axis=axis, dtype=dtype, weights=weights)
+
+2025-10-23 07:36:13.518 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3348.
+2025-10-23 07:36:25.061 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3348 in 11.54 seconds.
+2025-10-23 07:36:26.293 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3348: 153 new bits.
+2025-10-23 07:37:27.333 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3348 done 
+2025-10-23 07:37:27.339 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.hmean: 167357 bits.
+2025-10-23 07:37:27.348 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.spatial.distance import dice
+
+u = [True, False, False]
+v = [False, True, False]
+w = None
+
+res = dice(u, v, w)
+
+2025-10-23 07:37:27.352 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3145.
+2025-10-23 07:38:05.301 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3145 in 37.95 seconds.
+2025-10-23 07:38:06.501 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3145: 22 new bits.
+2025-10-23 07:38:06.915 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3145: 7 new bits.
+2025-10-23 07:38:07.741 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3145: 6 new bits.
+2025-10-23 07:38:08.566 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3145: 5 new bits.
+2025-10-23 07:38:46.019 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3145 done 
+2025-10-23 07:38:46.023 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.spatial.distance.dice: 167397 bits.
+2025-10-23 07:38:46.034 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.spatial.distance
+u = [1, 0, 0]
+v = [0, 1, 0]
+p = 2
+w = None
+res = scipy.spatial.distance.minkowski(u, v, p, w)
+
+2025-10-23 07:38:46.037 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3156.
+2025-10-23 07:38:56.249 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3156 in 10.21 seconds.
+2025-10-23 07:38:56.885 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3156: 11 new bits.
+2025-10-23 07:39:28.257 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3156 done 
+2025-10-23 07:39:28.258 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.spatial.distance.minkowski: 167408 bits.
+2025-10-23 07:39:28.266 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.optimize.minpack import fixed_point
+
+def func(x, c1, c2):
+    return np.sqrt(c1 / (x + c2))
+
+x0 = np.array([1.2, 1.3])
+args = (np.array([10, 12.]), np.array([3, 5.]))
+xtol = 1e-8
+maxiter = 500
+method = 'del2'
+
+res = fixed_point(func, x0, args=args, xtol=xtol, maxiter=maxiter, method=method)
+
+2025-10-23 07:39:28.269 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2796.
+2025-10-23 07:39:53.938 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2796 in 25.67 seconds.
+2025-10-23 07:39:55.181 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2796: 81 new bits.
+2025-10-23 07:40:35.074 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2796 done 
+2025-10-23 07:40:35.078 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.optimize.minpack.fixed_point: 167489 bits.
+2025-10-23 07:40:35.089 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.linalg import tanhm
+
+A = np.array([[1.0, 3.0], [1.0, 4.0]])
+res = tanhm(A)
+
+2025-10-23 07:40:35.094 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2601.
+2025-10-23 07:40:58.047 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2601 in 22.95 seconds.
+2025-10-23 07:41:26.255 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2601: 116 new bits.
+2025-10-23 07:41:29.038 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2601 done 
+2025-10-23 07:41:29.040 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.matfuncs.tanhm: 167605 bits.
+2025-10-23 07:41:29.054 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import linalg
+
+# Create a sample 2x2 matrix
+a = np.array([[1, 2], [3, 4]])
+
+# Call scipy.linalg.det with the matrix
+res = linalg.det(a)
+
+2025-10-23 07:41:29.057 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2552.
+2025-10-23 07:41:43.355 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2552 in 14.30 seconds.
+2025-10-23 07:41:45.205 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2552: 16 new bits.
+2025-10-23 07:42:15.096 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2552 done 
+2025-10-23 07:42:15.100 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.det: 167621 bits.
+2025-10-23 07:42:15.112 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.linalg import solve_banded
+
+l_and_u = (1, 2)
+ab = np.array([[0,  0, -1, -1, -1],
+               [0,  2,  2,  2,  2],
+               [5,  4,  3,  2,  1],
+               [1,  1,  1,  1,  0]])
+b = np.array([0, 1, 2, 2, 3])
+
+res = solve_banded(l_and_u, ab, b)
+
+2025-10-23 07:42:15.117 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2491.
+2025-10-23 07:43:25.290 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2491 in 70.17 seconds.
+2025-10-23 07:43:40.358 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2491: 1 new bits.
+2025-10-23 07:43:56.052 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2491 done 
+2025-10-23 07:43:56.054 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.basic.solve_banded: 167622 bits.
+2025-10-23 07:43:56.063 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats
+x = [1, 2, 3, 4, 5]
+y = [2, 3, 4, 5, 6]
+result = scipy.stats.ranksums(x, y, alternative='two-sided')
+
+2025-10-23 07:43:56.067 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3566.
+2025-10-23 07:44:35.104 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3566 in 39.04 seconds.
+2025-10-23 07:44:36.342 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3566: 67 new bits.
+2025-10-23 07:44:37.578 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3566: 91 new bits.
+2025-10-23 07:45:28.881 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3566 done 
+2025-10-23 07:45:28.882 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.ranksums: 167780 bits.
+2025-10-23 07:45:28.891 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+
+# Define the numerator and denominator coefficients of the lowpass filter prototype
+b = [1.0]
+a = [1.0, 1.5]
+
+# Set the desired stopband center frequency (wo) and bandwidth (bw)
+wo = 2.0
+bw = 1.0
+
+# Call scipy.signal.lp2bs to transform the lowpass filter to a bandstop filter
+b_bs, a_bs = scipy.signal.lp2bs(b, a, wo=wo, bw=bw)
+
+2025-10-23 07:45:28.895 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2938.
+2025-10-23 07:45:51.996 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2938 in 23.10 seconds.
+2025-10-23 07:45:53.368 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2938: 12 new bits.
+2025-10-23 07:47:02.498 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2938 done 
+2025-10-23 07:47:02.500 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.lp2bs: 167792 bits.
+2025-10-23 07:47:02.515 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.optimize
+
+def F(x):
+    # Example function: x^2 - 4 = 0
+    return x**2 - 4
+
+xin = 1.0  # Initial guess
+res = scipy.optimize.broyden1(F, xin, maxiter=100, f_tol=1e-8, x_tol=1e-8, verbose=False)
+
+2025-10-23 07:47:02.520 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2760.
+2025-10-23 07:47:30.749 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2760 in 28.23 seconds.
+2025-10-23 07:47:31.713 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2760: 195 new bits.
+2025-10-23 07:48:22.121 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2760 done 
+2025-10-23 07:48:22.123 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.optimize.broyden1: 167987 bits.
+2025-10-23 07:48:22.137 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats
+u_values = [0, 1, 3]
+v_values = [5, 6, 8]
+u_weights = None
+v_weights = None
+res = scipy.stats.wasserstein_distance(u_values, v_values, u_weights, v_weights)
+
+2025-10-23 07:48:22.141 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3718.
+2025-10-23 07:48:41.214 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3718 in 19.07 seconds.
+2025-10-23 07:48:42.478 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3718: 26 new bits.
+2025-10-23 07:48:44.637 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3718: 2 new bits.
+2025-10-23 07:49:36.042 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3718 done 
+2025-10-23 07:49:36.044 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.wasserstein_distance: 168015 bits.
+2025-10-23 07:49:36.057 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.special
+nt = 5
+res = scipy.special.fresnelc_zeros(nt)
+
+2025-10-23 07:49:36.061 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3194.
+2025-10-23 07:50:01.879 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3194 in 25.82 seconds.
+2025-10-23 07:50:02.507 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3194: 2 new bits.
+2025-10-23 07:50:35.407 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3194 done 
+2025-10-23 07:50:35.410 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.special.fresnelc_zeros: 168017 bits.
+2025-10-23 07:50:35.426 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.cluster.hierarchy import maxdists
+
+# Example linkage matrix Z (this would typically come from a linkage function like scipy.cluster.hierarchy.linkage)
+Z = np.array([[0., 1., 1., 2.],
+              [3., 4., 1., 2.],
+              [9., 10., 1., 2.],
+              [6., 7., 1., 2.],
+              [2., 12., 1.11803399, 3.],
+              [5., 13., 1.11803399, 3.],
+              [8., 15., 1.11803399, 3.],
+              [11., 14., 1.11803399, 3.],
+              [18., 19., 3., 6.],
+              [16., 17., 3.5, 6.],
+              [20., 21., 3.25, 12.]])
+
+# Call maxdists function
+result = maxdists(Z)
+
+2025-10-23 07:50:35.429 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2335.
+2025-10-23 07:51:25.179 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2335 in 49.75 seconds.
+2025-10-23 07:51:27.340 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2335: 51 new bits.
+2025-10-23 07:52:00.767 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2335 done 
+2025-10-23 07:52:00.768 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.cluster.hierarchy.maxdists: 168068 bits.
+2025-10-23 07:52:00.775 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.ndimage import white_tophat
+
+# Create a sample input array
+input_array = np.array([[2, 3, 3, 3, 2],
+                        [3, 4, 5, 4, 3],
+                        [3, 5, 9, 5, 3],
+                        [3, 4, 5, 4, 3],
+                        [2, 3, 3, 3, 2]])
+
+# Define a structuring element (square kernel)
+structure = np.array([[1, 1, 1],
+                      [1, 1, 1],
+                      [1, 1, 1]])
+
+# Perform white tophat filter
+result = white_tophat(input=input_array, structure=structure)
+
+2025-10-23 07:52:00.779 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2749.
+2025-10-23 07:52:52.191 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2749 in 51.41 seconds.
+2025-10-23 07:52:57.433 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2749: 84 new bits.
+2025-10-23 07:53:07.385 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2749: 1 new bits.
+2025-10-23 07:53:23.096 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2749 done 
+2025-10-23 07:53:23.099 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.ndimage.white_tophat: 168153 bits.
+2025-10-23 07:53:23.105 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.stats import _mstats_basic
+
+x = [True, False, True, True, False]
+y = [2.5, 3.0, 1.5, 4.0, 2.0]
+res = _mstats_basic.pointbiserialr(x, y)
+
+2025-10-23 07:53:23.108 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3670.
+2025-10-23 07:53:47.866 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3670 in 24.76 seconds.
+2025-10-23 07:53:49.092 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3670: 16 new bits.
+2025-10-23 07:54:48.912 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3670 done 
+2025-10-23 07:54:48.914 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats._mstats_basic.pointbiserialr: 168169 bits.
+2025-10-23 07:54:48.928 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats.mstats
+import numpy as np
+
+data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+proportiontocut = 0.3
+tail = 'left'
+inclusive = (True, True)
+axis = None
+
+res = scipy.stats.mstats.trimtail(data, proportiontocut=proportiontocut, tail=tail, inclusive=inclusive, axis=axis)
+
+2025-10-23 07:54:48.933 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3445.
+2025-10-23 07:55:46.633 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3445 in 57.70 seconds.
+2025-10-23 07:55:47.967 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3445: 22 new bits.
+2025-10-23 07:55:52.268 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3445: 1 new bits.
+2025-10-23 07:56:05.936 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3445: 2 new bits.
+2025-10-23 07:56:54.647 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3445 done 
+2025-10-23 07:56:54.650 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.mstats.trimtail: 168194 bits.
+2025-10-23 07:56:54.666 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.special
+n = 3
+monic = False
+res = scipy.special.legendre(n, monic)
+
+2025-10-23 07:56:54.670 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3235.
+2025-10-23 07:57:00.800 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3235 in 6.13 seconds.
+2025-10-23 07:57:01.498 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3235: 66 new bits.
+2025-10-23 07:57:38.865 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3235 done 
+2025-10-23 07:57:38.868 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.special.legendre: 168260 bits.
+2025-10-23 07:57:38.877 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.optimize
+
+def F(x):
+    # Example function definition - replace with actual function
+    return x - 1
+
+xin = [0.5]  # Initial guess
+res = scipy.optimize.diagbroyden(F, xin, maxiter=100, f_tol=1e-8, x_tol=1e-8, verbose=False)
+
+2025-10-23 07:57:38.881 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2767.
+2025-10-23 07:58:16.391 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2767 in 37.51 seconds.
+2025-10-23 07:58:17.400 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2767: 5 new bits.
+2025-10-23 07:58:25.276 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2767: 1 new bits.
+2025-10-23 07:58:37.945 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2767: 151 new bits.
+2025-10-23 07:59:01.943 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2767 done 
+2025-10-23 07:59:01.946 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.optimize.diagbroyden: 168417 bits.
+2025-10-23 07:59:01.956 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+
+N = 8
+rp = 1
+rs = 100
+Wn = 17
+btype = 'highpass'
+analog = False
+output = 'sos'
+fs = 1000
+
+sos = scipy.signal.ellip(N, rp, rs, Wn, btype, analog, output, fs)
+
+2025-10-23 07:59:01.961 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2895.
+2025-10-23 07:59:21.149 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2895 in 19.19 seconds.
+2025-10-23 07:59:22.475 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2895: 7 new bits.
+2025-10-23 08:00:23.784 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2895 done 
+2025-10-23 08:00:23.787 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.ellip: 168424 bits.
+2025-10-23 08:00:23.800 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+
+wp = 0.2
+ws = 0.3
+gpass = 3
+gstop = 40
+analog = False
+fs = None
+
+ord, wn = scipy.signal.cheb1ord(wp, ws, gpass, gstop, analog, fs)
+
+2025-10-23 08:00:23.803 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2865.
+2025-10-23 08:00:51.344 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2865 in 27.54 seconds.
+2025-10-23 08:00:57.704 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2865: 4 new bits.
+2025-10-23 08:01:53.284 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2865 done 
+2025-10-23 08:01:53.286 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.cheb1ord: 168428 bits.
+2025-10-23 08:01:53.299 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.cluster.hierarchy import ward, fcluster, leaders
+from scipy.spatial.distance import pdist
+
+# Example data
+X = [[0, 0], [0, 1], [1, 0],
+     [0, 4], [0, 3], [1, 4],
+     [4, 0], [3, 0], [4, 1],
+     [4, 4], [3, 4], [4, 3]]
+
+# Compute linkage matrix Z
+Z = ward(pdist(X))
+
+# Create flat cluster assignment vector T
+T = fcluster(Z, 3, criterion='distance')
+
+# Call leaders function
+L, M = leaders(Z, T)
+
+2025-10-23 08:01:53.303 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2330.
+2025-10-23 08:03:21.038 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2330 in 87.74 seconds.
+2025-10-23 08:03:23.113 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2330: 37 new bits.
+2025-10-23 08:03:24.040 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2330: 14 new bits.
+2025-10-23 08:03:32.126 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2330: 2 new bits.
+2025-10-23 08:03:51.563 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2330 done 
+2025-10-23 08:03:51.565 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.cluster.hierarchy.leaders: 168481 bits.
+2025-10-23 08:03:51.573 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.linalg.special_matrices import helmert
+n = 5
+full = False
+res = helmert(n, full)
+
+2025-10-23 08:03:51.576 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2661.
+2025-10-23 08:04:15.980 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2661 in 24.40 seconds.
+2025-10-23 08:04:16.576 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2661: 3 new bits.
+2025-10-23 08:04:17.201 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2661: 7 new bits.
+2025-10-23 08:04:47.083 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2661 done 
+2025-10-23 08:04:47.086 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.special_matrices.helmert: 168491 bits.
+2025-10-23 08:04:47.098 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.fft as fft
+backend = 'scipy'
+coerce = False
+only = True
+with fft.set_backend(backend, coerce=coerce, only=only):
+    pass
+
+2025-10-23 08:04:47.102 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2368.
+2025-10-23 08:05:28.564 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2368 in 41.46 seconds.
+2025-10-23 08:05:29.205 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2368: 8 new bits.
+2025-10-23 08:06:00.337 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2368 done 
+2025-10-23 08:06:00.341 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fft.set_backend: 168499 bits.
+2025-10-23 08:06:00.355 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.optimize
+import numpy as np
+
+def F(x):
+    # Example function definition, replace with actual function
+    return x  # Placeholder
+
+xin = [1.0, 2.0, 3.0]  # Example initial guess
+iter = 10  # Example iteration count
+alpha = 0.5  # Example mixing parameter
+verbose = False  # Example verbosity setting
+maxiter = 100  # Example maximum iterations
+f_tol = 1e-6  # Example function tolerance
+f_rtol = 1e-6  # Example relative function tolerance
+x_tol = 1e-6  # Example solution tolerance
+x_rtol = 1e-6  # Example relative solution tolerance
+tol_norm = np.linalg.norm  # Correct: use actual norm function instead of string
+line_search = 'armijo'  # Example line search method
+callback = None  # Example callback function
+
+res = scipy.optimize.linearmixing(F, xin, iter, alpha, verbose, maxiter, f_tol, f_rtol, x_tol, x_rtol, tol_norm, line_search, callback)
+
+2025-10-23 08:06:00.359 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2800.
+2025-10-23 08:06:55.025 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2800 in 54.67 seconds.
+2025-10-23 08:07:20.524 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2800: 4 new bits.
+2025-10-23 08:07:36.567 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2800 done 
+2025-10-23 08:07:36.571 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.optimize.linearmixing: 168503 bits.
+2025-10-23 08:07:36.589 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.integrate
+import numpy as np
+
+def integrand(x):
+    return x ** 2
+
+result, error = scipy.integrate.quad(integrand, 0, 4)
+
+2025-10-23 08:07:36.592 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2415.
+2025-10-23 08:08:04.586 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2415 in 27.99 seconds.
+2025-10-23 08:08:05.619 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2415: 12 new bits.
+2025-10-23 08:08:56.172 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2415 done 
+2025-10-23 08:08:56.173 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.integrate.quad: 168515 bits.
+2025-10-23 08:08:56.180 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+M = 51
+sym = True
+res = scipy.signal.windows.blackman(M, sym)
+
+2025-10-23 08:08:56.184 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2996.
+2025-10-23 08:09:06.339 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2996 in 10.15 seconds.
+2025-10-23 08:09:07.749 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2996: 1 new bits.
+2025-10-23 08:10:08.964 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2996 done 
+2025-10-23 08:10:08.966 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.windows.blackman: 168516 bits.
+2025-10-23 08:10:08.979 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+x = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+axes = None
+res = np.fft.ifftshift(x, axes=axes)
+
+2025-10-23 08:10:08.984 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2366.
+2025-10-23 08:10:25.980 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2366 in 17.00 seconds.
+2025-10-23 08:10:57.206 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2366 done 
+2025-10-23 08:10:57.210 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fft.ifftshift: 168516 bits.
+2025-10-23 08:10:57.224 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.linalg import leslie
+
+f = [0.1, 2.0, 1.0, 0.1]
+s = [0.2, 0.8, 0.7]
+res = leslie(f, s)
+
+2025-10-23 08:10:57.229 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2589.
+2025-10-23 08:11:37.906 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2589 in 40.68 seconds.
+2025-10-23 08:11:38.843 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2589: 6 new bits.
+2025-10-23 08:12:08.923 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2589 done 
+2025-10-23 08:12:08.926 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.leslie: 168522 bits.
+2025-10-23 08:12:08.940 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.interpolate import griddata
+
+# Example data points and values
+points = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
+values = np.array([0, 1, 2, 3])
+
+# Points at which to interpolate
+xi = np.array([[0.5, 0.5], [0.2, 0.8]])
+
+# Perform interpolation using 'linear' method with default fill_value and rescale=False
+res = griddata(points, values, xi, method='linear', fill_value=np.nan, rescale=False)
+
+2025-10-23 08:12:08.944 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2454.
+2025-10-23 08:12:35.988 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2454 in 27.04 seconds.
+2025-10-23 08:13:26.093 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2454 done 
+2025-10-23 08:13:26.097 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.interpolate.ndgriddata.griddata: 168522 bits.
+2025-10-23 08:13:26.108 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.stats.morestats import kstatvar
+
+data = np.array([1, 2, 3, 4, 5])
+n = 2
+axis = None
+
+res = kstatvar(data, n, axis=axis)
+
+2025-10-23 08:13:26.112 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3375.
+2025-10-23 08:14:05.460 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3375 in 39.35 seconds.
+2025-10-23 08:14:09.152 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3375: 3 new bits.
+2025-10-23 08:15:06.055 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3375 done 
+2025-10-23 08:15:06.058 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.morestats.kstatvar: 168525 bits.
+2025-10-23 08:15:06.072 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import linalg
+
+# Create a sample matrix for decomposition
+a = np.random.rand(6, 9)
+
+# Call scipy.linalg.rq with default parameters
+R, Q = linalg.rq(a)
+
+2025-10-23 08:15:06.076 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2635.
+2025-10-23 08:16:07.873 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2635 in 61.80 seconds.
+2025-10-23 08:16:38.492 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2635 done 
+2025-10-23 08:16:38.502 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.rq: 168525 bits.
+2025-10-23 08:16:38.511 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+M = 51
+sym = True
+res = scipy.signal.windows.blackmanharris(M, sym)
+
+2025-10-23 08:16:38.515 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2998.
+2025-10-23 08:16:44.179 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2998 in 5.66 seconds.
+2025-10-23 08:17:56.820 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2998 done 
+2025-10-23 08:17:56.821 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.windows.blackmanharris: 168525 bits.
+2025-10-23 08:17:56.830 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal
+M = 51
+sym = True
+res = scipy.signal.windows.hamming(M, sym)
+
+2025-10-23 08:17:56.835 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3002.
+2025-10-23 08:18:16.400 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3002 in 19.56 seconds.
+2025-10-23 08:19:27.040 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3002 done 
+2025-10-23 08:19:27.041 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.windows.hamming: 168525 bits.
+2025-10-23 08:19:27.048 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.cluster.vq import whiten
+
+# Create sample observation data
+obs = np.array([[1.9, 2.3, 1.7],
+                [1.5, 2.5, 2.2],
+                [0.8, 0.6, 1.7]])
+
+# Call whiten function
+result = whiten(obs)
+
+2025-10-23 08:19:27.052 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2313.
+2025-10-23 08:20:10.758 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2313 in 43.71 seconds.
+2025-10-23 08:20:18.351 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2313: 3 new bits.
+2025-10-23 08:20:31.913 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2313: 7 new bits.
+2025-10-23 08:20:45.349 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2313 done 
+2025-10-23 08:20:45.351 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.cluster.vq.whiten: 168535 bits.
+2025-10-23 08:20:45.364 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats.mstats_basic
+
+y = [1, 2, 3, 4, 5]
+x = [2, 4, 6, 8, 10]
+res = scipy.stats.mstats_basic.theilslopes(y, x, alpha=0.95, method='separate')
+
+2025-10-23 08:20:45.368 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3510.
+2025-10-23 08:20:58.797 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3510 in 13.43 seconds.
+2025-10-23 08:21:00.042 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3510: 71 new bits.
+2025-10-23 08:21:19.890 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3510: 4 new bits.
+2025-10-23 08:21:59.202 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3510 done 
+2025-10-23 08:21:59.204 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.mstats_basic.theilslopes: 168610 bits.
+2025-10-23 08:21:59.214 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats as stats
+x = [6, 8, 14, 16, 23, 24, 28, 29, 41, -48, 49, 56, 60, -67, 75]
+res = stats.wilcoxon(x, alternative='two-sided', method='auto')
+
+2025-10-23 08:21:59.219 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3390.
+2025-10-23 08:22:58.097 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3390 in 58.88 seconds.
+2025-10-23 08:22:59.371 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 115 new bits.
+2025-10-23 08:22:59.989 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 6 new bits.
+2025-10-23 08:23:00.608 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 1 new bits.
+2025-10-23 08:23:11.076 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 1 new bits.
+2025-10-23 08:23:22.770 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 3 new bits.
+2025-10-23 08:23:35.996 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 4 new bits.
+2025-10-23 08:23:43.544 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3390: 2 new bits.
+2025-10-23 08:23:59.812 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3390 done 
+2025-10-23 08:23:59.815 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.morestats.wilcoxon: 168742 bits.
+2025-10-23 08:23:59.834 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.optimize
+
+def F(x):
+    # Example function definition - replace with actual function
+    return x**2 - 4
+
+xin = 1.0  # Initial guess
+res = scipy.optimize.newton_krylov(F, xin)
+
+2025-10-23 08:23:59.837 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2803.
+2025-10-23 08:24:11.861 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2803 in 12.02 seconds.
+2025-10-23 08:24:12.772 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2803: 232 new bits.
+2025-10-23 08:24:15.717 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2803: 47 new bits.
+2025-10-23 08:24:53.697 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2803 done 
+2025-10-23 08:24:53.701 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.optimize.newton_krylov: 169021 bits.
+2025-10-23 08:24:53.714 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.signal import savgol_coeffs
+
+window_length = 5
+polyorder = 2
+deriv = 0
+delta = 1.0
+pos = None
+use = 'conv'
+
+coeffs = savgol_coeffs(window_length, polyorder, deriv, delta, pos, use)
+
+2025-10-23 08:24:53.719 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2963.
+2025-10-23 08:25:20.164 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2963 in 26.44 seconds.
+2025-10-23 08:25:21.436 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2963: 5 new bits.
+2025-10-23 08:26:21.378 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2963 done 
+2025-10-23 08:26:21.381 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.savgol_coeffs: 169026 bits.
+2025-10-23 08:26:21.398 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import ndimage
+
+# Create a sample input array (e.g., a 2D array)
+input_array = np.random.rand(100, 100)
+
+# Define the shift value (can be a float or sequence for multiple axes)
+shift_value = 20.0
+
+# Set parameters
+n = -1  # Input is assumed to be the result of a complex FFT
+axis = -1  # Apply shift along the last axis
+output_array = None  # Let the function return a new array
+
+# Call scipy.ndimage.fourier_shift
+result = ndimage.fourier_shift(input_array, shift=shift_value, n=n, axis=axis, output=output_array)
+
+2025-10-23 08:26:21.401 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2699.
+2025-10-23 08:26:53.237 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2699 in 31.84 seconds.
+2025-10-23 08:26:54.211 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2699: 12 new bits.
+2025-10-23 08:27:24.545 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2699 done 
+2025-10-23 08:27:24.547 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.ndimage.fourier_shift: 169038 bits.
+2025-10-23 08:27:24.555 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.sparse.linalg import lsqr
+from scipy.sparse import csc_matrix
+
+# Define matrix A as a sparse matrix
+A = csc_matrix([[1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+
+# Define right-hand side vector b
+b = np.array([1.0, 0.0, -1.0])
+
+# Call lsqr with default parameters
+x, istop, itn, r1norm, r2norm, anorm, acond, arnorm, xnorm, var = lsqr(A, b)
+
+2025-10-23 08:27:24.558 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3113.
+2025-10-23 08:28:37.363 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3113 in 72.80 seconds.
+2025-10-23 08:28:39.797 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3113: 2 new bits.
+2025-10-23 08:29:08.127 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3113 done 
+2025-10-23 08:29:08.129 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.sparse.linalg.isolve.lsqr: 169040 bits.
+2025-10-23 08:29:08.138 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+n = 10
+d = 0.01
+res = np.fft.rfftfreq(n, d=d)
+
+2025-10-23 08:29:08.141 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2365.
+2025-10-23 08:29:40.397 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2365 in 32.26 seconds.
+2025-10-23 08:29:42.072 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2365: 3 new bits.
+2025-10-23 08:30:23.017 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2365 done 
+2025-10-23 08:30:23.020 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fft.rfftfreq: 169043 bits.
+2025-10-23 08:30:23.036 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats._mstats_basic as sb
+
+# Create sample data for x and y
+x = [1, 2, 3, 4, 5]
+y = [2, 4, 6, 8, 10]
+
+# Call spearmanr function with specified parameters
+res = sb.spearmanr(x, y, use_ties=True, axis=0, nan_policy='propagate', alternative='two-sided')
+
+2025-10-23 08:30:23.040 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3677.
+2025-10-23 08:30:58.885 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3677 in 35.84 seconds.
+2025-10-23 08:31:00.197 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3677: 44 new bits.
+2025-10-23 08:32:00.404 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3677 done 
+2025-10-23 08:32:00.407 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats._mstats_basic.spearmanr: 169087 bits.
+2025-10-23 08:32:00.420 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import fftpack
+
+n = 8
+d = 0.1
+res = fftpack.rfftfreq(n, d=d)
+
+2025-10-23 08:32:00.425 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2392.
+2025-10-23 08:32:53.494 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2392 in 53.07 seconds.
+2025-10-23 08:33:23.672 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2392 done 
+2025-10-23 08:33:23.675 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fftpack.rfftfreq: 169087 bits.
+2025-10-23 08:33:23.689 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats as stats
+from scipy.stats import loguniform
+
+# Create a custom distribution using make_distribution with a built-in scipy distribution
+CustomLogUniform = stats.make_distribution(loguniform)
+# Instantiate the custom distribution with shape parameters
+X = CustomLogUniform(a=1.0, b=3.0)
+
+2025-10-23 08:33:23.694 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3364.
+2025-10-23 08:33:42.941 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3364 in 19.25 seconds.
+2025-10-23 08:34:40.892 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3364 done 
+2025-10-23 08:34:40.896 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.make_distribution: 169087 bits.
+2025-10-23 08:34:40.910 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.signal import symiirorder1
+
+# Example parameters with corrected precision and valid z1
+signal = np.random.rand(100)  # Example 1D signal
+c0 = 0.5
+z1 = 0.8  # Must satisfy |z1| < 1.0
+precision = 0.001  # Non-negative precision for convergence
+
+# Call the function with corrected parameters
+result = symiirorder1(signal, c0, z1, precision)
+
+2025-10-23 08:34:40.914 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2987.
+2025-10-23 08:35:44.364 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2987 in 63.45 seconds.
+2025-10-23 08:36:45.883 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2987 done 
+2025-10-23 08:36:45.887 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.symiirorder1: 169087 bits.
+2025-10-23 08:36:45.899 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats
+data = [6, 9, 12, 7, 8, 8, 13]
+alpha = 0.90
+res_mean, res_var, res_std = scipy.stats.bayes_mvs(data, alpha)
+
+2025-10-23 08:36:45.905 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3298.
+2025-10-23 08:36:58.879 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3298 in 12.97 seconds.
+2025-10-23 08:37:00.171 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3298: 103 new bits.
+2025-10-23 08:38:01.277 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3298 done 
+2025-10-23 08:38:01.279 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.bayes_mvs: 169190 bits.
+2025-10-23 08:38:01.294 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.fftpack import ss_diff
+
+x = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+a = 0.5
+b = 0.3
+period = 2 * np.pi
+
+res = ss_diff(x, a, b, period)
+
+2025-10-23 08:38:01.299 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2390.
+2025-10-23 08:39:09.283 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2390 in 67.98 seconds.
+2025-10-23 08:39:39.801 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2390 done 
+2025-10-23 08:39:39.804 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fftpack.ss_diff: 169190 bits.
+2025-10-23 08:39:39.821 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.interpolate import approximate_taylor_polynomial
+
+def f(x):
+    return np.sin(x)
+
+x = 0.0
+degree = 5
+scale = 1.0
+order = None
+
+res = approximate_taylor_polynomial(f, x, degree, scale, order)
+
+2025-10-23 08:39:39.824 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2457.
+2025-10-23 08:40:08.094 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2457 in 28.27 seconds.
+2025-10-23 08:41:08.522 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2457 done 
+2025-10-23 08:41:08.526 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.interpolate.polyint.approximate_taylor_polynomial: 169190 bits.
+2025-10-23 08:41:08.538 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.stats as stats
+x = [0, 0, 0, 1, 1, 1, 1]
+y = [0, 1, 2, 3, 4, 5, 6]
+res = stats.pointbiserialr(x, y)
+
+2025-10-23 08:41:08.542 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3618.
+2025-10-23 08:41:33.508 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3618 in 24.97 seconds.
+2025-10-23 08:41:35.002 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3618: 110 new bits.
+2025-10-23 08:42:45.389 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3618 done 
+2025-10-23 08:42:45.391 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.stats.stats.pointbiserialr: 169300 bits.
+2025-10-23 08:42:45.406 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import signal
+
+b = [1, 2, 3]
+a = [1, 4, 5, 6]
+fs = 1000.0
+beta, alpha = signal.bilinear(b, a, fs)
+
+2025-10-23 08:42:45.410 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2856.
+2025-10-23 08:43:35.927 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2856 in 50.52 seconds.
+2025-10-23 08:44:35.942 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2856 done 
+2025-10-23 08:44:35.946 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.bilinear: 169300 bits.
+2025-10-23 08:44:35.961 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.signal.windows
+M = 512
+NW = 2.5
+Kmax = 4
+sym = True
+norm = 'approximate'
+return_ratios = True
+res_windows, res_ratios = scipy.signal.windows.dpss(M, NW, Kmax, sym, norm, return_ratios)
+
+2025-10-23 08:44:35.966 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3016.
+2025-10-23 08:45:06.928 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3016 in 30.96 seconds.
+2025-10-23 08:45:08.971 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3016: 89 new bits.
+2025-10-23 08:46:07.675 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3016 done 
+2025-10-23 08:46:07.679 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.signal.windows.dpss: 169389 bits.
+2025-10-23 08:46:07.695 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy import linalg
+
+# Define the matrices for the continuous-time algebraic Riccati equation
+a = np.array([[4, 3], [-4.5, -3.5]])
+b = np.array([[1], [-1]])
+q = np.array([[9, 6], [6, 4.]])
+r = np.array([[1]])
+
+# Solve the continuous-time algebraic Riccati equation
+x = linalg.solve_continuous_are(a, b, q, r)
+
+2025-10-23 08:46:07.699 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2644.
+2025-10-23 08:46:51.327 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2644 in 43.63 seconds.
+2025-10-23 08:46:51.951 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2644: 201 new bits.
+2025-10-23 08:47:23.100 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2644 done 
+2025-10-23 08:47:23.105 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.solve_continuous_are: 169590 bits.
+2025-10-23 08:47:23.117 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.sparse import csr_array
+from scipy.sparse.linalg import norm
+
+# Create a sparse matrix using csr_array
+matrix_data = np.array([[1, 0, 2], [0, 3, 0], [4, 0, 5]])
+sparse_matrix = csr_array(matrix_data)
+
+# Compute the Frobenius norm of the sparse matrix
+result = norm(sparse_matrix, ord='fro')
+
+2025-10-23 08:47:23.121 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3126.
+2025-10-23 08:48:23.946 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3126 in 60.82 seconds.
+2025-10-23 08:48:35.805 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3126: 380 new bits.
+2025-10-23 08:48:57.144 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3126 done 
+2025-10-23 08:48:57.148 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.sparse.linalg.norm: 169970 bits.
+2025-10-23 08:48:57.160 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import numpy as np
+from scipy.linalg import eig_banded
+
+# Create a band matrix example (upper form, 3 bands, 4x4 matrix)
+a_band = np.array([
+    [1, 2, 3, 4],  # diagonal
+    [5, 6, 7, 0],  # first superdiagonal
+    [8, 9, 0, 0]   # second superdiagonal
+])
+
+# Call eig_banded with necessary parameters
+eigenvalues, eigenvectors = eig_banded(a_band, lower=False, eigvals_only=False, overwrite_a_band=False, select='a', select_range=None, max_ev=0, check_finite=True)
+
+2025-10-23 08:48:57.165 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2556.
+2025-10-23 08:50:17.043 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2556 in 79.88 seconds.
+2025-10-23 08:50:48.672 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2556 done 
+2025-10-23 08:50:48.675 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.linalg.eig_banded: 169970 bits.
+2025-10-23 08:50:48.686 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import scipy.fftpack
+x = [1, 2, 3, 4]
+res = scipy.fftpack.dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=False)
+
+2025-10-23 08:50:48.690 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 2397.
+2025-10-23 08:50:59.697 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 2397 in 11.01 seconds.
+2025-10-23 08:51:00.322 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 2397: 12 new bits.
+2025-10-23 08:51:31.229 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 2397 done 
+2025-10-23 08:51:31.232 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing scipy.fftpack.dst: 169982 bits.
+2025-10-23 08:51:31.243 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import requests
+
+key = "response"
+hooks = {"response": lambda data, **kwargs: data}
+hook_data = {"status_code": 200, "text": "OK"}
+kwargs = {}
+
+res = requests.hooks.dispatch_hook(key, hooks, hook_data, **kwargs)
+
+2025-10-23 08:51:31.247 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3778.
+2025-10-23 08:51:48.703 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3778 in 17.46 seconds.
+2025-10-23 08:51:59.809 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3778 done 
+2025-10-23 08:51:59.811 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing requests.hooks.dispatch_hook: 169982 bits.
+2025-10-23 08:51:59.823 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import requests
+data = b'\xef\xbb\xbf{"key": "value"}'
+result = requests.utils.guess_json_utf(data)
+
+2025-10-23 08:51:59.826 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3768.
+2025-10-23 08:52:47.381 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3768 in 47.55 seconds.
+2025-10-23 08:52:49.081 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3768: 2 new bits.
+2025-10-23 08:52:49.192 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3768: 4 new bits.
+2025-10-23 08:52:54.827 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3768: 417 new bits.
+2025-10-23 08:53:00.804 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3768 done 
+2025-10-23 08:53:00.808 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing requests.utils.guess_json_utf: 170405 bits.
+2025-10-23 08:53:00.823 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import requests.adapters
+url = "example.com/path"
+new_scheme = "https"
+result = requests.adapters.prepend_scheme_if_needed(url, new_scheme)
+
+2025-10-23 08:53:00.827 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3798.
+2025-10-23 08:53:09.646 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3798 in 8.82 seconds.
+2025-10-23 08:53:20.666 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3798 done 
+2025-10-23 08:53:20.668 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing requests.adapters.prepend_scheme_if_needed: 170405 bits.
+2025-10-23 08:53:20.675 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import requests
+from requests.structures import CaseInsensitiveDict
+
+res = requests.sessions.default_headers()
+
+2025-10-23 08:53:20.678 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3806.
+2025-10-23 08:54:10.146 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3806 in 49.47 seconds.
+2025-10-23 08:54:20.755 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3806 done 
+2025-10-23 08:54:20.757 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing requests.sessions.default_headers: 170405 bits.
+2025-10-23 08:54:20.763 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from spacy.ml.models.entity_linker import empty_kb
+from spacy.vocab import Vocab
+
+# 创建参数
+entity_vector_length = 100
+
+# 初始化函数
+kb_factory = empty_kb(entity_vector_length=entity_vector_length)
+
+# 调用函数
+vocab = Vocab()
+knowledge_base = kb_factory(vocab)
+
+2025-10-23 08:54:20.771 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3972.
+2025-10-23 08:55:20.074 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3972 in 59.30 seconds.
+2025-10-23 08:58:06.532 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3972 done 
+2025-10-23 08:58:06.535 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.ml.models.entity_linker.empty_kb: 170405 bits.
+2025-10-23 08:58:06.550 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+term = "NORP"
+res = spacy.explain(term)
+
+2025-10-23 08:58:06.554 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4113.
+2025-10-23 08:58:45.035 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4113 in 38.48 seconds.
+2025-10-23 09:01:27.610 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4113 done 
+2025-10-23 09:01:27.611 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.explain: 170405 bits.
+2025-10-23 09:01:27.623 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from packaging.requirements import Requirement
+from typing import Tuple
+
+requirement_str = "spacy>=1.2.3"
+name, specifier = spacy.util.split_requirement(requirement_str)
+
+2025-10-23 09:01:27.629 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3851.
+2025-10-23 09:02:29.008 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3851 in 61.38 seconds.
+2025-10-23 09:04:21.393 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3851 done 
+2025-10-23 09:04:21.395 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.util.split_requirement: 170405 bits.
+2025-10-23 09:04:21.412 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from thinc.model import Model
+from thinc.types import cast
+from thinc.layers import chain, Maxout, Linear
+from thinc.initializers import zero_init
+from spacy.ml.models.multi_task import build_masked_language_model
+
+# Define the required components with proper initialization
+vocab = spacy.vocab.Vocab()
+hidden_size = 128
+maxout_pieces = 3
+
+# Create a valid tok2vec model with defined dimensions
+tok2vec = chain(
+    Linear(nO=hidden_size, nI=64, init_W=zero_init),  # Corrected: use init_W instead of init
+    Maxout(nP=maxout_pieces, nI=hidden_size, nO=hidden_size)
+)
+
+# Build the cloze multi-task model
+model = spacy.ml.models.multi_task.build_cloze_multi_task_model(vocab, tok2vec, maxout_pieces, hidden_size)
+
+2025-10-23 09:04:21.415 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3989.
+2025-10-23 09:05:38.619 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3989 in 77.20 seconds.
+2025-10-23 09:08:23.138 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3989 done 
+2025-10-23 09:08:23.140 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.ml.models.multi_task.build_cloze_multi_task_model: 170405 bits.
+2025-10-23 09:08:23.149 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from spacy.ml import Model, noop
+
+# Create valid model instances for tok2vec, lower, and upper
+tok2vec = Model(name="tok2vec", forward=lambda: None, dims={"nI": 128}, layers=[], refs={}, init=None)
+lower = Model(name="lower", forward=lambda: None, dims={"nI": 128, "nO": 64}, layers=[], refs={}, init=None)
+upper = Model(name="upper", forward=lambda: None, dims={"nI": 64, "nO": 32}, layers=[], refs={}, init=None)
+
+resize_output = True
+dropout = 0.2
+unseen_classes = set()
+
+# Create the TransitionModel instance with valid model components
+model = spacy.ml.TransitionModel(
+    tok2vec=tok2vec,
+    lower=lower,
+    upper=upper,
+    resize_output=resize_output,
+    dropout=dropout,
+    unseen_classes=unseen_classes
+)
+
+2025-10-23 09:08:23.153 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4060.
+2025-10-23 09:09:50.387 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4060 in 87.23 seconds.
+2025-10-23 09:11:59.098 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4060 done 
+2025-10-23 09:11:59.101 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.ml.TransitionModel: 170405 bits.
+2025-10-23 09:11:59.116 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from pathlib import Path
+
+file_path = Path("config.cfg")
+title = "Validation Error"
+desc = "The configuration file contains invalid settings."
+show_config = True
+hint_fill = True
+
+with spacy.cli.train.show_validation_error(file_path=file_path, title=title, desc=desc, show_config=show_config, hint_fill=hint_fill):
+    pass
+
+2025-10-23 09:11:59.120 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4108.
+2025-10-23 09:12:23.179 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4108 in 24.06 seconds.
+2025-10-23 09:15:16.224 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4108 done 
+2025-10-23 09:15:16.226 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.cli.train.show_validation_error: 170405 bits.
+2025-10-23 09:15:16.235 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from typing import Callable
+from thinc.api import Model
+from functools import partial
+from thinc.loss import CosineDistance, L2Distance
+
+# 参数配置
+maxout_pieces = 2
+hidden_size = 128
+loss = "cosine"
+
+# 调用目标函数
+model = spacy.ml.models.multi_task.create_pretrain_vectors(maxout_pieces, hidden_size, loss)
+
+2025-10-23 09:15:16.240 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3988.
+2025-10-23 09:15:31.570 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3988 in 15.33 seconds.
+2025-10-23 09:18:23.636 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3988 done 
+2025-10-23 09:18:23.638 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.ml.models.multi_task.create_pretrain_vectors: 170405 bits.
+2025-10-23 09:18:23.651 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+merge_chars = lambda char: char.strip().replace(" ", "|")
+char = " example string "
+res = merge_chars(char)
+
+2025-10-23 09:18:23.654 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3904.
+2025-10-23 09:20:05.031 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3904 in 101.38 seconds.
+2025-10-23 09:20:15.797 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3904 done 
+2025-10-23 09:20:15.800 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.lang.char_classes.<lambda>: 170405 bits.
+2025-10-23 09:20:15.810 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from typing import Dict, Callable, Iterable
+
+getters = {"key1": lambda: b"data1", "key2": lambda: b"data2"}
+exclude = ["key1"]
+res = spacy.util.to_bytes(getters, exclude)
+
+2025-10-23 09:20:15.814 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3879.
+2025-10-23 09:21:32.070 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3879 in 76.26 seconds.
+2025-10-23 09:24:09.259 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3879 done 
+2025-10-23 09:24:09.263 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.util.to_bytes: 170405 bits.
+2025-10-23 09:24:09.278 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy
+from thinc.types import Floats2d
+from thinc.model import Model
+from thinc.layers import chain, Softmax_v2, with_array
+from thinc.initializers import zero_init
+
+# Define a simple tok2vec model as an example
+# This is a placeholder; in practice, this could be a more complex architecture
+tok2vec = Model(
+    "tok2vec",
+    lambda: chain(
+        with_array(),
+        # Add additional layers here if needed (e.g., Dense, Dropout, etc.)
+    )
+)
+
+nO = 10  # Number of output tags, adjust based on your task
+normalize = False
+
+# Build the tagger model using the initialized tok2vec
+tagger_model = spacy.ml.build_tagger_model(tok2vec=tok2vec, nO=nO, normalize=normalize)
+
+2025-10-23 09:24:09.282 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4066.
+2025-10-23 09:25:46.124 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4066 in 96.84 seconds.
+2025-10-23 09:28:27.960 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4066 done 
+2025-10-23 09:28:27.962 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.ml.build_tagger_model: 170405 bits.
+2025-10-23 09:28:27.979 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import spacy.util
+val = True
+res = spacy.util.to_ternary_int(val)
+
+2025-10-23 09:28:27.982 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 3901.
+2025-10-23 09:28:48.620 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 3901 in 20.64 seconds.
+2025-10-23 09:29:00.743 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3901: 2 new bits.
+2025-10-23 09:29:35.037 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 3901: 1 new bits.
+2025-10-23 09:31:32.676 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 3901 done 
+2025-10-23 09:31:32.678 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing spacy.util.to_ternary_int: 170408 bits.
+2025-10-23 09:31:32.695 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+# 创建输入张量 input，形状为 [seq_len, batch_size, input_size]
+input = torch.randn(10, 5, 32)
+
+# 创建权重张量 weight，形状为 [kernel_width, in_channels, out_channels]，这里 kernel_width 设为 1
+weight = torch.randn(1, 32, 64)
+
+# 创建偏置张量 bias，形状为 [output_size]
+bias = torch.randn(64)
+
+# 定义填充大小 pad
+pad = 0
+
+# 调用 torch.conv_tbc 函数
+res = torch.conv_tbc(input, weight, bias, pad=pad)
+
+2025-10-23 09:31:32.702 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4326.
+2025-10-23 09:32:35.621 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4326 in 62.92 seconds.
+2025-10-23 09:32:46.427 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4326: 37300 new bits.
+2025-10-23 09:34:47.649 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4326 done 
+2025-10-23 09:34:47.651 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.conv_tbc: 207708 bits.
+2025-10-23 09:34:47.660 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([1.0, 2.0, 3.0])
+res = torch.exp2_(x)
+
+2025-10-23 09:34:47.664 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4371.
+2025-10-23 09:35:09.470 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4371 in 21.81 seconds.
+2025-10-23 09:37:18.532 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4371 done 
+2025-10-23 09:37:18.534 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.exp2_: 207728 bits.
+2025-10-23 09:37:18.540 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+b = True
+torch.set_warn_always(b)
+
+2025-10-23 09:37:18.543 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4150.
+2025-10-23 09:37:54.142 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4150 in 35.60 seconds.
+2025-10-23 09:37:56.877 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4150: 1 new bits.
+2025-10-23 09:39:57.995 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4150 done 
+2025-10-23 09:39:57.997 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.set_warn_always: 207729 bits.
+2025-10-23 09:39:58.012 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+input_tensor = torch.tensor([5, 10, 15])
+other_tensor = torch.tensor([3, 4, 5])
+res = torch.gcd(input_tensor, other_tensor)
+
+2025-10-23 09:39:58.016 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4410.
+2025-10-23 09:40:11.022 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4410 in 13.00 seconds.
+2025-10-23 09:42:14.012 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4410 done 
+2025-10-23 09:42:14.015 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.gcd: 207729 bits.
+2025-10-23 09:42:14.032 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([-2.0755, 1.0226, 0.0831, 0.4806])
+res = torch.sqrt(x)
+
+2025-10-23 09:42:14.036 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4668.
+2025-10-23 09:42:32.623 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4668 in 18.59 seconds.
+2025-10-23 09:44:45.390 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4668 done 
+2025-10-23 09:44:45.393 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.sqrt: 207729 bits.
+2025-10-23 09:44:45.412 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+input_tensor = torch.tensor([0.1, 0.2, 0.3, 0.4], dtype=torch.float)
+num_samples = 3
+replacement = False
+generator = None
+out = None
+
+res = torch.multinomial(input=input_tensor, num_samples=num_samples, replacement=replacement, generator=generator, out=out)
+
+2025-10-23 09:44:45.416 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4534.
+2025-10-23 09:45:23.849 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4534 in 38.43 seconds.
+2025-10-23 09:47:36.817 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4534 done 
+2025-10-23 09:47:36.820 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.multinomial: 207729 bits.
+2025-10-23 09:47:36.829 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([1.0, 2.0, 4.0])
+res = torch.log2_(x)
+
+2025-10-23 09:47:36.833 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4487.
+2025-10-23 09:48:33.378 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4487 in 56.54 seconds.
+2025-10-23 09:50:41.120 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4487 done 
+2025-10-23 09:50:41.123 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.log2_: 207729 bits.
+2025-10-23 09:50:41.138 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([[[0,1],[2,3]],[[4,5],[6,7]]])
+res = torch.swapdims(x, 0, 1)
+
+2025-10-23 09:50:41.142 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4687.
+2025-10-23 09:51:22.379 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4687 in 41.24 seconds.
+2025-10-23 09:53:33.096 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4687 done 
+2025-10-23 09:53:33.099 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.swapdims: 207729 bits.
+2025-10-23 09:53:33.112 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+a = torch.randn(3, 4, 5)
+b = torch.randn(4, 3, 2)
+res = torch.tensordot(a, b, dims=([1, 0], [0, 1]))
+
+2025-10-23 09:53:33.117 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4701.
+2025-10-23 09:54:02.949 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4701 in 29.83 seconds.
+2025-10-23 09:54:56.601 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4701: 16 new bits.
+2025-10-23 09:56:07.824 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4701 done 
+2025-10-23 09:56:07.827 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.tensordot: 207745 bits.
+2025-10-23 09:56:07.839 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([1, 2, 3])
+y = 2
+res = torch.less(x, y)
+
+2025-10-23 09:56:07.844 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4477.
+2025-10-23 09:58:03.530 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4477 in 115.69 seconds.
+2025-10-23 09:59:50.494 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4477 done 
+2025-10-23 09:59:50.496 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.less: 207745 bits.
+2025-10-23 09:59:50.506 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+a = torch.randn(3, 4)
+b = torch.randn(4, 5)
+c = torch.randn(5, 6)
+d = torch.randn(6, 7)
+res = torch.chain_matmul(a, b, c, d)
+
+2025-10-23 09:59:50.511 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4283.
+2025-10-23 10:00:35.398 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4283 in 44.89 seconds.
+2025-10-23 10:02:34.427 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4283 done 
+2025-10-23 10:02:34.431 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.chain_matmul: 207745 bits.
+2025-10-23 10:02:34.446 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+input_tensor = torch.tensor([1.0, 2.0, 3.0])
+torch.reciprocal_(input_tensor)
+
+2025-10-23 10:02:34.450 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4610.
+2025-10-23 10:02:56.157 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4610 in 21.71 seconds.
+2025-10-23 10:04:56.628 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4610 done 
+2025-10-23 10:04:56.631 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.reciprocal_: 207745 bits.
+2025-10-23 10:04:56.647 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+# Create a sparse tensor `self` (input)
+self = torch.sparse_coo_tensor(
+    indices=torch.tensor([[0, 1], [2, 3]]),
+    values=torch.tensor([1.0, 2.0]),
+    size=(4, 4)
+)
+
+# Create a sparse tensor `mat1`
+mat1 = torch.sparse_coo_tensor(
+    indices=torch.tensor([[0, 1], [2, 3]]),
+    values=torch.tensor([3.0, 4.0]),
+    size=(4, 4)
+)
+
+# Create a dense tensor `mat2`
+mat2 = torch.randn(4, 4)
+
+# Set beta and alpha values
+beta = 1.0
+alpha = 1.0
+
+# Call torch.sspaddmm
+res = torch.sspaddmm(beta, self, mat1, mat2)
+
+2025-10-23 10:04:56.651 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4676.
+2025-10-23 10:06:21.452 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4676 in 84.80 seconds.
+2025-10-23 10:08:35.217 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4676 done 
+2025-10-23 10:08:35.220 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.sspaddmm: 207745 bits.
+2025-10-23 10:08:35.230 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+input_tensor = torch.tensor([1.0, 0.5, 0.0])
+res = torch.arccos_(input_tensor)
+
+2025-10-23 10:08:35.235 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4221.
+2025-10-23 10:10:06.701 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4221 in 91.47 seconds.
+2025-10-23 10:12:01.668 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4221: 141 new bits.
+2025-10-23 10:12:09.678 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4221 done 
+2025-10-23 10:12:09.680 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.arccos_: 207886 bits.
+2025-10-23 10:12:09.694 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+input_tensor = torch.tensor([1., 2., float('nan'), 4.])
+result = torch.nansum(input_tensor)
+
+2025-10-23 10:12:09.699 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4543.
+2025-10-23 10:13:01.157 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4543 in 51.46 seconds.
+2025-10-23 10:15:08.517 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4543 done 
+2025-10-23 10:15:08.520 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.nansum: 207886 bits.
+2025-10-23 10:15:08.534 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+import io
+
+# Create a simple module for demonstration
+class MyModule(torch.nn.Module):
+    def forward(self, x):
+        return x + 10
+
+# Export the module
+module = MyModule()
+example_input = torch.randn(5)
+ep = torch.export.export(module, (example_input,))
+
+# Save the exported program to a file
+torch.export.save(ep, "exported_program.pt2")
+
+2025-10-23 10:15:08.537 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4122.
+2025-10-23 10:15:45.712 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4122 in 37.17 seconds.
+2025-10-23 10:15:50.920 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4122: 3318 new bits.
+2025-10-23 10:15:54.471 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4122: 7 new bits.
+2025-10-23 10:18:58.021 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4122 done 
+2025-10-23 10:18:58.024 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.export.save: 211211 bits.
+2025-10-23 10:18:58.039 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+input_tensor = torch.tensor([1, 1+1j, 2+0j])
+result = torch.isreal(input_tensor)
+
+2025-10-23 10:18:58.043 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4465.
+2025-10-23 10:19:17.024 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4465 in 18.98 seconds.
+2025-10-23 10:21:17.717 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4465 done 
+2025-10-23 10:21:17.721 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.isreal: 211212 bits.
+2025-10-23 10:21:17.736 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.tensor([1.0, 2.0, 3.0])
+x.zero_()
+
+2025-10-23 10:21:17.739 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4741.
+2025-10-23 10:22:15.951 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4741 in 58.21 seconds.
+2025-10-23 10:24:05.416 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4741 done 
+2025-10-23 10:24:05.417 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.zero_: 211212 bits.
+2025-10-23 10:24:05.424 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+# Create a sparse COO matrix mat1
+mat1 = torch.randn(3, 4).to_sparse_coo()
+# Create a strided matrix mat2
+mat2 = torch.randn(4, 5)
+
+# Perform the hspmm operation
+res = torch.hspmm(mat1, mat2)
+
+2025-10-23 10:24:05.428 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4433.
+2025-10-23 10:24:48.232 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4433 in 42.80 seconds.
+2025-10-23 10:26:46.330 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4433 done 
+2025-10-23 10:26:46.332 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.hspmm: 211212 bits.
+2025-10-23 10:26:46.341 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+res = torch.get_rng_state()
+
+2025-10-23 10:26:46.344 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4128.
+2025-10-23 10:28:01.968 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4128 in 75.62 seconds.
+2025-10-23 10:28:04.644 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4128: 1 new bits.
+2025-10-23 10:28:29.328 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4128: 15 new bits.
+2025-10-23 10:28:31.985 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4128: 23 new bits.
+2025-10-23 10:30:02.435 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4128 done 
+2025-10-23 10:30:02.438 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.get_rng_state: 211251 bits.
+2025-10-23 10:30:02.449 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+# Create input tensor (input), matrix (mat), and vector (vec)
+input_tensor = torch.tensor([1.0, 2.0])
+matrix = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+vector = torch.tensor([0.5, 1.0, 1.5])
+
+# Define beta and alpha values
+beta = 1.0
+alpha = 1.0
+
+# Perform the torch.addmv operation with correct parameter names
+result = torch.addmv(input=input_tensor, mat=matrix, vec=vector, beta=beta, alpha=alpha)
+
+2025-10-23 10:30:02.454 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4211.
+2025-10-23 10:30:27.450 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4211 in 25.00 seconds.
+2025-10-23 10:32:49.088 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4211 done 
+2025-10-23 10:32:49.092 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.addmv: 211251 bits.
+2025-10-23 10:32:49.108 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+A = torch.tensor([[0, 1], [1, 0]])
+B = torch.tensor([[3, 4, 5], [6, 7, 8]])
+C = torch.tensor(7)
+D = torch.tensor([1, 2, 3])
+E = torch.tensor([[4], [5], [6]])
+res = torch.block_diag(A, B, C, D, E)
+
+2025-10-23 10:32:49.112 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4271.
+2025-10-23 10:33:46.718 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4271 in 57.60 seconds.
+2025-10-23 10:36:01.033 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4271 done 
+2025-10-23 10:36:01.034 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.block_diag: 211251 bits.
+2025-10-23 10:36:01.044 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+x = torch.arange(9., dtype=torch.float32)
+mantissa, exponent = torch.frexp(x)
+
+2025-10-23 10:36:01.048 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4403.
+2025-10-23 10:37:14.774 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4403 in 73.73 seconds.
+2025-10-23 10:39:09.445 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4403 done 
+2025-10-23 10:39:09.446 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.frexp: 211251 bits.
+2025-10-23 10:39:09.454 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+res = torch.get_num_threads()
+
+2025-10-23 10:39:09.457 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4172.
+2025-10-23 10:39:54.981 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4172 in 45.52 seconds.
+2025-10-23 10:41:52.809 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4172 done 
+2025-10-23 10:41:52.811 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.get_num_threads: 211251 bits.
+2025-10-23 10:41:52.822 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import torch
+
+input_tensor = torch.tensor([1.0, 2.0, 3.0])
+other_tensor = torch.tensor([2, 3, 4])
+res = torch.ldexp_(input_tensor, other_tensor)
+
+2025-10-23 10:41:52.825 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4473.
+2025-10-23 10:42:03.140 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4473 in 10.31 seconds.
+2025-10-23 10:44:02.910 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4473 done 
+2025-10-23 10:44:02.914 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing torch.ldexp_: 211251 bits.
+2025-10-23 10:44:02.929 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.arange(1.5, 4.5, 0.5)
+res = paddle.gammaln(x)
+
+2025-10-23 10:44:02.932 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4972.
+2025-10-23 10:44:41.856 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4972 in 38.92 seconds.
+2025-10-23 10:45:57.359 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4972 done 
+2025-10-23 10:45:57.362 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.gammaln: 211251 bits.
+2025-10-23 10:45:57.369 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.to_tensor([-0.4, -0.2, 0.1, 0.3])
+res = paddle.square(x)
+
+2025-10-23 10:45:57.372 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4965.
+2025-10-23 10:46:23.285 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4965 in 25.91 seconds.
+2025-10-23 10:47:41.186 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4965 done 
+2025-10-23 10:47:41.189 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.square: 211251 bits.
+2025-10-23 10:47:41.198 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+res = paddle.get_default_dtype()
+
+2025-10-23 10:47:41.202 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4764.
+2025-10-23 10:48:13.740 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4764 in 32.54 seconds.
+2025-10-23 10:48:47.196 | INFO     | __main__:fuzz_single_seed:114 - New coverage found by seed 4764: 5 new bits.
+2025-10-23 10:49:30.640 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4764 done 
+2025-10-23 10:49:30.643 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.get_default_dtype: 211256 bits.
+2025-10-23 10:49:30.657 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+x = paddle.to_tensor([True, False, True])
+y = paddle.to_tensor([False, False, True])
+out = paddle.zeros_like(x, dtype=paddle.bool)
+res = paddle.logical_xor(x, y, out=out)
+
+2025-10-23 10:49:30.662 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4942.
+2025-10-23 10:49:55.947 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4942 in 25.28 seconds.
+2025-10-23 10:51:22.819 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4942 done 
+2025-10-23 10:51:22.823 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle._logical_xor: 211256 bits.
+2025-10-23 10:51:22.836 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.to_tensor([3], dtype='float32')
+y = paddle.to_tensor([4], dtype='float32')
+res = paddle.hypot(x, y)
+
+2025-10-23 10:51:22.839 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5164.
+2025-10-23 10:51:54.656 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5164 in 31.82 seconds.
+2025-10-23 10:53:19.118 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5164 done 
+2025-10-23 10:53:19.121 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.hypot: 211256 bits.
+2025-10-23 10:53:19.132 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+start = 0.0
+stop = 10.0
+num = 5
+dtype = 'float32'
+res = paddle.linspace(start, stop, num, dtype=dtype)
+
+2025-10-23 10:53:19.137 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5055.
+2025-10-23 10:53:27.486 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5055 in 8.35 seconds.
+2025-10-23 10:54:51.899 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5055 done 
+2025-10-23 10:54:51.901 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.linspace: 211256 bits.
+2025-10-23 10:54:51.910 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.arange(12, dtype=paddle.float32).reshape([2, 3, 2])
+res = paddle.as_complex(x)
+
+2025-10-23 10:54:51.913 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5099.
+2025-10-23 10:55:29.305 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5099 in 37.39 seconds.
+2025-10-23 10:56:54.100 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5099 done 
+2025-10-23 10:56:54.103 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.as_complex: 211256 bits.
+2025-10-23 10:56:54.115 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.randn([3, 3])
+mask = paddle.tensor([[True, False, True], [False, True, False], [True, True, False]])
+value = 0.0
+res = paddle.masked_fill_(x, mask, value)
+
+2025-10-23 10:56:54.119 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5161.
+2025-10-23 10:57:25.434 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5161 in 31.31 seconds.
+2025-10-23 10:58:42.320 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5161 done 
+2025-10-23 10:58:42.325 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.masked_fill_: 211256 bits.
+2025-10-23 10:58:42.332 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+x = paddle.to_tensor([1.0, 2.0, 3.0], dtype=paddle.float32)
+y = paddle.to_tensor([2.0, 2.0, 2.0], dtype=paddle.float32)
+res = paddle.divide_(x, y)
+
+2025-10-23 10:58:42.335 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4968.
+2025-10-23 10:59:23.948 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4968 in 41.61 seconds.
+2025-10-23 11:00:40.145 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4968 done 
+2025-10-23 11:00:40.148 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.divide_: 211256 bits.
+2025-10-23 11:00:40.162 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+x = paddle.to_tensor([-5, -1, 1], dtype='int64')
+y = paddle.to_tensor([4, 2, -3], dtype='int64')
+res = paddle.bitwise_or(x, y)
+
+2025-10-23 11:00:40.166 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4870.
+2025-10-23 11:01:02.270 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4870 in 22.10 seconds.
+2025-10-23 11:02:19.661 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4870 done 
+2025-10-23 11:02:19.664 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.bitwise_or: 211256 bits.
+2025-10-23 11:02:19.676 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+import numpy as np
+
+x = paddle.to_tensor([3.142, -3.142, 6.283, -6.283, 1.570, -1.570])
+result = paddle.rad2deg(x)
+
+2025-10-23 11:02:19.680 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4978.
+2025-10-23 11:02:58.052 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4978 in 38.37 seconds.
+2025-10-23 11:04:13.741 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4978 done 
+2025-10-23 11:04:13.742 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.rad2deg: 211256 bits.
+2025-10-23 11:04:13.754 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.rand([4, 4])
+res = paddle.tril_(x, diagonal=0)
+
+2025-10-23 11:04:13.757 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4920.
+2025-10-23 11:04:19.635 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4920 in 5.88 seconds.
+2025-10-23 11:05:48.242 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4920 done 
+2025-10-23 11:05:48.244 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.tril_: 211256 bits.
+2025-10-23 11:05:48.258 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+x = paddle.to_tensor([1, 2, 3])
+y = paddle.to_tensor([1, 3, 2])
+res = paddle.not_equal(x, y)
+
+2025-10-23 11:05:48.261 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4992.
+2025-10-23 11:06:24.679 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4992 in 36.42 seconds.
+2025-10-23 11:07:48.980 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4992 done 
+2025-10-23 11:07:48.982 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.not_equal: 211256 bits.
+2025-10-23 11:07:48.989 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+x = paddle.uniform([2, 3], min=1.0, max=5.0, dtype='float32')
+res = paddle.poisson(x)
+
+2025-10-23 11:07:48.992 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4937.
+2025-10-23 11:08:45.830 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4937 in 56.84 seconds.
+2025-10-23 11:10:05.914 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4937 done 
+2025-10-23 11:10:05.917 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.poisson: 211256 bits.
+2025-10-23 11:10:05.928 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+input_tensor = paddle.to_tensor([[[2.0, 3.0, 4.0, 5.0],
+                                 [3.0, 4.0, 5.0, 6.0],
+                                 [7.0, 8.0, 8.0, 9.0]],
+                                [[1.0, 2.0, 3.0, 4.0],
+                                 [5.0, 6.0, 7.0, 8.0],
+                                 [6.0, 7.0, 8.0, 9.0]]], dtype='float32')
+
+dim_value = -1
+dtype_value = 'float32'
+
+result = paddle.softmax(input=input_tensor, dim=dim_value, dtype=dtype_value)
+
+2025-10-23 11:10:05.933 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5178.
+2025-10-23 11:11:05.110 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5178 in 59.18 seconds.
+2025-10-23 11:12:32.916 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5178 done 
+2025-10-23 11:12:32.920 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.softmax: 211256 bits.
+2025-10-23 11:12:32.932 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+count = paddle.to_tensor([10, 50], dtype='int64')
+prob = paddle.to_tensor([0.2, 0.6], dtype='float32')
+res = paddle.binomial(count, prob)
+
+2025-10-23 11:12:32.936 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 4936.
+2025-10-23 11:13:12.869 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 4936 in 39.93 seconds.
+2025-10-23 11:14:30.269 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 4936 done 
+2025-10-23 11:14:30.273 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.binomial: 211256 bits.
+2025-10-23 11:14:30.288 | DEBUG    | __main__:fuzz_single_seed:77 - seed is :
+
+import paddle
+
+x = paddle.to_tensor([1.0, 10.0, 100.0])
+res = paddle.log10_(x)
+
+2025-10-23 11:14:30.293 | INFO     | __main__:fuzz_single_seed:85 - Start fuzz seed 5077.
+2025-10-23 11:15:00.857 | DEBUG    | __main__:fuzz_single_seed:91 - Generated mutants 1-100 for seed 5077 in 30.56 seconds.
+2025-10-23 11:16:20.903 | INFO     | __main__:fuzz_single_seed:118 - Fuzz seed 5077 done 
+2025-10-23 11:16:20.905 | INFO     | __main__:_fuzz_dataset:133 - Current coverage after fuzzing paddle.log10_: 211256 bits.
