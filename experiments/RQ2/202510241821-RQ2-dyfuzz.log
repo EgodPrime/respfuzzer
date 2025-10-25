@@ -1,0 +1,1107 @@
+2025-10-24 19:09:00.523 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:147 - Calculating initial seed coverage for the dataset....
+2025-10-24 19:09:17.922 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:179 - Initial coverage after executing all seeds: 75100 bits.
+2025-10-24 19:09:17.923 | INFO     | __main__:<module>:181 - DyFuzz test nltk
+2025-10-24 19:09:17.924 | INFO     | __main__:<module>:184 - nltk has 22 apis
+2025-10-24 19:09:17.924 | INFO     | __main__:<module>:192 - DyFuzz nltk accuracy 2
+2025-10-24 19:09:17.924 | DEBUG    | __main__:<module>:199 - nltk.accuracy has 2 params, run 100 times
+2025-10-24 19:10:51.128 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:11:35.140 | INFO     | __main__:<module>:201 - Fuzz nltk.accuracy 2 done
+2025-10-24 19:11:35.141 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.accuracy: 75101 bits
+2025-10-24 19:11:35.141 | INFO     | __main__:<module>:192 - DyFuzz nltk chunk.tree2conlltags 1
+2025-10-24 19:11:35.141 | DEBUG    | __main__:<module>:199 - nltk.chunk.tree2conlltags has 1 params, run 100 times
+2025-10-24 19:13:13.009 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:14:14.083 | INFO     | __main__:<module>:201 - Fuzz nltk.chunk.tree2conlltags 1 done
+2025-10-24 19:14:14.084 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.chunk.tree2conlltags: 75102 bits
+2025-10-24 19:14:14.084 | INFO     | __main__:<module>:192 - DyFuzz nltk print_string 2
+2025-10-24 19:14:14.085 | DEBUG    | __main__:<module>:199 - nltk.print_string has 2 params, run 100 times
+2025-10-24 19:15:37.349 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:16:52.416 | INFO     | __main__:<module>:201 - Fuzz nltk.print_string 2 done
+2025-10-24 19:16:52.418 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.print_string: 75102 bits
+2025-10-24 19:16:52.418 | INFO     | __main__:<module>:192 - DyFuzz nltk classify.decisiontree.entropy 1
+2025-10-24 19:16:52.418 | DEBUG    | __main__:<module>:199 - nltk.classify.decisiontree.entropy has 1 params, run 100 times
+2025-10-24 19:19:16.734 | INFO     | __main__:<module>:201 - Fuzz nltk.classify.decisiontree.entropy 1 done
+2025-10-24 19:19:16.735 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.classify.decisiontree.entropy: 75102 bits
+2025-10-24 19:19:16.735 | INFO     | __main__:<module>:192 - DyFuzz nltk translate.ribes_score.corpus_ribes 4
+2025-10-24 19:19:16.735 | DEBUG    | __main__:<module>:199 - nltk.translate.ribes_score.corpus_ribes has 4 params, run 100 times
+2025-10-24 19:19:32.442 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:20:43.869 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:21:03.108 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:21:09.117 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:22:01.191 | INFO     | __main__:<module>:201 - Fuzz nltk.translate.ribes_score.corpus_ribes 4 done
+2025-10-24 19:22:01.193 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.translate.ribes_score.corpus_ribes: 75103 bits
+2025-10-24 19:22:01.193 | INFO     | __main__:<module>:192 - DyFuzz nltk cut_string 2
+2025-10-24 19:22:01.193 | DEBUG    | __main__:<module>:199 - nltk.cut_string has 2 params, run 100 times
+2025-10-24 19:24:17.963 | INFO     | __main__:<module>:201 - Fuzz nltk.cut_string 2 done
+2025-10-24 19:24:17.965 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.cut_string: 75103 bits
+2025-10-24 19:24:17.965 | INFO     | __main__:<module>:192 - DyFuzz nltk chunk.named_entity.find 2
+2025-10-24 19:24:17.965 | DEBUG    | __main__:<module>:199 - nltk.chunk.named_entity.find has 2 params, run 100 times
+2025-10-24 19:26:31.828 | INFO     | __main__:<module>:201 - Fuzz nltk.chunk.named_entity.find 2 done
+2025-10-24 19:26:31.829 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.chunk.named_entity.find: 75103 bits
+2025-10-24 19:26:31.829 | INFO     | __main__:<module>:192 - DyFuzz nltk decorators.decorator 1
+2025-10-24 19:26:31.829 | DEBUG    | __main__:<module>:199 - nltk.decorators.decorator has 1 params, run 100 times
+2025-10-24 19:27:59.241 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:28:52.958 | INFO     | __main__:<module>:201 - Fuzz nltk.decorators.decorator 1 done
+2025-10-24 19:28:52.958 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.decorators.decorator: 75105 bits
+2025-10-24 19:28:52.958 | INFO     | __main__:<module>:192 - DyFuzz nltk edge_closure 4
+2025-10-24 19:28:52.958 | DEBUG    | __main__:<module>:199 - nltk.edge_closure has 4 params, run 100 times
+2025-10-24 19:29:08.773 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:30:28.158 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:30:58.323 | INFO     | __main__:<module>:201 - Fuzz nltk.edge_closure 4 done
+2025-10-24 19:30:58.324 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.edge_closure: 75105 bits
+2025-10-24 19:30:58.324 | INFO     | __main__:<module>:192 - DyFuzz nltk tokenize.punkt.demo 3
+2025-10-24 19:30:58.324 | DEBUG    | __main__:<module>:199 - nltk.tokenize.punkt.demo has 3 params, run 100 times
+2025-10-24 19:33:13.249 | INFO     | __main__:<module>:201 - Fuzz nltk.tokenize.punkt.demo 3 done
+2025-10-24 19:33:13.250 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.tokenize.punkt.demo: 75105 bits
+2025-10-24 19:33:13.251 | INFO     | __main__:<module>:192 - DyFuzz nltk inference.discourse.spacer 1
+2025-10-24 19:33:13.251 | DEBUG    | __main__:<module>:199 - nltk.inference.discourse.spacer has 1 params, run 100 times
+2025-10-24 19:33:20.544 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:35:33.873 | INFO     | __main__:<module>:201 - Fuzz nltk.inference.discourse.spacer 1 done
+2025-10-24 19:35:33.874 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.inference.discourse.spacer: 75105 bits
+2025-10-24 19:35:33.874 | INFO     | __main__:<module>:192 - DyFuzz nltk metrics.distance.jaro_similarity 2
+2025-10-24 19:35:33.874 | DEBUG    | __main__:<module>:199 - nltk.metrics.distance.jaro_similarity has 2 params, run 100 times
+2025-10-24 19:37:37.223 | INFO     | __main__:<module>:201 - Fuzz nltk.metrics.distance.jaro_similarity 2 done
+2025-10-24 19:37:37.224 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.metrics.distance.jaro_similarity: 75105 bits
+2025-10-24 19:37:37.224 | INFO     | __main__:<module>:192 - DyFuzz nltk tbl.error_list 2
+2025-10-24 19:37:37.224 | DEBUG    | __main__:<module>:199 - nltk.tbl.error_list has 2 params, run 100 times
+2025-10-24 19:39:51.110 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:40:04.250 | INFO     | __main__:<module>:201 - Fuzz nltk.tbl.error_list 2 done
+2025-10-24 19:40:04.251 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.tbl.error_list: 75105 bits
+2025-10-24 19:40:04.251 | INFO     | __main__:<module>:192 - DyFuzz nltk metrics.aline.R 2
+2025-10-24 19:40:04.251 | DEBUG    | __main__:<module>:199 - nltk.metrics.aline.R has 2 params, run 100 times
+2025-10-24 19:41:52.805 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:42:19.929 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:42:22.547 | INFO     | __main__:<module>:201 - Fuzz nltk.metrics.aline.R 2 done
+2025-10-24 19:42:22.548 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.metrics.aline.R: 75106 bits
+2025-10-24 19:42:22.548 | INFO     | __main__:<module>:192 - DyFuzz nltk tokenize.simple.regexp_span_tokenize 2
+2025-10-24 19:42:22.548 | DEBUG    | __main__:<module>:199 - nltk.tokenize.simple.regexp_span_tokenize has 2 params, run 100 times
+2025-10-24 19:44:24.806 | INFO     | __main__:<module>:201 - Fuzz nltk.tokenize.simple.regexp_span_tokenize 2 done
+2025-10-24 19:44:24.807 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.tokenize.simple.regexp_span_tokenize: 75106 bits
+2025-10-24 19:44:24.808 | INFO     | __main__:<module>:192 - DyFuzz nltk translate.ribes_score.position_of_ngram 2
+2025-10-24 19:44:24.808 | DEBUG    | __main__:<module>:199 - nltk.translate.ribes_score.position_of_ngram has 2 params, run 100 times
+2025-10-24 19:45:35.522 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:46:44.546 | INFO     | __main__:<module>:201 - Fuzz nltk.translate.ribes_score.position_of_ngram 2 done
+2025-10-24 19:46:44.547 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.translate.ribes_score.position_of_ngram: 75106 bits
+2025-10-24 19:46:44.547 | INFO     | __main__:<module>:192 - DyFuzz nltk classify.util.names_demo_features 1
+2025-10-24 19:46:44.547 | DEBUG    | __main__:<module>:199 - nltk.classify.util.names_demo_features has 1 params, run 100 times
+2025-10-24 19:48:31.410 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:48:59.321 | INFO     | __main__:<module>:201 - Fuzz nltk.classify.util.names_demo_features 1 done
+2025-10-24 19:48:59.322 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.classify.util.names_demo_features: 75106 bits
+2025-10-24 19:48:59.322 | INFO     | __main__:<module>:192 - DyFuzz nltk guess_encoding 1
+2025-10-24 19:48:59.322 | DEBUG    | __main__:<module>:199 - nltk.guess_encoding has 1 params, run 100 times
+2025-10-24 19:51:09.297 | INFO     | __main__:<module>:201 - Fuzz nltk.guess_encoding 1 done
+2025-10-24 19:51:09.298 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.guess_encoding: 75108 bits
+2025-10-24 19:51:09.298 | INFO     | __main__:<module>:192 - DyFuzz nltk sem.drt.unique_variable 2
+2025-10-24 19:51:09.298 | DEBUG    | __main__:<module>:199 - nltk.sem.drt.unique_variable has 2 params, run 100 times
+2025-10-24 19:53:22.501 | INFO     | __main__:<module>:201 - Fuzz nltk.sem.drt.unique_variable 2 done
+2025-10-24 19:53:22.503 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.sem.drt.unique_variable: 75115 bits
+2025-10-24 19:53:22.503 | INFO     | __main__:<module>:192 - DyFuzz nltk ne_chunk 2
+2025-10-24 19:53:22.503 | DEBUG    | __main__:<module>:199 - nltk.ne_chunk has 2 params, run 100 times
+2025-10-24 19:55:10.508 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:55:48.224 | INFO     | __main__:<module>:201 - Fuzz nltk.ne_chunk 2 done
+2025-10-24 19:55:48.225 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.ne_chunk: 75116 bits
+2025-10-24 19:55:48.225 | INFO     | __main__:<module>:192 - DyFuzz nltk tokenize.regexp.regexp_tokenize 5
+2025-10-24 19:55:48.225 | DEBUG    | __main__:<module>:199 - nltk.tokenize.regexp.regexp_tokenize has 5 params, run 100 times
+2025-10-24 19:58:02.233 | INFO     | __main__:<module>:201 - Fuzz nltk.tokenize.regexp.regexp_tokenize 5 done
+2025-10-24 19:58:02.234 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.tokenize.regexp.regexp_tokenize: 75116 bits
+2025-10-24 19:58:02.235 | INFO     | __main__:<module>:192 - DyFuzz nltk sem.logic.read_logic 3
+2025-10-24 19:58:02.235 | DEBUG    | __main__:<module>:199 - nltk.sem.logic.read_logic has 3 params, run 100 times
+2025-10-24 19:58:49.532 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 19:59:08.506 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:00:19.516 | INFO     | __main__:<module>:201 - Fuzz nltk.sem.logic.read_logic 3 done
+2025-10-24 20:00:19.517 | INFO     | __main__:<module>:202 - Current coverage after fuzzing nltk.sem.logic.read_logic: 75128 bits
+2025-10-24 20:00:19.517 | INFO     | __main__:<module>:207 - Dyfuzz done nltk
+2025-10-24 20:00:19.517 | INFO     | __main__:<module>:181 - DyFuzz test dask
+2025-10-24 20:00:19.517 | INFO     | __main__:<module>:184 - dask has 9 apis
+2025-10-24 20:00:19.518 | INFO     | __main__:<module>:192 - DyFuzz dask optimization.inline 4
+2025-10-24 20:00:19.518 | DEBUG    | __main__:<module>:199 - dask.optimization.inline has 4 params, run 100 times
+2025-10-24 20:00:45.397 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:01:02.380 | INFO     | __main__:<module>:201 - Fuzz dask.optimization.inline 4 done
+2025-10-24 20:01:02.381 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.optimization.inline: 75129 bits
+2025-10-24 20:01:02.381 | INFO     | __main__:<module>:192 - DyFuzz dask threaded.pack_exception 2
+2025-10-24 20:01:02.381 | DEBUG    | __main__:<module>:199 - dask.threaded.pack_exception has 2 params, run 100 times
+2025-10-24 20:01:15.413 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:01:37.377 | INFO     | __main__:<module>:201 - Fuzz dask.threaded.pack_exception 2 done
+2025-10-24 20:01:37.378 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.threaded.pack_exception: 75129 bits
+2025-10-24 20:01:37.378 | INFO     | __main__:<module>:192 - DyFuzz dask threaded.get 6
+2025-10-24 20:01:37.378 | DEBUG    | __main__:<module>:199 - dask.threaded.get has 6 params, run 100 times
+2025-10-24 20:01:51.245 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:02:00.089 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:02:07.955 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:02:26.431 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:02:41.842 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:02:41.842 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 20:02:41.842 | INFO     | __main__:<module>:201 - Fuzz dask.threaded.get 6 done
+2025-10-24 20:02:41.843 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.threaded.get: 75129 bits
+2025-10-24 20:02:41.843 | INFO     | __main__:<module>:192 - DyFuzz dask utils.get_scheduler_lock 2
+2025-10-24 20:02:41.843 | DEBUG    | __main__:<module>:199 - dask.utils.get_scheduler_lock has 2 params, run 100 times
+2025-10-24 20:03:19.178 | INFO     | __main__:<module>:201 - Fuzz dask.utils.get_scheduler_lock 2 done
+2025-10-24 20:03:19.179 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.utils.get_scheduler_lock: 75150 bits
+2025-10-24 20:03:19.179 | INFO     | __main__:<module>:192 - DyFuzz dask optimization.functions_of 1
+2025-10-24 20:03:19.179 | DEBUG    | __main__:<module>:199 - dask.optimization.functions_of has 1 params, run 100 times
+2025-10-24 20:03:52.206 | INFO     | __main__:<module>:201 - Fuzz dask.optimization.functions_of 1 done
+2025-10-24 20:03:52.207 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.optimization.functions_of: 75151 bits
+2025-10-24 20:03:52.207 | INFO     | __main__:<module>:192 - DyFuzz dask tokenize.normalize_bound_method 1
+2025-10-24 20:03:52.207 | DEBUG    | __main__:<module>:199 - dask.tokenize.normalize_bound_method has 1 params, run 100 times
+2025-10-24 20:04:11.030 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:04:20.310 | INFO     | __main__:<module>:201 - Fuzz dask.tokenize.normalize_bound_method 1 done
+2025-10-24 20:04:20.311 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.tokenize.normalize_bound_method: 75151 bits
+2025-10-24 20:04:20.311 | INFO     | __main__:<module>:192 - DyFuzz dask utils.takes_multiple_arguments 2
+2025-10-24 20:04:20.311 | DEBUG    | __main__:<module>:199 - dask.utils.takes_multiple_arguments has 2 params, run 100 times
+2025-10-24 20:04:36.118 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:04:48.316 | INFO     | __main__:<module>:201 - Fuzz dask.utils.takes_multiple_arguments 2 done
+2025-10-24 20:04:48.317 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.utils.takes_multiple_arguments: 75153 bits
+2025-10-24 20:04:48.317 | INFO     | __main__:<module>:192 - DyFuzz dask highlevelgraph.tokenize 3
+2025-10-24 20:04:48.318 | DEBUG    | __main__:<module>:199 - dask.highlevelgraph.tokenize has 3 params, run 100 times
+2025-10-24 20:05:24.326 | INFO     | __main__:<module>:201 - Fuzz dask.highlevelgraph.tokenize 3 done
+2025-10-24 20:05:24.327 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.highlevelgraph.tokenize: 75163 bits
+2025-10-24 20:05:24.327 | INFO     | __main__:<module>:192 - DyFuzz dask optimization.unwrap_partial 1
+2025-10-24 20:05:24.327 | DEBUG    | __main__:<module>:199 - dask.optimization.unwrap_partial has 1 params, run 100 times
+2025-10-24 20:05:52.579 | INFO     | __main__:<module>:201 - Fuzz dask.optimization.unwrap_partial 1 done
+2025-10-24 20:05:52.580 | INFO     | __main__:<module>:202 - Current coverage after fuzzing dask.optimization.unwrap_partial: 75163 bits
+2025-10-24 20:05:52.580 | INFO     | __main__:<module>:207 - Dyfuzz done dask
+2025-10-24 20:05:52.580 | INFO     | __main__:<module>:181 - DyFuzz test numpy
+2025-10-24 20:05:52.581 | INFO     | __main__:<module>:184 - numpy has 27 apis
+2025-10-24 20:05:52.581 | INFO     | __main__:<module>:192 - DyFuzz numpy indices 3
+2025-10-24 20:05:52.581 | DEBUG    | __main__:<module>:199 - numpy.indices has 3 params, run 100 times
+2025-10-24 20:06:18.019 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:06:57.371 | INFO     | __main__:<module>:201 - Fuzz numpy.indices 3 done
+2025-10-24 20:06:57.371 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.indices: 79411 bits
+2025-10-24 20:06:57.371 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.laguerre.lagval3d 4
+2025-10-24 20:06:57.371 | DEBUG    | __main__:<module>:199 - numpy.polynomial.laguerre.lagval3d has 4 params, run 100 times
+2025-10-24 20:07:12.525 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:07:18.969 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:07:46.316 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.laguerre.lagval3d 4 done
+2025-10-24 20:07:46.317 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.laguerre.lagval3d: 79944 bits
+2025-10-24 20:07:46.317 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.extras.compress_rows 1
+2025-10-24 20:07:46.317 | DEBUG    | __main__:<module>:199 - numpy.ma.extras.compress_rows has 1 params, run 100 times
+2025-10-24 20:08:09.065 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:08:16.742 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.extras.compress_rows 1 done
+2025-10-24 20:08:16.743 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.extras.compress_rows: 80919 bits
+2025-10-24 20:08:16.743 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.hermite_e.hermeweight 1
+2025-10-24 20:08:16.743 | DEBUG    | __main__:<module>:199 - numpy.polynomial.hermite_e.hermeweight has 1 params, run 100 times
+2025-10-24 20:08:41.943 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.hermite_e.hermeweight 1 done
+2025-10-24 20:08:41.943 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.hermite_e.hermeweight: 80921 bits
+2025-10-24 20:08:41.943 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.laguerre.lagvander3d 4
+2025-10-24 20:08:41.943 | DEBUG    | __main__:<module>:199 - numpy.polynomial.laguerre.lagvander3d has 4 params, run 100 times
+2025-10-24 20:09:08.062 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.laguerre.lagvander3d 4 done
+2025-10-24 20:09:08.063 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.laguerre.lagvander3d: 80927 bits
+2025-10-24 20:09:08.063 | INFO     | __main__:<module>:192 - DyFuzz numpy _core.numeric.ones 5
+2025-10-24 20:09:08.063 | DEBUG    | __main__:<module>:199 - numpy._core.numeric.ones has 5 params, run 100 times
+2025-10-24 20:09:29.775 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:09:44.713 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:09:46.153 | INFO     | __main__:<module>:201 - Fuzz numpy._core.numeric.ones 5 done
+2025-10-24 20:09:46.153 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core.numeric.ones: 80927 bits
+2025-10-24 20:09:46.153 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.compress_rows 1
+2025-10-24 20:09:46.153 | DEBUG    | __main__:<module>:199 - numpy.ma.compress_rows has 1 params, run 100 times
+2025-10-24 20:10:16.416 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.compress_rows 1 done
+2025-10-24 20:10:16.416 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.compress_rows: 80928 bits
+2025-10-24 20:10:16.416 | INFO     | __main__:<module>:192 - DyFuzz numpy _core._multiarray_umath.compare_chararrays 4
+2025-10-24 20:10:16.416 | DEBUG    | __main__:<module>:199 - numpy._core._multiarray_umath.compare_chararrays has 4 params, run 100 times
+2025-10-24 20:10:39.269 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:10:50.450 | INFO     | __main__:<module>:201 - Fuzz numpy._core._multiarray_umath.compare_chararrays 4 done
+2025-10-24 20:10:50.451 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core._multiarray_umath.compare_chararrays: 80928 bits
+2025-10-24 20:10:50.451 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.average 5
+2025-10-24 20:10:50.451 | DEBUG    | __main__:<module>:199 - numpy.ma.average has 5 params, run 100 times
+2025-10-24 20:11:07.434 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:11:23.970 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:11:49.116 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:11:55.125 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:11:55.750 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.average 5 done
+2025-10-24 20:11:55.750 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.average: 80928 bits
+2025-10-24 20:11:55.750 | INFO     | __main__:<module>:192 - DyFuzz numpy _core.numeric.set_printoptions 12
+2025-10-24 20:11:55.750 | DEBUG    | __main__:<module>:199 - numpy._core.numeric.set_printoptions has 12 params, run 100 times
+2025-10-24 20:12:27.845 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:12:37.664 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:12:47.135 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:12:50.565 | INFO     | __main__:<module>:201 - Fuzz numpy._core.numeric.set_printoptions 12 done
+2025-10-24 20:12:50.567 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core.numeric.set_printoptions: 80930 bits
+2025-10-24 20:12:50.567 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.laguerre.lagfit 6
+2025-10-24 20:12:50.567 | DEBUG    | __main__:<module>:199 - numpy.polynomial.laguerre.lagfit has 6 params, run 100 times
+2025-10-24 20:13:33.004 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:13:57.684 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.laguerre.lagfit 6 done
+2025-10-24 20:13:57.685 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.laguerre.lagfit: 80939 bits
+2025-10-24 20:13:57.685 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.hermite.herm2poly 1
+2025-10-24 20:13:57.686 | DEBUG    | __main__:<module>:199 - numpy.polynomial.hermite.herm2poly has 1 params, run 100 times
+2025-10-24 20:14:08.596 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:14:25.426 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.hermite.herm2poly 1 done
+2025-10-24 20:14:25.427 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.hermite.herm2poly: 80992 bits
+2025-10-24 20:14:25.427 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.size 2
+2025-10-24 20:14:25.427 | DEBUG    | __main__:<module>:199 - numpy.ma.size has 2 params, run 100 times
+2025-10-24 20:14:51.828 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:14:59.155 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.size 2 done
+2025-10-24 20:14:59.155 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.size: 81005 bits
+2025-10-24 20:14:59.155 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.laguerre.lagmulx 1
+2025-10-24 20:14:59.155 | DEBUG    | __main__:<module>:199 - numpy.polynomial.laguerre.lagmulx has 1 params, run 100 times
+2025-10-24 20:15:19.731 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.laguerre.lagmulx 1 done
+2025-10-24 20:15:19.731 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.laguerre.lagmulx: 81013 bits
+2025-10-24 20:15:19.731 | INFO     | __main__:<module>:192 - DyFuzz numpy _core.numeric.fromiter 4
+2025-10-24 20:15:19.732 | DEBUG    | __main__:<module>:199 - numpy._core.numeric.fromiter has 4 params, run 100 times
+2025-10-24 20:15:51.260 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:16:01.308 | INFO     | __main__:<module>:201 - Fuzz numpy._core.numeric.fromiter 4 done
+2025-10-24 20:16:01.308 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core.numeric.fromiter: 81025 bits
+2025-10-24 20:16:01.308 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.core.asanyarray 2
+2025-10-24 20:16:01.308 | DEBUG    | __main__:<module>:199 - numpy.ma.core.asanyarray has 2 params, run 100 times
+2025-10-24 20:16:13.291 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:16:35.519 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.core.asanyarray 2 done
+2025-10-24 20:16:35.520 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.core.asanyarray: 81055 bits
+2025-10-24 20:16:35.520 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.laguerre.laggauss 1
+2025-10-24 20:16:35.520 | DEBUG    | __main__:<module>:199 - numpy.polynomial.laguerre.laggauss has 1 params, run 100 times
+2025-10-24 20:16:41.527 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:16:49.566 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:17:18.276 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.laguerre.laggauss 1 done
+2025-10-24 20:17:18.277 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.laguerre.laggauss: 81154 bits
+2025-10-24 20:17:18.277 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.chebyshev.chebvander3d 4
+2025-10-24 20:17:18.277 | DEBUG    | __main__:<module>:199 - numpy.polynomial.chebyshev.chebvander3d has 4 params, run 100 times
+2025-10-24 20:17:31.810 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:17:51.371 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:18:01.443 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.chebyshev.chebvander3d 4 done
+2025-10-24 20:18:01.444 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.chebyshev.chebvander3d: 81155 bits
+2025-10-24 20:18:01.444 | INFO     | __main__:<module>:192 - DyFuzz numpy tri 5
+2025-10-24 20:18:01.444 | DEBUG    | __main__:<module>:199 - numpy.tri has 5 params, run 100 times
+2025-10-24 20:18:50.608 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:19:02.407 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:19:07.568 | INFO     | __main__:<module>:201 - Fuzz numpy.tri 5 done
+2025-10-24 20:19:07.569 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.tri: 81155 bits
+2025-10-24 20:19:07.569 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.core.power 3
+2025-10-24 20:19:07.569 | DEBUG    | __main__:<module>:199 - numpy.ma.core.power has 3 params, run 100 times
+2025-10-24 20:19:57.794 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.core.power 3 done
+2025-10-24 20:19:57.795 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.core.power: 81177 bits
+2025-10-24 20:19:57.795 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.extras.union1d 2
+2025-10-24 20:19:57.795 | DEBUG    | __main__:<module>:199 - numpy.ma.extras.union1d has 2 params, run 100 times
+2025-10-24 20:20:39.852 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.extras.union1d 2 done
+2025-10-24 20:20:39.853 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.extras.union1d: 81287 bits
+2025-10-24 20:20:39.853 | INFO     | __main__:<module>:192 - DyFuzz numpy polynomial.polynomial.polycompanion 1
+2025-10-24 20:20:39.853 | DEBUG    | __main__:<module>:199 - numpy.polynomial.polynomial.polycompanion has 1 params, run 100 times
+2025-10-24 20:21:08.393 | INFO     | __main__:<module>:201 - Fuzz numpy.polynomial.polynomial.polycompanion 1 done
+2025-10-24 20:21:08.394 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.polynomial.polynomial.polycompanion: 81295 bits
+2025-10-24 20:21:08.394 | INFO     | __main__:<module>:192 - DyFuzz numpy ma.core.argsort 7
+2025-10-24 20:21:08.394 | DEBUG    | __main__:<module>:199 - numpy.ma.core.argsort has 7 params, run 100 times
+2025-10-24 20:21:44.073 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:21:50.434 | INFO     | __main__:<module>:201 - Fuzz numpy.ma.core.argsort 7 done
+2025-10-24 20:21:50.435 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.ma.core.argsort: 81295 bits
+2025-10-24 20:21:50.435 | INFO     | __main__:<module>:192 - DyFuzz numpy _core._multiarray_umath.promote_types 2
+2025-10-24 20:21:50.435 | DEBUG    | __main__:<module>:199 - numpy._core._multiarray_umath.promote_types has 2 params, run 100 times
+2025-10-24 20:22:38.573 | INFO     | __main__:<module>:201 - Fuzz numpy._core._multiarray_umath.promote_types 2 done
+2025-10-24 20:22:38.574 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core._multiarray_umath.promote_types: 81295 bits
+2025-10-24 20:22:38.574 | INFO     | __main__:<module>:192 - DyFuzz numpy asmatrix 2
+2025-10-24 20:22:38.574 | DEBUG    | __main__:<module>:199 - numpy.asmatrix has 2 params, run 100 times
+2025-10-24 20:23:17.546 | INFO     | __main__:<module>:201 - Fuzz numpy.asmatrix 2 done
+2025-10-24 20:23:17.547 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.asmatrix: 81332 bits
+2025-10-24 20:23:17.547 | INFO     | __main__:<module>:192 - DyFuzz numpy _core.numeric.asanyarray 6
+2025-10-24 20:23:17.547 | DEBUG    | __main__:<module>:199 - numpy._core.numeric.asanyarray has 6 params, run 100 times
+2025-10-24 20:24:01.196 | INFO     | __main__:<module>:201 - Fuzz numpy._core.numeric.asanyarray 6 done
+2025-10-24 20:24:01.196 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy._core.numeric.asanyarray: 81332 bits
+2025-10-24 20:24:01.196 | INFO     | __main__:<module>:192 - DyFuzz numpy testing.assert_array_almost_equal 5
+2025-10-24 20:24:01.196 | DEBUG    | __main__:<module>:199 - numpy.testing.assert_array_almost_equal has 5 params, run 100 times
+2025-10-24 20:24:13.987 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:24:21.741 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:24:54.705 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:25:02.074 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:25:12.771 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:25:12.771 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:201 - Fuzz numpy.testing.assert_array_almost_equal 5 done
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:202 - Current coverage after fuzzing numpy.testing.assert_array_almost_equal: 81585 bits
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:207 - Dyfuzz done numpy
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:181 - DyFuzz test pandas
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:184 - pandas has 11 apis
+2025-10-24 20:25:12.772 | INFO     | __main__:<module>:192 - DyFuzz pandas set_eng_float_format 2
+2025-10-24 20:25:12.772 | DEBUG    | __main__:<module>:199 - pandas.set_eng_float_format has 2 params, run 100 times
+2025-10-24 20:26:11.932 | INFO     | __main__:<module>:201 - Fuzz pandas.set_eng_float_format 2 done
+2025-10-24 20:26:11.933 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.set_eng_float_format: 105460 bits
+2025-10-24 20:26:11.933 | INFO     | __main__:<module>:192 - DyFuzz pandas plotting.bootstrap_plot 5
+2025-10-24 20:26:11.933 | DEBUG    | __main__:<module>:199 - pandas.plotting.bootstrap_plot has 5 params, run 100 times
+2025-10-24 20:27:32.071 | INFO     | __main__:<module>:201 - Fuzz pandas.plotting.bootstrap_plot 5 done
+2025-10-24 20:27:32.072 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.plotting.bootstrap_plot: 105460 bits
+2025-10-24 20:27:32.072 | INFO     | __main__:<module>:192 - DyFuzz pandas io.common.import_optional_dependency 4
+2025-10-24 20:27:32.073 | DEBUG    | __main__:<module>:199 - pandas.io.common.import_optional_dependency has 4 params, run 100 times
+2025-10-24 20:27:59.979 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:28:13.884 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:28:49.779 | INFO     | __main__:<module>:201 - Fuzz pandas.io.common.import_optional_dependency 4 done
+2025-10-24 20:28:49.779 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.common.import_optional_dependency: 105461 bits
+2025-10-24 20:28:49.780 | INFO     | __main__:<module>:192 - DyFuzz pandas io.formats.format.concat 10
+2025-10-24 20:28:49.780 | DEBUG    | __main__:<module>:199 - pandas.io.formats.format.concat has 10 params, run 100 times
+2025-10-24 20:29:04.615 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:29:32.643 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:29:38.651 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:30:08.732 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:30:16.167 | INFO     | __main__:<module>:201 - Fuzz pandas.io.formats.format.concat 10 done
+2025-10-24 20:30:16.167 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.formats.format.concat: 105461 bits
+2025-10-24 20:30:16.167 | INFO     | __main__:<module>:192 - DyFuzz pandas io.api.read_sql_query 9
+2025-10-24 20:30:16.168 | DEBUG    | __main__:<module>:199 - pandas.io.api.read_sql_query has 9 params, run 100 times
+2025-10-24 20:30:41.059 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:31:44.997 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:32:10.083 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:32:10.621 | INFO     | __main__:<module>:201 - Fuzz pandas.io.api.read_sql_query 9 done
+2025-10-24 20:32:10.622 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.api.read_sql_query: 105466 bits
+2025-10-24 20:32:10.622 | INFO     | __main__:<module>:192 - DyFuzz pandas plotting.parallel_coordinates 12
+2025-10-24 20:32:10.622 | DEBUG    | __main__:<module>:199 - pandas.plotting.parallel_coordinates has 12 params, run 100 times
+2025-10-24 20:32:48.138 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:33:41.147 | INFO     | __main__:<module>:201 - Fuzz pandas.plotting.parallel_coordinates 12 done
+2025-10-24 20:33:41.148 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.plotting.parallel_coordinates: 105466 bits
+2025-10-24 20:33:41.148 | INFO     | __main__:<module>:192 - DyFuzz pandas io.formats.format.is_numeric_dtype 1
+2025-10-24 20:33:41.148 | DEBUG    | __main__:<module>:199 - pandas.io.formats.format.is_numeric_dtype has 1 params, run 100 times
+2025-10-24 20:34:34.803 | INFO     | __main__:<module>:201 - Fuzz pandas.io.formats.format.is_numeric_dtype 1 done
+2025-10-24 20:34:34.804 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.formats.format.is_numeric_dtype: 105513 bits
+2025-10-24 20:34:34.804 | INFO     | __main__:<module>:192 - DyFuzz pandas io.pickle.doc 2
+2025-10-24 20:34:34.804 | DEBUG    | __main__:<module>:199 - pandas.io.pickle.doc has 2 params, run 100 times
+2025-10-24 20:35:06.310 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:35:41.951 | INFO     | __main__:<module>:201 - Fuzz pandas.io.pickle.doc 2 done
+2025-10-24 20:35:41.952 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.pickle.doc: 105513 bits
+2025-10-24 20:35:41.952 | INFO     | __main__:<module>:192 - DyFuzz pandas io.pickle.read_pickle 3
+2025-10-24 20:35:41.952 | DEBUG    | __main__:<module>:199 - pandas.io.pickle.read_pickle has 3 params, run 100 times
+2025-10-24 20:36:44.193 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:36:52.654 | INFO     | __main__:<module>:201 - Fuzz pandas.io.pickle.read_pickle 3 done
+2025-10-24 20:36:52.654 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.pickle.read_pickle: 105572 bits
+2025-10-24 20:36:52.654 | INFO     | __main__:<module>:192 - DyFuzz pandas io.api.read_json 18
+2025-10-24 20:36:52.654 | DEBUG    | __main__:<module>:199 - pandas.io.api.read_json has 18 params, run 100 times
+2025-10-24 20:37:35.736 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:37:49.983 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:38:29.559 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:38:29.673 | INFO     | __main__:<module>:201 - Fuzz pandas.io.api.read_json 18 done
+2025-10-24 20:38:29.674 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.api.read_json: 105572 bits
+2025-10-24 20:38:29.675 | INFO     | __main__:<module>:192 - DyFuzz pandas io.formats.printing.is_sequence 1
+2025-10-24 20:38:29.675 | DEBUG    | __main__:<module>:199 - pandas.io.formats.printing.is_sequence has 1 params, run 100 times
+2025-10-24 20:39:20.120 | INFO     | __main__:<module>:201 - Fuzz pandas.io.formats.printing.is_sequence 1 done
+2025-10-24 20:39:20.121 | INFO     | __main__:<module>:202 - Current coverage after fuzzing pandas.io.formats.printing.is_sequence: 105577 bits
+2025-10-24 20:39:20.121 | INFO     | __main__:<module>:207 - Dyfuzz done pandas
+2025-10-24 20:39:20.121 | INFO     | __main__:<module>:181 - DyFuzz test sklearn
+2025-10-24 20:39:20.121 | INFO     | __main__:<module>:184 - sklearn has 15 apis
+2025-10-24 20:39:20.121 | INFO     | __main__:<module>:192 - DyFuzz sklearn kernel_approximation.validate_data 7
+2025-10-24 20:39:20.121 | DEBUG    | __main__:<module>:199 - sklearn.kernel_approximation.validate_data has 7 params, run 100 times
+2025-10-24 20:39:42.869 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:40:06.183 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:41:07.943 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:41:34.462 | INFO     | __main__:<module>:201 - Fuzz sklearn.kernel_approximation.validate_data 7 done
+2025-10-24 20:41:34.463 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.kernel_approximation.validate_data: 109972 bits
+2025-10-24 20:41:34.463 | INFO     | __main__:<module>:192 - DyFuzz sklearn datasets.clear_data_home 1
+2025-10-24 20:41:34.463 | DEBUG    | __main__:<module>:199 - sklearn.datasets.clear_data_home has 1 params, run 100 times
+2025-10-24 20:43:40.531 | INFO     | __main__:<module>:201 - Fuzz sklearn.datasets.clear_data_home 1 done
+2025-10-24 20:43:40.533 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.datasets.clear_data_home: 111392 bits
+2025-10-24 20:43:40.533 | INFO     | __main__:<module>:192 - DyFuzz sklearn externals.array_api_compat.numpy.fft.ihfft 4
+2025-10-24 20:43:40.533 | DEBUG    | __main__:<module>:199 - sklearn.externals.array_api_compat.numpy.fft.ihfft has 4 params, run 100 times
+2025-10-24 20:44:55.939 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:45:31.553 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:45:38.148 | INFO     | __main__:<module>:201 - Fuzz sklearn.externals.array_api_compat.numpy.fft.ihfft 4 done
+2025-10-24 20:45:38.149 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.fft.ihfft: 111393 bits
+2025-10-24 20:45:38.149 | INFO     | __main__:<module>:192 - DyFuzz sklearn externals.array_api_compat.numpy.zeros 4
+2025-10-24 20:45:38.149 | DEBUG    | __main__:<module>:199 - sklearn.externals.array_api_compat.numpy.zeros has 4 params, run 100 times
+2025-10-24 20:47:17.826 | INFO     | __main__:<module>:201 - Fuzz sklearn.externals.array_api_compat.numpy.zeros 4 done
+2025-10-24 20:47:17.828 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.zeros: 111393 bits
+2025-10-24 20:47:17.828 | INFO     | __main__:<module>:192 - DyFuzz sklearn model_selection.train_test_split 6
+2025-10-24 20:47:17.828 | DEBUG    | __main__:<module>:199 - sklearn.model_selection.train_test_split has 6 params, run 100 times
+2025-10-24 20:47:44.345 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:49:11.460 | INFO     | __main__:<module>:201 - Fuzz sklearn.model_selection.train_test_split 6 done
+2025-10-24 20:49:11.461 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.model_selection.train_test_split: 112062 bits
+2025-10-24 20:49:11.461 | INFO     | __main__:<module>:192 - DyFuzz sklearn externals.array_api_compat.numpy.empty 4
+2025-10-24 20:49:11.461 | DEBUG    | __main__:<module>:199 - sklearn.externals.array_api_compat.numpy.empty has 4 params, run 100 times
+2025-10-24 20:49:23.071 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:51:00.543 | INFO     | __main__:<module>:201 - Fuzz sklearn.externals.array_api_compat.numpy.empty 4 done
+2025-10-24 20:51:00.544 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.empty: 112062 bits
+2025-10-24 20:51:00.544 | INFO     | __main__:<module>:192 - DyFuzz sklearn svm.l1_min_c 5
+2025-10-24 20:51:00.544 | DEBUG    | __main__:<module>:199 - sklearn.svm.l1_min_c has 5 params, run 100 times
+2025-10-24 20:51:40.358 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:52:23.527 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:52:55.465 | INFO     | __main__:<module>:201 - Fuzz sklearn.svm.l1_min_c 5 done
+2025-10-24 20:52:55.466 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.svm.l1_min_c: 114197 bits
+2025-10-24 20:52:55.467 | INFO     | __main__:<module>:192 - DyFuzz sklearn externals.array_api_compat.numpy.trunc 2
+2025-10-24 20:52:55.467 | DEBUG    | __main__:<module>:199 - sklearn.externals.array_api_compat.numpy.trunc has 2 params, run 100 times
+2025-10-24 20:53:03.481 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:54:41.194 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:54:46.651 | INFO     | __main__:<module>:201 - Fuzz sklearn.externals.array_api_compat.numpy.trunc 2 done
+2025-10-24 20:54:46.652 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.trunc: 114197 bits
+2025-10-24 20:54:46.653 | INFO     | __main__:<module>:192 - DyFuzz sklearn cluster.kmeans_plusplus 6
+2025-10-24 20:54:46.653 | DEBUG    | __main__:<module>:199 - sklearn.cluster.kmeans_plusplus has 6 params, run 100 times
+2025-10-24 20:56:23.534 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:56:37.453 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:56:45.806 | INFO     | __main__:<module>:201 - Fuzz sklearn.cluster.kmeans_plusplus 6 done
+2025-10-24 20:56:45.807 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.cluster.kmeans_plusplus: 114201 bits
+2025-10-24 20:56:45.808 | INFO     | __main__:<module>:192 - DyFuzz sklearn linear_model.orthogonal_mp 8
+2025-10-24 20:56:45.808 | DEBUG    | __main__:<module>:199 - sklearn.linear_model.orthogonal_mp has 8 params, run 100 times
+2025-10-24 20:58:23.826 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:58:31.433 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 20:58:31.434 | INFO     | __main__:<module>:201 - Fuzz sklearn.linear_model.orthogonal_mp 8 done
+2025-10-24 20:58:31.435 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.linear_model.orthogonal_mp: 114201 bits
+2025-10-24 20:58:31.435 | INFO     | __main__:<module>:192 - DyFuzz sklearn preprocessing.maxabs_scale 3
+2025-10-24 20:58:31.435 | DEBUG    | __main__:<module>:199 - sklearn.preprocessing.maxabs_scale has 3 params, run 100 times
+2025-10-24 21:00:10.617 | INFO     | __main__:<module>:201 - Fuzz sklearn.preprocessing.maxabs_scale 3 done
+2025-10-24 21:00:10.618 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.preprocessing.maxabs_scale: 114201 bits
+2025-10-24 21:00:10.618 | INFO     | __main__:<module>:192 - DyFuzz sklearn externals.array_api_compat.numpy.eye 6
+2025-10-24 21:00:10.618 | DEBUG    | __main__:<module>:199 - sklearn.externals.array_api_compat.numpy.eye has 6 params, run 100 times
+2025-10-24 21:00:38.096 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:01:56.752 | INFO     | __main__:<module>:201 - Fuzz sklearn.externals.array_api_compat.numpy.eye 6 done
+2025-10-24 21:01:56.753 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.externals.array_api_compat.numpy.eye: 114201 bits
+2025-10-24 21:01:56.754 | INFO     | __main__:<module>:192 - DyFuzz sklearn covariance.fast_mcd 4
+2025-10-24 21:01:56.754 | DEBUG    | __main__:<module>:199 - sklearn.covariance.fast_mcd has 4 params, run 100 times
+2025-10-24 21:02:53.123 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:03:23.591 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:03:54.443 | INFO     | __main__:<module>:201 - Fuzz sklearn.covariance.fast_mcd 4 done
+2025-10-24 21:03:54.444 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.covariance.fast_mcd: 114269 bits
+2025-10-24 21:03:54.444 | INFO     | __main__:<module>:192 - DyFuzz sklearn metrics.cluster.homogeneity_completeness_v_measure 3
+2025-10-24 21:03:54.444 | DEBUG    | __main__:<module>:199 - sklearn.metrics.cluster.homogeneity_completeness_v_measure has 3 params, run 100 times
+2025-10-24 21:05:40.540 | INFO     | __main__:<module>:201 - Fuzz sklearn.metrics.cluster.homogeneity_completeness_v_measure 3 done
+2025-10-24 21:05:40.541 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.metrics.cluster.homogeneity_completeness_v_measure: 114269 bits
+2025-10-24 21:05:40.542 | INFO     | __main__:<module>:192 - DyFuzz sklearn decomposition.dict_learning 16
+2025-10-24 21:05:40.542 | DEBUG    | __main__:<module>:199 - sklearn.decomposition.dict_learning has 16 params, run 100 times
+2025-10-24 21:05:51.733 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:06:17.052 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:06:42.886 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:06:48.895 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:06:57.329 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:06:57.330 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:06:57.330 | INFO     | __main__:<module>:201 - Fuzz sklearn.decomposition.dict_learning 16 done
+2025-10-24 21:06:57.331 | INFO     | __main__:<module>:202 - Current coverage after fuzzing sklearn.decomposition.dict_learning: 114269 bits
+2025-10-24 21:06:57.331 | INFO     | __main__:<module>:207 - Dyfuzz done sklearn
+2025-10-24 21:06:57.331 | INFO     | __main__:<module>:181 - DyFuzz test scipy
+2025-10-24 21:06:57.331 | INFO     | __main__:<module>:184 - scipy has 58 apis
+2025-10-24 21:06:57.331 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.pinv 5
+2025-10-24 21:06:57.332 | DEBUG    | __main__:<module>:199 - scipy.linalg.pinv has 5 params, run 100 times
+2025-10-24 21:07:12.194 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:07:55.571 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.pinv 5 done
+2025-10-24 21:07:55.572 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.pinv: 117168 bits
+2025-10-24 21:07:55.572 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.contingency.margins 1
+2025-10-24 21:07:55.572 | DEBUG    | __main__:<module>:199 - scipy.stats.contingency.margins has 1 params, run 100 times
+2025-10-24 21:09:16.888 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.contingency.margins 1 done
+2025-10-24 21:09:16.889 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.contingency.margins: 129985 bits
+2025-10-24 21:09:16.889 | INFO     | __main__:<module>:192 - DyFuzz scipy special.pbvv_seq 2
+2025-10-24 21:09:16.890 | DEBUG    | __main__:<module>:199 - scipy.special.pbvv_seq has 2 params, run 100 times
+2025-10-24 21:10:08.664 | INFO     | __main__:<module>:201 - Fuzz scipy.special.pbvv_seq 2 done
+2025-10-24 21:10:08.665 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.pbvv_seq: 129993 bits
+2025-10-24 21:10:08.665 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats_basic.winsorize 6
+2025-10-24 21:10:08.665 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats_basic.winsorize has 6 params, run 100 times
+2025-10-24 21:11:28.830 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:11:30.448 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats_basic.winsorize 6 done
+2025-10-24 21:11:30.449 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats_basic.winsorize: 130011 bits
+2025-10-24 21:11:30.449 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.morestats.chi2_contingency 4
+2025-10-24 21:11:30.449 | DEBUG    | __main__:<module>:199 - scipy.stats.morestats.chi2_contingency has 4 params, run 100 times
+2025-10-24 21:12:52.338 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:12:52.338 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.morestats.chi2_contingency 4 done
+2025-10-24 21:12:52.340 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.morestats.chi2_contingency: 130015 bits
+2025-10-24 21:12:52.340 | INFO     | __main__:<module>:192 - DyFuzz scipy optimize.dual_annealing 15
+2025-10-24 21:12:52.340 | DEBUG    | __main__:<module>:199 - scipy.optimize.dual_annealing has 15 params, run 100 times
+2025-10-24 21:13:21.886 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:13:31.921 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:13:41.797 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:13:56.501 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:14:31.500 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:14:31.501 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:14:31.501 | INFO     | __main__:<module>:201 - Fuzz scipy.optimize.dual_annealing 15 done
+2025-10-24 21:14:31.502 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.optimize.dual_annealing: 130028 bits
+2025-10-24 21:14:31.502 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.matfuncs.signm 2
+2025-10-24 21:14:31.502 | DEBUG    | __main__:<module>:199 - scipy.linalg.matfuncs.signm has 2 params, run 100 times
+2025-10-24 21:14:49.078 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:15:05.796 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:15:21.755 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.matfuncs.signm 2 done
+2025-10-24 21:15:21.755 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.matfuncs.signm: 130037 bits
+2025-10-24 21:15:21.755 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.lstsq 7
+2025-10-24 21:15:21.755 | DEBUG    | __main__:<module>:199 - scipy.linalg.lstsq has 7 params, run 100 times
+2025-10-24 21:15:54.913 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:16:03.745 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:16:12.863 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:16:42.672 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:16:45.048 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.lstsq 7 done
+2025-10-24 21:16:45.049 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.lstsq: 130053 bits
+2025-10-24 21:16:45.049 | INFO     | __main__:<module>:192 - DyFuzz scipy special.softmax 2
+2025-10-24 21:16:45.049 | DEBUG    | __main__:<module>:199 - scipy.special.softmax has 2 params, run 100 times
+2025-10-24 21:17:40.242 | INFO     | __main__:<module>:201 - Fuzz scipy.special.softmax 2 done
+2025-10-24 21:17:40.244 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.softmax: 130058 bits
+2025-10-24 21:17:40.244 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.qz 8
+2025-10-24 21:17:40.244 | DEBUG    | __main__:<module>:199 - scipy.linalg.qz has 8 params, run 100 times
+2025-10-24 21:18:02.353 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:18:11.853 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:18:24.328 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:18:45.686 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:18:59.679 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.qz 8 done
+2025-10-24 21:18:59.680 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.qz: 130065 bits
+2025-10-24 21:18:59.680 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.findfreqs 4
+2025-10-24 21:18:59.680 | DEBUG    | __main__:<module>:199 - scipy.signal.findfreqs has 4 params, run 100 times
+2025-10-24 21:20:03.872 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:20:32.406 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.findfreqs 4 done
+2025-10-24 21:20:32.407 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.findfreqs: 130067 bits
+2025-10-24 21:20:32.408 | INFO     | __main__:<module>:192 - DyFuzz scipy stats._mstats_basic.trima 3
+2025-10-24 21:20:32.408 | DEBUG    | __main__:<module>:199 - scipy.stats._mstats_basic.trima has 3 params, run 100 times
+2025-10-24 21:20:41.598 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:21:46.216 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:22:26.421 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:22:37.123 | INFO     | __main__:<module>:201 - Fuzz scipy.stats._mstats_basic.trima 3 done
+2025-10-24 21:22:37.123 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats._mstats_basic.trima: 130072 bits
+2025-10-24 21:22:37.124 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.dstep 4
+2025-10-24 21:22:37.124 | DEBUG    | __main__:<module>:199 - scipy.signal.dstep has 4 params, run 100 times
+2025-10-24 21:23:00.190 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:24:09.920 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.dstep 4 done
+2025-10-24 21:24:09.921 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.dstep: 130075 bits
+2025-10-24 21:24:09.921 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.stats.relfreq 4
+2025-10-24 21:24:09.922 | DEBUG    | __main__:<module>:199 - scipy.stats.stats.relfreq has 4 params, run 100 times
+2025-10-24 21:25:35.923 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.stats.relfreq 4 done
+2025-10-24 21:25:35.925 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.stats.relfreq: 130089 bits
+2025-10-24 21:25:35.925 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.bartlett 4
+2025-10-24 21:25:35.925 | DEBUG    | __main__:<module>:199 - scipy.stats.bartlett has 4 params, run 100 times
+2025-10-24 21:25:48.970 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:26:36.636 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:27:16.389 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:27:20.441 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.bartlett 4 done
+2025-10-24 21:27:20.443 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.bartlett: 130239 bits
+2025-10-24 21:27:20.443 | INFO     | __main__:<module>:192 - DyFuzz scipy optimize.linprog_verbose_callback 1
+2025-10-24 21:27:20.444 | DEBUG    | __main__:<module>:199 - scipy.optimize.linprog_verbose_callback has 1 params, run 100 times
+2025-10-24 21:28:14.708 | INFO     | __main__:<module>:201 - Fuzz scipy.optimize.linprog_verbose_callback 1 done
+2025-10-24 21:28:14.709 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.optimize.linprog_verbose_callback: 130240 bits
+2025-10-24 21:28:14.709 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats_basic.skewtest 3
+2025-10-24 21:28:14.709 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats_basic.skewtest has 3 params, run 100 times
+2025-10-24 21:29:08.932 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:29:35.459 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:29:44.819 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats_basic.skewtest 3 done
+2025-10-24 21:29:44.820 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats_basic.skewtest: 130275 bits
+2025-10-24 21:29:44.820 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.special_matrices.leslie 2
+2025-10-24 21:29:44.820 | DEBUG    | __main__:<module>:199 - scipy.linalg.special_matrices.leslie has 2 params, run 100 times
+2025-10-24 21:30:23.923 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.special_matrices.leslie 2 done
+2025-10-24 21:30:23.924 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.special_matrices.leslie: 130282 bits
+2025-10-24 21:30:23.924 | INFO     | __main__:<module>:192 - DyFuzz scipy spatial.distance.is_valid_y 4
+2025-10-24 21:30:23.924 | DEBUG    | __main__:<module>:199 - scipy.spatial.distance.is_valid_y has 4 params, run 100 times
+2025-10-24 21:31:08.507 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:31:14.515 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:31:23.406 | INFO     | __main__:<module>:201 - Fuzz scipy.spatial.distance.is_valid_y 4 done
+2025-10-24 21:31:23.407 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.spatial.distance.is_valid_y: 130300 bits
+2025-10-24 21:31:23.407 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.qr_delete 7
+2025-10-24 21:31:23.407 | DEBUG    | __main__:<module>:199 - scipy.linalg.qr_delete has 7 params, run 100 times
+2025-10-24 21:32:00.893 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:32:21.813 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:32:21.814 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.qr_delete 7 done
+2025-10-24 21:32:21.816 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.qr_delete: 130310 bits
+2025-10-24 21:32:21.817 | INFO     | __main__:<module>:192 - DyFuzz scipy datasets.clear_cache 1
+2025-10-24 21:32:21.817 | DEBUG    | __main__:<module>:199 - scipy.datasets.clear_cache has 1 params, run 100 times
+2025-10-24 21:32:42.152 | INFO     | __main__:<module>:201 - Fuzz scipy.datasets.clear_cache 1 done
+2025-10-24 21:32:42.152 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.datasets.clear_cache: 130310 bits
+2025-10-24 21:32:42.153 | INFO     | __main__:<module>:192 - DyFuzz scipy special.ber_zeros 1
+2025-10-24 21:32:42.153 | DEBUG    | __main__:<module>:199 - scipy.special.ber_zeros has 1 params, run 100 times
+2025-10-24 21:32:49.928 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:32:56.744 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:33:07.428 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:33:14.650 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:33:21.099 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:33:21.099 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:33:21.099 | INFO     | __main__:<module>:201 - Fuzz scipy.special.ber_zeros 1 done
+2025-10-24 21:33:21.100 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.ber_zeros: 130313 bits
+2025-10-24 21:33:21.100 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.sosfreqz 2
+2025-10-24 21:33:21.100 | DEBUG    | __main__:<module>:199 - scipy.signal.sosfreqz has 2 params, run 100 times
+2025-10-24 21:34:22.964 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:34:55.034 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:34:55.902 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.sosfreqz 2 done
+2025-10-24 21:34:55.903 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.sosfreqz: 130319 bits
+2025-10-24 21:34:55.903 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats_basic.siegelslopes 3
+2025-10-24 21:34:55.903 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats_basic.siegelslopes has 3 params, run 100 times
+2025-10-24 21:35:57.378 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:36:14.311 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:36:43.096 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:36:49.781 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats_basic.siegelslopes 3 done
+2025-10-24 21:36:49.782 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats_basic.siegelslopes: 130345 bits
+2025-10-24 21:36:49.782 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.cheb1ap 2
+2025-10-24 21:36:49.782 | DEBUG    | __main__:<module>:199 - scipy.signal.cheb1ap has 2 params, run 100 times
+2025-10-24 21:38:28.306 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.cheb1ap 2 done
+2025-10-24 21:38:28.307 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.cheb1ap: 130346 bits
+2025-10-24 21:38:28.307 | INFO     | __main__:<module>:192 - DyFuzz scipy integrate.quadpack.quad 15
+2025-10-24 21:38:28.307 | DEBUG    | __main__:<module>:199 - scipy.integrate.quadpack.quad has 15 params, run 100 times
+2025-10-24 21:38:34.314 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:38:46.134 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:39:10.904 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:39:28.850 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:39:41.640 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:39:41.640 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:39:41.641 | INFO     | __main__:<module>:201 - Fuzz scipy.integrate.quadpack.quad 15 done
+2025-10-24 21:39:41.641 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.integrate.quadpack.quad: 130362 bits
+2025-10-24 21:39:41.641 | INFO     | __main__:<module>:192 - DyFuzz scipy interpolate.polyint.approximate_taylor_polynomial 5
+2025-10-24 21:39:41.641 | DEBUG    | __main__:<module>:199 - scipy.interpolate.polyint.approximate_taylor_polynomial has 5 params, run 100 times
+2025-10-24 21:40:18.152 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:40:33.358 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:40:43.650 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:41:01.316 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:41:19.868 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:41:19.869 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:41:19.869 | INFO     | __main__:<module>:201 - Fuzz scipy.interpolate.polyint.approximate_taylor_polynomial 5 done
+2025-10-24 21:41:19.870 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.interpolate.polyint.approximate_taylor_polynomial: 130369 bits
+2025-10-24 21:41:19.870 | INFO     | __main__:<module>:192 - DyFuzz scipy interpolate.insert 4
+2025-10-24 21:41:19.870 | DEBUG    | __main__:<module>:199 - scipy.interpolate.insert has 4 params, run 100 times
+2025-10-24 21:42:34.701 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:42:44.110 | INFO     | __main__:<module>:201 - Fuzz scipy.interpolate.insert 4 done
+2025-10-24 21:42:44.110 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.interpolate.insert: 130372 bits
+2025-10-24 21:42:44.110 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.windows.get_window 5
+2025-10-24 21:42:44.111 | DEBUG    | __main__:<module>:199 - scipy.signal.windows.get_window has 5 params, run 100 times
+2025-10-24 21:42:55.953 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:43:09.899 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:43:26.176 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:44:26.542 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.windows.get_window 5 done
+2025-10-24 21:44:26.544 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.windows.get_window: 130372 bits
+2025-10-24 21:44:26.544 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.trimboth 3
+2025-10-24 21:44:26.544 | DEBUG    | __main__:<module>:199 - scipy.stats.trimboth has 3 params, run 100 times
+2025-10-24 21:44:37.258 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:45:50.328 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:45:58.804 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.trimboth 3 done
+2025-10-24 21:45:58.805 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.trimboth: 130382 bits
+2025-10-24 21:45:58.805 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.circstd 7
+2025-10-24 21:45:58.806 | DEBUG    | __main__:<module>:199 - scipy.stats.circstd has 7 params, run 100 times
+2025-10-24 21:46:49.021 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:47:04.308 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:47:36.859 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.circstd 7 done
+2025-10-24 21:47:36.860 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.circstd: 130382 bits
+2025-10-24 21:47:36.861 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.special_matrices.circulant 1
+2025-10-24 21:47:36.861 | DEBUG    | __main__:<module>:199 - scipy.linalg.special_matrices.circulant has 1 params, run 100 times
+2025-10-24 21:48:20.683 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.special_matrices.circulant 1 done
+2025-10-24 21:48:20.684 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.special_matrices.circulant: 130390 bits
+2025-10-24 21:48:20.684 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.dft 2
+2025-10-24 21:48:20.684 | DEBUG    | __main__:<module>:199 - scipy.linalg.dft has 2 params, run 100 times
+2025-10-24 21:48:27.449 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:48:37.720 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:48:49.373 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:49:13.977 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:49:45.218 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:49:45.219 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 21:49:45.219 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.dft 2 done
+2025-10-24 21:49:45.220 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.dft: 130395 bits
+2025-10-24 21:49:45.220 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.stats.kstest 9
+2025-10-24 21:49:45.221 | DEBUG    | __main__:<module>:199 - scipy.stats.stats.kstest has 9 params, run 100 times
+2025-10-24 21:50:28.374 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:51:12.393 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.stats.kstest 9 done
+2025-10-24 21:51:12.394 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.stats.kstest: 130403 bits
+2025-10-24 21:51:12.394 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats.kstest 5
+2025-10-24 21:51:12.394 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats.kstest has 5 params, run 100 times
+2025-10-24 21:51:42.590 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:53:01.482 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats.kstest 5 done
+2025-10-24 21:53:01.484 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats.kstest: 130405 bits
+2025-10-24 21:53:01.485 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats.gmean 6
+2025-10-24 21:53:01.485 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats.gmean has 6 params, run 100 times
+2025-10-24 21:53:19.565 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:53:43.761 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:54:11.733 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:54:47.561 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats.gmean 6 done
+2025-10-24 21:54:47.562 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats.gmean: 130405 bits
+2025-10-24 21:54:47.562 | INFO     | __main__:<module>:192 - DyFuzz scipy sparse.linalg.dsolve.spsolve 4
+2025-10-24 21:54:47.563 | DEBUG    | __main__:<module>:199 - scipy.sparse.linalg.dsolve.spsolve has 4 params, run 100 times
+2025-10-24 21:55:06.239 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:55:27.271 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:56:02.946 | INFO     | __main__:<module>:201 - Fuzz scipy.sparse.linalg.dsolve.spsolve 4 done
+2025-10-24 21:56:02.947 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.sparse.linalg.dsolve.spsolve: 130440 bits
+2025-10-24 21:56:02.947 | INFO     | __main__:<module>:192 - DyFuzz scipy special.yvp 3
+2025-10-24 21:56:02.947 | DEBUG    | __main__:<module>:199 - scipy.special.yvp has 3 params, run 100 times
+2025-10-24 21:56:16.736 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:57:07.866 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:57:08.722 | INFO     | __main__:<module>:201 - Fuzz scipy.special.yvp 3 done
+2025-10-24 21:57:08.723 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.yvp: 130454 bits
+2025-10-24 21:57:08.723 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats.trima 3
+2025-10-24 21:57:08.723 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats.trima has 3 params, run 100 times
+2025-10-24 21:57:48.445 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:58:13.431 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:58:58.179 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:59:19.028 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 21:59:26.315 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats.trima 3 done
+2025-10-24 21:59:26.316 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats.trima: 130454 bits
+2025-10-24 21:59:26.316 | INFO     | __main__:<module>:192 - DyFuzz scipy special.riccati_jn 2
+2025-10-24 21:59:26.316 | DEBUG    | __main__:<module>:199 - scipy.special.riccati_jn has 2 params, run 100 times
+2025-10-24 22:00:15.904 | INFO     | __main__:<module>:201 - Fuzz scipy.special.riccati_jn 2 done
+2025-10-24 22:00:15.905 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.riccati_jn: 130465 bits
+2025-10-24 22:00:15.906 | INFO     | __main__:<module>:192 - DyFuzz scipy special.kerp_zeros 1
+2025-10-24 22:00:15.906 | DEBUG    | __main__:<module>:199 - scipy.special.kerp_zeros has 1 params, run 100 times
+2025-10-24 22:00:27.176 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:00:38.099 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:00:44.108 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:00:55.667 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:01:03.427 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:01:03.427 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 22:01:03.427 | INFO     | __main__:<module>:201 - Fuzz scipy.special.kerp_zeros 1 done
+2025-10-24 22:01:03.428 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.special.kerp_zeros: 130468 bits
+2025-10-24 22:01:03.428 | INFO     | __main__:<module>:192 - DyFuzz scipy ndimage.vectorized_filter 10
+2025-10-24 22:01:03.428 | DEBUG    | __main__:<module>:199 - scipy.ndimage.vectorized_filter has 10 params, run 100 times
+2025-10-24 22:01:13.375 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:01:23.967 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:01:31.590 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:01:55.999 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:02:08.449 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:02:08.450 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 22:02:08.450 | INFO     | __main__:<module>:201 - Fuzz scipy.ndimage.vectorized_filter 10 done
+2025-10-24 22:02:08.450 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.ndimage.vectorized_filter: 130468 bits
+2025-10-24 22:02:08.450 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats_extras.median_cihs 3
+2025-10-24 22:02:08.450 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats_extras.median_cihs has 3 params, run 100 times
+2025-10-24 22:03:38.997 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:03:39.852 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats_extras.median_cihs 3 done
+2025-10-24 22:03:39.853 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats_extras.median_cihs: 130481 bits
+2025-10-24 22:03:39.853 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.ttest_rel 6
+2025-10-24 22:03:39.853 | DEBUG    | __main__:<module>:199 - scipy.stats.ttest_rel has 6 params, run 100 times
+2025-10-24 22:04:40.518 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:05:10.941 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:05:20.795 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.ttest_rel 6 done
+2025-10-24 22:05:20.796 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.ttest_rel: 130481 bits
+2025-10-24 22:05:20.796 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.circvar 6
+2025-10-24 22:05:20.796 | DEBUG    | __main__:<module>:199 - scipy.stats.circvar has 6 params, run 100 times
+2025-10-24 22:05:51.192 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:06:37.435 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:06:42.640 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.circvar 6 done
+2025-10-24 22:06:42.641 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.circvar: 130481 bits
+2025-10-24 22:06:42.641 | INFO     | __main__:<module>:192 - DyFuzz scipy interpolate.pade 3
+2025-10-24 22:06:42.641 | DEBUG    | __main__:<module>:199 - scipy.interpolate.pade has 3 params, run 100 times
+2025-10-24 22:07:53.434 | INFO     | __main__:<module>:201 - Fuzz scipy.interpolate.pade 3 done
+2025-10-24 22:07:53.435 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.interpolate.pade: 130488 bits
+2025-10-24 22:07:53.435 | INFO     | __main__:<module>:192 - DyFuzz scipy ndimage.grey_closing 9
+2025-10-24 22:07:53.435 | DEBUG    | __main__:<module>:199 - scipy.ndimage.grey_closing has 9 params, run 100 times
+2025-10-24 22:08:01.064 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:08:09.088 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:08:22.155 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:08:29.100 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:08:49.786 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:08:49.787 | WARNING  | __main__:run_limit_n:142 - Too many timeouts, skipping this API.
+2025-10-24 22:08:49.788 | INFO     | __main__:<module>:201 - Fuzz scipy.ndimage.grey_closing 9 done
+2025-10-24 22:08:49.789 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.ndimage.grey_closing: 130488 bits
+2025-10-24 22:08:49.790 | INFO     | __main__:<module>:192 - DyFuzz scipy stats._mstats_basic.skew 3
+2025-10-24 22:08:49.790 | DEBUG    | __main__:<module>:199 - scipy.stats._mstats_basic.skew has 3 params, run 100 times
+2025-10-24 22:09:51.474 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:10:32.346 | INFO     | __main__:<module>:201 - Fuzz scipy.stats._mstats_basic.skew 3 done
+2025-10-24 22:10:32.348 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats._mstats_basic.skew: 130491 bits
+2025-10-24 22:10:32.348 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.symiirorder1 4
+2025-10-24 22:10:32.348 | DEBUG    | __main__:<module>:199 - scipy.signal.symiirorder1 has 4 params, run 100 times
+2025-10-24 22:10:45.332 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:11:20.263 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:12:07.203 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.symiirorder1 4 done
+2025-10-24 22:12:07.205 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.symiirorder1: 130492 bits
+2025-10-24 22:12:07.205 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats_basic.trimmed_mean 5
+2025-10-24 22:12:07.205 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats_basic.trimmed_mean has 5 params, run 100 times
+2025-10-24 22:13:17.994 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:13:35.884 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:13:45.203 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats_basic.trimmed_mean 5 done
+2025-10-24 22:13:45.204 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats_basic.trimmed_mean: 130505 bits
+2025-10-24 22:13:45.204 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.mstats.kurtosistest 3
+2025-10-24 22:13:45.204 | DEBUG    | __main__:<module>:199 - scipy.stats.mstats.kurtosistest has 3 params, run 100 times
+2025-10-24 22:15:02.534 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.mstats.kurtosistest 3 done
+2025-10-24 22:15:02.536 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.mstats.kurtosistest: 130510 bits
+2025-10-24 22:15:02.536 | INFO     | __main__:<module>:192 - DyFuzz scipy interpolate.polyint.barycentric_interpolate 6
+2025-10-24 22:15:02.536 | DEBUG    | __main__:<module>:199 - scipy.interpolate.polyint.barycentric_interpolate has 6 params, run 100 times
+2025-10-24 22:16:00.530 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:16:20.376 | INFO     | __main__:<module>:201 - Fuzz scipy.interpolate.polyint.barycentric_interpolate 6 done
+2025-10-24 22:16:20.377 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.interpolate.polyint.barycentric_interpolate: 130510 bits
+2025-10-24 22:16:20.377 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.solve_discrete_lyapunov 3
+2025-10-24 22:16:20.377 | DEBUG    | __main__:<module>:199 - scipy.linalg.solve_discrete_lyapunov has 3 params, run 100 times
+2025-10-24 22:17:07.591 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:17:11.566 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.solve_discrete_lyapunov 3 done
+2025-10-24 22:17:11.567 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.solve_discrete_lyapunov: 130529 bits
+2025-10-24 22:17:11.567 | INFO     | __main__:<module>:192 - DyFuzz scipy linalg.matfuncs.rsf2csf 3
+2025-10-24 22:17:11.567 | DEBUG    | __main__:<module>:199 - scipy.linalg.matfuncs.rsf2csf has 3 params, run 100 times
+2025-10-24 22:17:32.338 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:18:04.069 | INFO     | __main__:<module>:201 - Fuzz scipy.linalg.matfuncs.rsf2csf 3 done
+2025-10-24 22:18:04.070 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.linalg.matfuncs.rsf2csf: 130535 bits
+2025-10-24 22:18:04.070 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.siegelslopes 6
+2025-10-24 22:18:04.070 | DEBUG    | __main__:<module>:199 - scipy.stats.siegelslopes has 6 params, run 100 times
+2025-10-24 22:18:11.583 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:19:37.274 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.siegelslopes 6 done
+2025-10-24 22:19:37.276 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.siegelslopes: 130535 bits
+2025-10-24 22:19:37.276 | INFO     | __main__:<module>:192 - DyFuzz scipy spatial.procrustes 2
+2025-10-24 22:19:37.276 | DEBUG    | __main__:<module>:199 - scipy.spatial.procrustes has 2 params, run 100 times
+2025-10-24 22:19:54.886 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:20:10.528 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:20:34.461 | INFO     | __main__:<module>:201 - Fuzz scipy.spatial.procrustes 2 done
+2025-10-24 22:20:34.461 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.spatial.procrustes: 130539 bits
+2025-10-24 22:20:34.461 | INFO     | __main__:<module>:192 - DyFuzz scipy stats.stats.tsem 7
+2025-10-24 22:20:34.461 | DEBUG    | __main__:<module>:199 - scipy.stats.stats.tsem has 7 params, run 100 times
+2025-10-24 22:21:23.830 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:22:03.302 | INFO     | __main__:<module>:201 - Fuzz scipy.stats.stats.tsem 7 done
+2025-10-24 22:22:03.304 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.stats.stats.tsem: 130539 bits
+2025-10-24 22:22:03.304 | INFO     | __main__:<module>:192 - DyFuzz scipy signal.argrelextrema 5
+2025-10-24 22:22:03.304 | DEBUG    | __main__:<module>:199 - scipy.signal.argrelextrema has 5 params, run 100 times
+2025-10-24 22:23:42.173 | INFO     | __main__:<module>:201 - Fuzz scipy.signal.argrelextrema 5 done
+2025-10-24 22:23:42.175 | INFO     | __main__:<module>:202 - Current coverage after fuzzing scipy.signal.argrelextrema: 130540 bits
+2025-10-24 22:23:42.175 | INFO     | __main__:<module>:207 - Dyfuzz done scipy
+2025-10-24 22:23:42.175 | INFO     | __main__:<module>:181 - DyFuzz test requests
+2025-10-24 22:23:42.175 | INFO     | __main__:<module>:184 - requests has 4 apis
+2025-10-24 22:23:42.175 | INFO     | __main__:<module>:192 - DyFuzz requests get 3
+2025-10-24 22:23:42.175 | DEBUG    | __main__:<module>:199 - requests.get has 3 params, run 100 times
+2025-10-24 22:23:58.827 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:24:12.310 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:24:15.793 | INFO     | __main__:<module>:201 - Fuzz requests.get 3 done
+2025-10-24 22:24:15.794 | INFO     | __main__:<module>:202 - Current coverage after fuzzing requests.get: 130540 bits
+2025-10-24 22:24:15.794 | INFO     | __main__:<module>:192 - DyFuzz requests cookies.create_cookie 3
+2025-10-24 22:24:15.794 | DEBUG    | __main__:<module>:199 - requests.cookies.create_cookie has 3 params, run 100 times
+2025-10-24 22:24:44.867 | INFO     | __main__:<module>:201 - Fuzz requests.cookies.create_cookie 3 done
+2025-10-24 22:24:44.868 | INFO     | __main__:<module>:202 - Current coverage after fuzzing requests.cookies.create_cookie: 130540 bits
+2025-10-24 22:24:44.868 | INFO     | __main__:<module>:192 - DyFuzz requests models.super_len 1
+2025-10-24 22:24:44.868 | DEBUG    | __main__:<module>:199 - requests.models.super_len has 1 params, run 100 times
+2025-10-24 22:25:15.297 | INFO     | __main__:<module>:201 - Fuzz requests.models.super_len 1 done
+2025-10-24 22:25:15.298 | INFO     | __main__:<module>:202 - Current coverage after fuzzing requests.models.super_len: 130555 bits
+2025-10-24 22:25:15.298 | INFO     | __main__:<module>:192 - DyFuzz requests adapters.extract_cookies_to_jar 3
+2025-10-24 22:25:15.299 | DEBUG    | __main__:<module>:199 - requests.adapters.extract_cookies_to_jar has 3 params, run 100 times
+2025-10-24 22:25:40.483 | INFO     | __main__:<module>:201 - Fuzz requests.adapters.extract_cookies_to_jar 3 done
+2025-10-24 22:25:40.484 | INFO     | __main__:<module>:202 - Current coverage after fuzzing requests.adapters.extract_cookies_to_jar: 130555 bits
+2025-10-24 22:25:40.484 | INFO     | __main__:<module>:207 - Dyfuzz done requests
+2025-10-24 22:25:40.484 | INFO     | __main__:<module>:181 - DyFuzz test spacy
+2025-10-24 22:25:40.484 | INFO     | __main__:<module>:184 - spacy has 11 apis
+2025-10-24 22:25:40.485 | INFO     | __main__:<module>:192 - DyFuzz spacy util.get_minor_version_range 1
+2025-10-24 22:25:40.485 | DEBUG    | __main__:<module>:199 - spacy.util.get_minor_version_range has 1 params, run 100 times
+2025-10-24 22:28:19.623 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:29:08.173 | INFO     | __main__:<module>:201 - Fuzz spacy.util.get_minor_version_range 1 done
+2025-10-24 22:29:08.173 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.util.get_minor_version_range: 130555 bits
+2025-10-24 22:29:08.173 | INFO     | __main__:<module>:192 - DyFuzz spacy displacy.set_render_wrapper 1
+2025-10-24 22:29:08.173 | DEBUG    | __main__:<module>:199 - spacy.displacy.set_render_wrapper has 1 params, run 100 times
+2025-10-24 22:30:22.997 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:32:31.730 | INFO     | __main__:<module>:201 - Fuzz spacy.displacy.set_render_wrapper 1 done
+2025-10-24 22:32:31.731 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.displacy.set_render_wrapper: 130556 bits
+2025-10-24 22:32:31.731 | INFO     | __main__:<module>:192 - DyFuzz spacy lang.lex_attrs.like_email 1
+2025-10-24 22:32:31.731 | DEBUG    | __main__:<module>:199 - spacy.lang.lex_attrs.like_email has 1 params, run 100 times
+2025-10-24 22:35:46.742 | INFO     | __main__:<module>:201 - Fuzz spacy.lang.lex_attrs.like_email 1 done
+2025-10-24 22:35:46.744 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.lang.lex_attrs.like_email: 130556 bits
+2025-10-24 22:35:46.744 | INFO     | __main__:<module>:192 - DyFuzz spacy ml.models.build_mean_max_reducer 1
+2025-10-24 22:35:46.744 | DEBUG    | __main__:<module>:199 - spacy.ml.models.build_mean_max_reducer has 1 params, run 100 times
+2025-10-24 22:39:04.236 | INFO     | __main__:<module>:201 - Fuzz spacy.ml.models.build_mean_max_reducer 1 done
+2025-10-24 22:39:04.237 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.ml.models.build_mean_max_reducer: 130556 bits
+2025-10-24 22:39:04.237 | INFO     | __main__:<module>:192 - DyFuzz spacy ml.create_pretrain_vectors 3
+2025-10-24 22:39:04.237 | DEBUG    | __main__:<module>:199 - spacy.ml.create_pretrain_vectors has 3 params, run 100 times
+2025-10-24 22:41:59.412 | INFO     | __main__:<module>:201 - Fuzz spacy.ml.create_pretrain_vectors 3 done
+2025-10-24 22:41:59.414 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.ml.create_pretrain_vectors: 130556 bits
+2025-10-24 22:41:59.414 | INFO     | __main__:<module>:192 - DyFuzz spacy ml.callbacks.nvtx_range_wrapper_for_pipe_method 4
+2025-10-24 22:41:59.414 | DEBUG    | __main__:<module>:199 - spacy.ml.callbacks.nvtx_range_wrapper_for_pipe_method has 4 params, run 100 times
+2025-10-24 22:45:19.679 | INFO     | __main__:<module>:201 - Fuzz spacy.ml.callbacks.nvtx_range_wrapper_for_pipe_method 4 done
+2025-10-24 22:45:19.681 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.ml.callbacks.nvtx_range_wrapper_for_pipe_method: 130556 bits
+2025-10-24 22:45:19.681 | INFO     | __main__:<module>:192 - DyFuzz spacy cli.assemble.show_validation_error 5
+2025-10-24 22:45:19.681 | DEBUG    | __main__:<module>:199 - spacy.cli.assemble.show_validation_error has 5 params, run 100 times
+2025-10-24 22:46:20.649 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:46:49.478 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:48:28.729 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:48:50.325 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:48:54.930 | INFO     | __main__:<module>:201 - Fuzz spacy.cli.assemble.show_validation_error 5 done
+2025-10-24 22:48:54.931 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.cli.assemble.show_validation_error: 130556 bits
+2025-10-24 22:48:54.931 | INFO     | __main__:<module>:192 - DyFuzz spacy lang.lex_attrs.is_space 1
+2025-10-24 22:48:54.931 | DEBUG    | __main__:<module>:199 - spacy.lang.lex_attrs.is_space has 1 params, run 100 times
+2025-10-24 22:52:17.708 | INFO     | __main__:<module>:201 - Fuzz spacy.lang.lex_attrs.is_space 1 done
+2025-10-24 22:52:17.710 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.lang.lex_attrs.is_space: 130556 bits
+2025-10-24 22:52:17.710 | INFO     | __main__:<module>:192 - DyFuzz spacy util.is_minor_version_match 2
+2025-10-24 22:52:17.710 | DEBUG    | __main__:<module>:199 - spacy.util.is_minor_version_match has 2 params, run 100 times
+2025-10-24 22:53:39.513 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 22:55:29.402 | INFO     | __main__:<module>:201 - Fuzz spacy.util.is_minor_version_match 2 done
+2025-10-24 22:55:29.403 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.util.is_minor_version_match: 130558 bits
+2025-10-24 22:55:29.403 | INFO     | __main__:<module>:192 - DyFuzz spacy pipe_analysis.analyze_pipes 2
+2025-10-24 22:55:29.403 | DEBUG    | __main__:<module>:199 - spacy.pipe_analysis.analyze_pipes has 2 params, run 100 times
+2025-10-24 22:58:46.578 | INFO     | __main__:<module>:201 - Fuzz spacy.pipe_analysis.analyze_pipes 2 done
+2025-10-24 22:58:46.579 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.pipe_analysis.analyze_pipes: 130558 bits
+2025-10-24 22:58:46.580 | INFO     | __main__:<module>:192 - DyFuzz spacy scorer.trapezoid 4
+2025-10-24 22:58:46.580 | DEBUG    | __main__:<module>:199 - spacy.scorer.trapezoid has 4 params, run 100 times
+2025-10-24 23:01:50.106 | INFO     | __main__:<module>:201 - Fuzz spacy.scorer.trapezoid 4 done
+2025-10-24 23:01:50.107 | INFO     | __main__:<module>:202 - Current coverage after fuzzing spacy.scorer.trapezoid: 130560 bits
+2025-10-24 23:01:50.107 | INFO     | __main__:<module>:207 - Dyfuzz done spacy
+2025-10-24 23:01:50.107 | INFO     | __main__:<module>:181 - DyFuzz test torch
+2025-10-24 23:01:50.107 | INFO     | __main__:<module>:184 - torch has 25 apis
+2025-10-24 23:01:50.107 | INFO     | __main__:<module>:192 - DyFuzz torch cross 4
+2025-10-24 23:01:50.108 | DEBUG    | __main__:<module>:199 - torch.cross has 4 params, run 100 times
+2025-10-24 23:02:51.236 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:04:26.075 | INFO     | __main__:<module>:201 - Fuzz torch.cross 4 done
+2025-10-24 23:04:26.076 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.cross: 169555 bits
+2025-10-24 23:04:26.077 | INFO     | __main__:<module>:192 - DyFuzz torch ldexp 3
+2025-10-24 23:04:26.077 | DEBUG    | __main__:<module>:199 - torch.ldexp has 3 params, run 100 times
+2025-10-24 23:07:07.321 | INFO     | __main__:<module>:201 - Fuzz torch.ldexp 3 done
+2025-10-24 23:07:07.323 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.ldexp: 169555 bits
+2025-10-24 23:07:07.323 | INFO     | __main__:<module>:192 - DyFuzz torch diff 6
+2025-10-24 23:07:07.323 | DEBUG    | __main__:<module>:199 - torch.diff has 6 params, run 100 times
+2025-10-24 23:08:14.652 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:09:45.415 | INFO     | __main__:<module>:201 - Fuzz torch.diff 6 done
+2025-10-24 23:09:45.416 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.diff: 169555 bits
+2025-10-24 23:09:45.416 | INFO     | __main__:<module>:192 - DyFuzz torch lcm_ 2
+2025-10-24 23:09:45.416 | DEBUG    | __main__:<module>:199 - torch.lcm_ has 2 params, run 100 times
+2025-10-24 23:12:20.895 | INFO     | __main__:<module>:201 - Fuzz torch.lcm_ 2 done
+2025-10-24 23:12:20.896 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.lcm_: 169555 bits
+2025-10-24 23:12:20.896 | INFO     | __main__:<module>:192 - DyFuzz torch sinc 2
+2025-10-24 23:12:20.896 | DEBUG    | __main__:<module>:199 - torch.sinc has 2 params, run 100 times
+2025-10-24 23:14:59.948 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:15:06.444 | INFO     | __main__:<module>:201 - Fuzz torch.sinc 2 done
+2025-10-24 23:15:06.445 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.sinc: 169555 bits
+2025-10-24 23:15:06.445 | INFO     | __main__:<module>:192 - DyFuzz torch max 4
+2025-10-24 23:15:06.445 | DEBUG    | __main__:<module>:199 - torch.max has 4 params, run 100 times
+2025-10-24 23:16:07.439 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:17:40.207 | INFO     | __main__:<module>:201 - Fuzz torch.max 4 done
+2025-10-24 23:17:40.209 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.max: 169555 bits
+2025-10-24 23:17:40.209 | INFO     | __main__:<module>:192 - DyFuzz torch tensor_split 3
+2025-10-24 23:17:40.209 | DEBUG    | __main__:<module>:199 - torch.tensor_split has 3 params, run 100 times
+2025-10-24 23:20:07.150 | INFO     | __main__:<module>:201 - Fuzz torch.tensor_split 3 done
+2025-10-24 23:20:07.151 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.tensor_split: 169555 bits
+2025-10-24 23:20:07.151 | INFO     | __main__:<module>:192 - DyFuzz torch q_per_channel_axis 1
+2025-10-24 23:20:07.151 | DEBUG    | __main__:<module>:199 - torch.q_per_channel_axis has 1 params, run 100 times
+2025-10-24 23:22:43.004 | INFO     | __main__:<module>:201 - Fuzz torch.q_per_channel_axis 1 done
+2025-10-24 23:22:43.006 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.q_per_channel_axis: 169555 bits
+2025-10-24 23:22:43.006 | INFO     | __main__:<module>:192 - DyFuzz torch view_as_complex_copy 2
+2025-10-24 23:22:43.006 | DEBUG    | __main__:<module>:199 - torch.view_as_complex_copy has 2 params, run 100 times
+2025-10-24 23:24:11.142 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:25:30.961 | INFO     | __main__:<module>:201 - Fuzz torch.view_as_complex_copy 2 done
+2025-10-24 23:25:30.961 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.view_as_complex_copy: 169555 bits
+2025-10-24 23:25:30.961 | INFO     | __main__:<module>:192 - DyFuzz torch flatten 3
+2025-10-24 23:25:30.961 | DEBUG    | __main__:<module>:199 - torch.flatten has 3 params, run 100 times
+2025-10-24 23:26:13.343 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:27:41.379 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:28:06.354 | INFO     | __main__:<module>:201 - Fuzz torch.flatten 3 done
+2025-10-24 23:28:06.354 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.flatten: 169555 bits
+2025-10-24 23:28:06.355 | INFO     | __main__:<module>:192 - DyFuzz torch allclose 5
+2025-10-24 23:28:06.355 | DEBUG    | __main__:<module>:199 - torch.allclose has 5 params, run 100 times
+2025-10-24 23:28:27.762 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:30:35.691 | INFO     | __main__:<module>:201 - Fuzz torch.allclose 5 done
+2025-10-24 23:30:35.693 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.allclose: 169555 bits
+2025-10-24 23:30:35.693 | INFO     | __main__:<module>:192 - DyFuzz torch layer_norm 5
+2025-10-24 23:30:35.693 | DEBUG    | __main__:<module>:199 - torch.layer_norm has 5 params, run 100 times
+2025-10-24 23:30:57.988 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:31:27.245 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:32:19.704 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:33:20.042 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:33:29.995 | INFO     | __main__:<module>:201 - Fuzz torch.layer_norm 5 done
+2025-10-24 23:33:29.995 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.layer_norm: 169555 bits
+2025-10-24 23:33:29.996 | INFO     | __main__:<module>:192 - DyFuzz torch isreal 1
+2025-10-24 23:33:29.996 | DEBUG    | __main__:<module>:199 - torch.isreal has 1 params, run 100 times
+2025-10-24 23:36:10.973 | INFO     | __main__:<module>:201 - Fuzz torch.isreal 1 done
+2025-10-24 23:36:10.974 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.isreal: 169555 bits
+2025-10-24 23:36:10.974 | INFO     | __main__:<module>:192 - DyFuzz torch sigmoid 1
+2025-10-24 23:36:10.974 | DEBUG    | __main__:<module>:199 - torch.sigmoid has 1 params, run 100 times
+2025-10-24 23:38:47.181 | INFO     | __main__:<module>:201 - Fuzz torch.sigmoid 1 done
+2025-10-24 23:38:47.182 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.sigmoid: 169555 bits
+2025-10-24 23:38:47.182 | INFO     | __main__:<module>:192 - DyFuzz torch qr 3
+2025-10-24 23:38:47.182 | DEBUG    | __main__:<module>:199 - torch.qr has 3 params, run 100 times
+2025-10-24 23:39:46.395 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:41:23.746 | INFO     | __main__:<module>:201 - Fuzz torch.qr 3 done
+2025-10-24 23:41:23.747 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.qr: 169555 bits
+2025-10-24 23:41:23.747 | INFO     | __main__:<module>:192 - DyFuzz torch bmm 4
+2025-10-24 23:41:23.747 | DEBUG    | __main__:<module>:199 - torch.bmm has 4 params, run 100 times
+2025-10-24 23:42:57.231 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:44:14.234 | INFO     | __main__:<module>:201 - Fuzz torch.bmm 4 done
+2025-10-24 23:44:14.235 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.bmm: 169555 bits
+2025-10-24 23:44:14.235 | INFO     | __main__:<module>:192 - DyFuzz torch equal 2
+2025-10-24 23:44:14.235 | DEBUG    | __main__:<module>:199 - torch.equal has 2 params, run 100 times
+2025-10-24 23:45:05.794 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:46:05.785 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:46:31.182 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:46:59.199 | INFO     | __main__:<module>:201 - Fuzz torch.equal 2 done
+2025-10-24 23:46:59.200 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.equal: 169555 bits
+2025-10-24 23:46:59.200 | INFO     | __main__:<module>:192 - DyFuzz torch bincount 3
+2025-10-24 23:46:59.200 | DEBUG    | __main__:<module>:199 - torch.bincount has 3 params, run 100 times
+2025-10-24 23:49:35.566 | INFO     | __main__:<module>:201 - Fuzz torch.bincount 3 done
+2025-10-24 23:49:35.567 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.bincount: 169555 bits
+2025-10-24 23:49:35.568 | INFO     | __main__:<module>:192 - DyFuzz torch floor_ 1
+2025-10-24 23:49:35.568 | DEBUG    | __main__:<module>:199 - torch.floor_ has 1 params, run 100 times
+2025-10-24 23:52:17.293 | INFO     | __main__:<module>:201 - Fuzz torch.floor_ 1 done
+2025-10-24 23:52:17.293 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.floor_: 169555 bits
+2025-10-24 23:52:17.293 | INFO     | __main__:<module>:192 - DyFuzz torch arccos_ 1
+2025-10-24 23:52:17.293 | DEBUG    | __main__:<module>:199 - torch.arccos_ has 1 params, run 100 times
+2025-10-24 23:54:53.272 | INFO     | __main__:<module>:201 - Fuzz torch.arccos_ 1 done
+2025-10-24 23:54:53.273 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.arccos_: 169555 bits
+2025-10-24 23:54:53.273 | INFO     | __main__:<module>:192 - DyFuzz torch fmod 3
+2025-10-24 23:54:53.273 | DEBUG    | __main__:<module>:199 - torch.fmod has 3 params, run 100 times
+2025-10-24 23:55:29.236 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-24 23:57:37.127 | INFO     | __main__:<module>:201 - Fuzz torch.fmod 3 done
+2025-10-24 23:57:37.129 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.fmod: 169555 bits
+2025-10-24 23:57:37.129 | INFO     | __main__:<module>:192 - DyFuzz torch hamming_window 9
+2025-10-24 23:57:37.129 | DEBUG    | __main__:<module>:199 - torch.hamming_window has 9 params, run 100 times
+2025-10-24 23:59:36.171 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:00:13.365 | INFO     | __main__:<module>:201 - Fuzz torch.hamming_window 9 done
+2025-10-25 00:00:13.367 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.hamming_window: 169555 bits
+2025-10-25 00:00:13.367 | INFO     | __main__:<module>:192 - DyFuzz torch logical_not 2
+2025-10-25 00:00:13.367 | DEBUG    | __main__:<module>:199 - torch.logical_not has 2 params, run 100 times
+2025-10-25 00:01:00.131 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:01:56.820 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:02:52.642 | INFO     | __main__:<module>:201 - Fuzz torch.logical_not 2 done
+2025-10-25 00:02:52.643 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.logical_not: 169555 bits
+2025-10-25 00:02:52.643 | INFO     | __main__:<module>:192 - DyFuzz torch tensor 5
+2025-10-25 00:02:52.643 | DEBUG    | __main__:<module>:199 - torch.tensor has 5 params, run 100 times
+2025-10-25 00:03:22.093 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:04:04.965 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:05:23.119 | INFO     | __main__:<module>:201 - Fuzz torch.tensor 5 done
+2025-10-25 00:05:23.121 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.tensor: 169555 bits
+2025-10-25 00:05:23.121 | INFO     | __main__:<module>:192 - DyFuzz torch isclose 5
+2025-10-25 00:05:23.121 | DEBUG    | __main__:<module>:199 - torch.isclose has 5 params, run 100 times
+2025-10-25 00:08:05.463 | INFO     | __main__:<module>:201 - Fuzz torch.isclose 5 done
+2025-10-25 00:08:05.465 | INFO     | __main__:<module>:202 - Current coverage after fuzzing torch.isclose: 169555 bits
+2025-10-25 00:08:05.465 | INFO     | __main__:<module>:207 - Dyfuzz done torch
+2025-10-25 00:08:05.465 | INFO     | __main__:<module>:181 - DyFuzz test paddle
+2025-10-25 00:08:05.465 | INFO     | __main__:<module>:184 - paddle has 16 apis
+2025-10-25 00:08:05.466 | INFO     | __main__:<module>:192 - DyFuzz paddle t 2
+2025-10-25 00:08:05.466 | DEBUG    | __main__:<module>:199 - paddle.t has 2 params, run 100 times
+2025-10-25 00:10:25.089 | INFO     | __main__:<module>:201 - Fuzz paddle.t 2 done
+2025-10-25 00:10:25.091 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.t: 169555 bits
+2025-10-25 00:10:25.091 | INFO     | __main__:<module>:192 - DyFuzz paddle remainder_ 3
+2025-10-25 00:10:25.092 | DEBUG    | __main__:<module>:199 - paddle.remainder_ has 3 params, run 100 times
+2025-10-25 00:11:09.833 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:12:01.042 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:12:53.127 | INFO     | __main__:<module>:201 - Fuzz paddle.remainder_ 3 done
+2025-10-25 00:12:53.128 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.remainder_: 169555 bits
+2025-10-25 00:12:53.128 | INFO     | __main__:<module>:192 - DyFuzz paddle addmm_ 6
+2025-10-25 00:12:53.128 | DEBUG    | __main__:<module>:199 - paddle.addmm_ has 6 params, run 100 times
+2025-10-25 00:13:06.267 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:13:21.224 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:14:11.653 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:14:56.457 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:15:08.055 | INFO     | __main__:<module>:201 - Fuzz paddle.addmm_ 6 done
+2025-10-25 00:15:08.056 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.addmm_: 169555 bits
+2025-10-25 00:15:08.057 | INFO     | __main__:<module>:192 - DyFuzz paddle bitwise_or_ 3
+2025-10-25 00:15:08.057 | DEBUG    | __main__:<module>:199 - paddle.bitwise_or_ has 3 params, run 100 times
+2025-10-25 00:17:15.981 | INFO     | __main__:<module>:201 - Fuzz paddle.bitwise_or_ 3 done
+2025-10-25 00:17:15.981 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.bitwise_or_: 169555 bits
+2025-10-25 00:17:15.981 | INFO     | __main__:<module>:192 - DyFuzz paddle save 4
+2025-10-25 00:17:15.981 | DEBUG    | __main__:<module>:199 - paddle.save has 4 params, run 100 times
+2025-10-25 00:18:09.400 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:19:43.118 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:19:47.363 | INFO     | __main__:<module>:201 - Fuzz paddle.save 4 done
+2025-10-25 00:19:47.364 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.save: 169555 bits
+2025-10-25 00:19:47.364 | INFO     | __main__:<module>:192 - DyFuzz paddle unbind 2
+2025-10-25 00:19:47.364 | DEBUG    | __main__:<module>:199 - paddle.unbind has 2 params, run 100 times
+2025-10-25 00:22:08.490 | INFO     | __main__:<module>:201 - Fuzz paddle.unbind 2 done
+2025-10-25 00:22:08.492 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.unbind: 169557 bits
+2025-10-25 00:22:08.492 | INFO     | __main__:<module>:192 - DyFuzz paddle log2_ 2
+2025-10-25 00:22:08.492 | DEBUG    | __main__:<module>:199 - paddle.log2_ has 2 params, run 100 times
+2025-10-25 00:23:33.333 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:24:36.847 | INFO     | __main__:<module>:201 - Fuzz paddle.log2_ 2 done
+2025-10-25 00:24:36.848 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.log2_: 169565 bits
+2025-10-25 00:24:36.848 | INFO     | __main__:<module>:192 - DyFuzz paddle dsplit 3
+2025-10-25 00:24:36.848 | DEBUG    | __main__:<module>:199 - paddle.dsplit has 3 params, run 100 times
+2025-10-25 00:24:50.406 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:26:47.193 | INFO     | __main__:<module>:201 - Fuzz paddle.dsplit 3 done
+2025-10-25 00:26:47.195 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.dsplit: 169565 bits
+2025-10-25 00:26:47.196 | INFO     | __main__:<module>:192 - DyFuzz paddle ones_like 6
+2025-10-25 00:26:47.196 | DEBUG    | __main__:<module>:199 - paddle.ones_like has 6 params, run 100 times
+2025-10-25 00:29:12.911 | INFO     | __main__:<module>:201 - Fuzz paddle.ones_like 6 done
+2025-10-25 00:29:12.912 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.ones_like: 169565 bits
+2025-10-25 00:29:12.912 | INFO     | __main__:<module>:192 - DyFuzz paddle index_fill_ 5
+2025-10-25 00:29:12.912 | DEBUG    | __main__:<module>:199 - paddle.index_fill_ has 5 params, run 100 times
+2025-10-25 00:30:58.530 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:31:38.660 | INFO     | __main__:<module>:201 - Fuzz paddle.index_fill_ 5 done
+2025-10-25 00:31:38.662 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.index_fill_: 169566 bits
+2025-10-25 00:31:38.662 | INFO     | __main__:<module>:192 - DyFuzz paddle numel 2
+2025-10-25 00:31:38.662 | DEBUG    | __main__:<module>:199 - paddle.numel has 2 params, run 100 times
+2025-10-25 00:32:35.005 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:34:01.497 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:34:12.866 | INFO     | __main__:<module>:201 - Fuzz paddle.numel 2 done
+2025-10-25 00:34:12.868 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.numel: 169566 bits
+2025-10-25 00:34:12.868 | INFO     | __main__:<module>:192 - DyFuzz paddle greater_than_ 3
+2025-10-25 00:34:12.868 | DEBUG    | __main__:<module>:199 - paddle.greater_than_ has 3 params, run 100 times
+2025-10-25 00:36:01.649 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:36:38.374 | INFO     | __main__:<module>:201 - Fuzz paddle.greater_than_ 3 done
+2025-10-25 00:36:38.375 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.greater_than_: 169566 bits
+2025-10-25 00:36:38.375 | INFO     | __main__:<module>:192 - DyFuzz paddle to_dlpack 1
+2025-10-25 00:36:38.375 | DEBUG    | __main__:<module>:199 - paddle.to_dlpack has 1 params, run 100 times
+2025-10-25 00:38:56.968 | INFO     | __main__:<module>:201 - Fuzz paddle.to_dlpack 1 done
+2025-10-25 00:38:56.969 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.to_dlpack: 169569 bits
+2025-10-25 00:38:56.969 | INFO     | __main__:<module>:192 - DyFuzz paddle sgn 2
+2025-10-25 00:38:56.970 | DEBUG    | __main__:<module>:199 - paddle.sgn has 2 params, run 100 times
+2025-10-25 00:41:20.142 | INFO     | __main__:<module>:201 - Fuzz paddle.sgn 2 done
+2025-10-25 00:41:20.144 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.sgn: 169569 bits
+2025-10-25 00:41:20.144 | INFO     | __main__:<module>:192 - DyFuzz paddle logspace 6
+2025-10-25 00:41:20.144 | DEBUG    | __main__:<module>:199 - paddle.logspace has 6 params, run 100 times
+2025-10-25 00:41:27.666 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:42:14.014 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:43:34.617 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:43:43.017 | INFO     | __main__:<module>:201 - Fuzz paddle.logspace 6 done
+2025-10-25 00:43:43.018 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.logspace: 169573 bits
+2025-10-25 00:43:43.018 | INFO     | __main__:<module>:192 - DyFuzz paddle argsort 5
+2025-10-25 00:43:43.018 | DEBUG    | __main__:<module>:199 - paddle.argsort has 5 params, run 100 times
+2025-10-25 00:46:00.709 | INFO     | __main__:<module>:201 - Fuzz paddle.argsort 5 done
+2025-10-25 00:46:00.711 | INFO     | __main__:<module>:202 - Current coverage after fuzzing paddle.argsort: 169573 bits
+2025-10-25 00:46:00.711 | INFO     | __main__:<module>:207 - Dyfuzz done paddle
+2025-10-25 00:46:00.711 | INFO     | __main__:<module>:181 - DyFuzz test prophet
+2025-10-25 00:46:00.711 | INFO     | __main__:<module>:184 - prophet has 1 apis
+2025-10-25 00:46:00.711 | INFO     | __main__:<module>:192 - DyFuzz prophet diagnostics.mdape 2
+2025-10-25 00:46:00.711 | DEBUG    | __main__:<module>:199 - prophet.diagnostics.mdape has 2 params, run 100 times
+2025-10-25 00:47:17.913 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:47:26.393 | INFO     | __main__:<module>:201 - Fuzz prophet.diagnostics.mdape 2 done
+2025-10-25 00:47:26.395 | INFO     | __main__:<module>:202 - Current coverage after fuzzing prophet.diagnostics.mdape: 169573 bits
+2025-10-25 00:47:26.395 | INFO     | __main__:<module>:207 - Dyfuzz done prophet
+2025-10-25 00:47:26.395 | INFO     | __main__:<module>:181 - DyFuzz test yaml
+2025-10-25 00:47:26.395 | INFO     | __main__:<module>:184 - yaml has 1 apis
+2025-10-25 00:47:26.395 | INFO     | __main__:<module>:192 - DyFuzz yaml safe_load 1
+2025-10-25 00:47:26.395 | DEBUG    | __main__:<module>:199 - yaml.safe_load has 1 params, run 100 times
+2025-10-25 00:47:45.196 | WARNING  | __main__:run_limit_n:138 - Subprocess timed out
+2025-10-25 00:48:52.332 | INFO     | __main__:<module>:201 - Fuzz yaml.safe_load 1 done
+2025-10-25 00:48:52.334 | INFO     | __main__:<module>:202 - Current coverage after fuzzing yaml.safe_load: 170773 bits
+2025-10-25 00:48:52.334 | INFO     | __main__:<module>:207 - Dyfuzz done yaml

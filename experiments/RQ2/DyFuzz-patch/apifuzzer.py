@@ -180,22 +180,16 @@ def tt():
     f2 = open("timeout/%s/%s/%s.py" % (mod, api, number), "w")
     f2.write(code)
     f2.close()
+
+def fake_tt():
+    pass
     
 
 
-@timeout.set_timeout(5, tt)
+@timeout.set_timeout(5, fake_tt)
 def fuzzapi(mod, api, n):
-    try:
-        from importlib import util
-        spec = util.find_spec(mod)
-        origin = spec.origin
-        assert origin is not None, f"module {mod} not found"
-    except Exception as e:
-        logger.error(f"Import module {mod} error: {e}")
-        return
-
-    with dcov.LoaderWrapper() as l:
-        l.add_source(origin)
+    library_name = mod.split(".")[0]
+    with dcov.LoaderWrapper(library_name) as l:
         p0 = dcov.count_bitmap_py()
         if n == 0:
             codeprefix = "import %s;\n" % mod
@@ -248,6 +242,8 @@ def fuzzapi(mod, api, n):
         p1 = dcov.count_bitmap_py()
         if p1 > p0:
             logger.info(f"Coverage increased {p1-p0}, now: {p1}")
+
+# logger.info(f"Fuzzing {mod}.{api} with {n} params")
 
 dcov.open_bitmap_py()
 fuzzapi(mod, api, n)

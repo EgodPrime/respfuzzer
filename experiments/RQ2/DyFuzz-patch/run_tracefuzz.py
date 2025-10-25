@@ -133,7 +133,7 @@ def run_limit_n(mod, api, n, buget):
                 stderr=subprocess.PIPE,
                 start_new_session=True,
             )
-            p.communicate(timeout=6)
+            stdout, stderr = p.communicate(timeout=6)
         except subprocess.TimeoutExpired:
             logger.warning("Subprocess timed out")
             os.killpg(os.getpgid(p.pid), 9)
@@ -144,7 +144,7 @@ def run_limit_n(mod, api, n, buget):
             
         s = p.returncode
         totalAPI = totalAPI + 1
-        gen_log(mod, api, n, s)
+        # gen_log(mod, api, n, s)
 
 
 # while True:
@@ -161,25 +161,6 @@ open("log.txt", "a").write(str(t1))
 open("log.txt", "a").write("\n")
 
 # run(mod,api,n)
-
-
-def load_apis_already_run(mod_name: str) -> list[str]:
-    import re
-
-    need_skip = []
-    # 2025-07-24 23:46:54.177 | INFO     | __main__:<module>:170 - DyFuzz torch set_num_threads 1
-    pattern = r"DyFuzz " + mod_name + r" ([a-zA-Z\_\.]+) [0-9]+"
-    with open("./20250722_torch.log", "r") as f:
-        while True:
-            line = f.readline()
-            if not line:
-                break
-            res = re.search(pattern, line)
-            if res:
-                # logger.debug(f"{res.group(1)} already fuzzed")
-                need_skip.append(res.group(1))
-    return need_skip
-
 
 # moddic = json.load(open( './sklearn_export.json','r'))
 moddic = json.load(open("../tracefuzz_seeds.json", "r"))
