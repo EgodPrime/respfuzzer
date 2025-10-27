@@ -6,6 +6,7 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 from contextlib import contextmanager
 from loguru import logger
 import importlib
+from tracefuzz.utils.config import get_config
 
 from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz, fuzz_function_f4a
 
@@ -54,6 +55,9 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+fuzzed_dict: dict[str:int] = {}
+cfg = get_config("fuzz4all")
+limit_per_function = cfg.get("mutants_per_seed", 1)
 def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -67,10 +71,13 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
         """
         res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
-        if not func_name in fuzzed_set:
+        if not func_name in fuzzed_dict:
+            fuzzed_dict[func_name] = 0
+        if fuzzed_dict[func_name] < limit_per_function:
             logger.debug(f"Fuzz triggered for {func.__module__}.{func.__name__}")
-            fuzzed_set.add(func_name)
+            fuzzed_dict[func_name] += 1
             fuzz_function_f4a(func, *args, **kwargs)
+
         return res
 
     return wrapper
@@ -233,11 +240,11 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
     
     try:
         setattr(parent, mods[-1], new_func)
-        logger.debug(f"Instrumented {full_func_path} for f4a")
+        # logger.debug(f"Instrumented {full_func_path} for f4a")
         yield
     finally:
         setattr(parent, mods[-1], orig_func)
-        logger.debug(f"Restored original function for {full_func_path}")
+        # logger.debug(f"Restored original function for {full_func_path}")
 
 mod_has_been_seen = set()
 top_mod = None

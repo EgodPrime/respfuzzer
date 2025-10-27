@@ -33,7 +33,11 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
     seen_library = set()
     with dcov.LoaderWrapper() as l:
         while True:
-            command, seed = recv.get()
+            try:
+                command, seed = recv.get(timeout=5)
+            except TimeoutError:
+                logger.error("No command received in 5 seconds, take care!")
+                exit(1)
             if seed and seed.library_name not in seen_library:
                 l.add_library(seed.library_name)
                 seen_library.add(seed.library_name)
@@ -147,7 +151,7 @@ def calc_initial_seed_coverage_dataset(dataset: dict[str, dict[str, dict[str, li
     logger.info("Calculating initial seed coverage for the dataset....")
     send = Queue()
     recv = Queue()
-    worker_process = Process(target=continue_safe_execute, args=(send, recv))
+    worker_process = Process(target=continue_safe_execute, args=(send, recv), name="CoverageWorker")
     worker_process.start()
     for library_name in dataset:
         for func_name in dataset[library_name]:

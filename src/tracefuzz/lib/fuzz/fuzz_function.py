@@ -160,3 +160,5 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
+
+    logger.debug(f"Tracefuzz fuzz {full_name} done")        

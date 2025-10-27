@@ -54,19 +54,12 @@ def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1
     except OSError:
         return
 
-    # 先尝试优雅终止
-    os.killpg(pgid, signal.SIGTERM)
+
+    os.killpg(pgid, signal.SIGKILL)
     try:
         process.join(timeout)
     except:
         pass
-
-    if process.is_alive():
-        os.killpg(pgid, signal.SIGKILL)
-        try:
-            process.join(timeout)
-        except:
-            pass
 
 
 def manage_process_with_timeout(

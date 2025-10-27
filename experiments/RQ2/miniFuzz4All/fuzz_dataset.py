@@ -4,11 +4,13 @@ import json
 import os
 import sys
 from multiprocessing import Process, Queue
+import threading
 
 import time
 from typing import Callable
 import dcov
 import fire
+import psutil
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 from tracefuzz.lib.fuzz.fuzz_library import kill_process_tree_linux, manage_process_with_timeout
@@ -26,21 +28,20 @@ def validate_test_case(mutated_call: str) -> bool:
     sys.stderr = fake_stderr
     exec(mutated_call)
 
-def safe_execute(seed: Seed, mutated_call: str) -> None:
-    """
-    Safely and silently execute the `mutated_call` for a given seed.
-    """
-    os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
-    fake_stdout = io.StringIO()
-    fake_stderr = io.StringIO()
-    sys.stdout = fake_stdout
-    sys.stderr = fake_stderr
-
-    with dcov.LoaderWrapper(seed.library_name) as l:
+def keep_watching_resource(process: Process):
+    while process.is_alive():
+        time.sleep(0.1)
         try:
-            exec(mutated_call)
+            p = psutil.Process(process.pid)
+            if p.cpu_percent() > 14 or p.memory_percent() > 80:
+                logger.warning(f"Process {process.pid} exceeding resource limits, terminating.")
+                kill_process_tree_linux(process)
+                break
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            break
         except Exception as e:
-            pass
+            logger.error(f"Error monitoring process {process.pid}: {e}")
+            break
 
 def fuzz_single_seed(seed: Seed, command: str) -> None:
     """
@@ -57,8 +58,10 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     logger.debug(f"seed is :\n{seed.function_call}")
 
     send, recv = Queue(), Queue()
-    process = Process(target=continue_safe_execute, args=(send, recv))
+    process = Process(target=continue_safe_execute, args=(send, recv), name="FuzzWorker")
     process.start()
+    th = threading.Thread(target=keep_watching_resource, args=(process,), daemon=True)
+    th.start()
 
     f4a_mutator = Fuzz4AllMutator(seed)
 
@@ -71,29 +74,50 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
         logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds.")
 
         for mutated_call in batch:
-            process = Process(target=validate_test_case, args=(mutated_call,))
-            res = manage_process_with_timeout(process, execution_timeout, seed.id)
+            v_process = Process(target=validate_test_case, args=(mutated_call,), name="ValidationWorker")
+            res = manage_process_with_timeout(v_process, execution_timeout, seed.id)
             if not res:
                 continue
+            try:
+                os.waitpid(-1, os.WNOHANG)
+            except:
+                pass
+            del v_process
 
             t_seed = seed.model_copy()
             t_seed.function_call = mutated_call
             c0 = dcov.count_bitmap_py()
             send.put((command, t_seed))
+            logger.debug(f"Sent mutated call to worker: {mutated_call}")
             try:
-                recv.get(timeout=execution_timeout)
+                recv.get(timeout=execution_timeout*5)
             except Exception:
-                logger.warning(f"Mutated call execution timeout after {execution_timeout} seconds, restarting worker process.")
-                if process.is_alive():
-                    kill_process_tree_linux(process)
+                logger.warning(f"Mutated call execution timeout after {execution_timeout*5} seconds, restarting worker process.")
+                kill_process_tree_linux(process)
+                try:
+                    os.waitpid(-1, os.WNOHANG)
+                except:
+                    pass
+                del process
+                send.close()
+                recv.close()
                 send, recv = Queue(), Queue()
-                process = Process(target=continue_safe_execute, args=(send, recv))
+                process = Process(target=continue_safe_execute, args=(send, recv), name="FuzzWorker")
                 process.start()
+                try:
+                    th.join(0.1)
+                except:
+                    pass
+                th = threading.Thread(target=keep_watching_resource, args=(process,), daemon=True)
+                th.start()
+            del t_seed
             c1 = dcov.count_bitmap_py()
             if c1 > c0:
                 logger.info(f"New coverage found by seed {seed.id}: {c1 - c0} new bits.")
     send.put(("exit", None))
     process.join()
+    send.close()
+    recv.close()
 
     logger.info(f"Fuzz seed {seed.id} done ")
 
