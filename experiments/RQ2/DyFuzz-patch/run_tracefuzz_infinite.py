@@ -145,7 +145,7 @@ def run_limit_n(mod, api, n, buget):
             
         s = p.returncode
         totalAPI = totalAPI + 1
-        gen_log(mod, api, n, s)
+        # gen_log(mod, api, n, s)
 
 
 # while True:
@@ -194,6 +194,8 @@ ignorelist = []
 
 dcov.open_bitmap_py()
 dcov.clear_bitmap_py()
+from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
+calc_initial_seed_coverage_dataset(moddic)
 while True:
     try:
         for mod in list(moddic.keys()):
