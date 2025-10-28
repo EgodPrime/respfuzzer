@@ -162,13 +162,13 @@ def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data:
 
 
 if __name__ == "__main__":
-    with open("20251023-RQ2-tracefuzz-2.log", "r") as f:
+    with open("202510241259-RQ2-tracefuzz.log", "r") as f:
         tracefuzz_lines = f.readlines()
-    with open("20251023-RQ2-dyfuzz-2.log", "r") as f:
+    with open("202510241821-RQ2-dyfuzz.log", "r") as f:
         dyfuzz_lines = f.readlines()
-    with open("20251023-RQ2-fuzz4all-2.log", "r") as f:
+    with open("202510241254-RQ2-fuzz4all.log", "r") as f:
         fuzz4all_lines = f.readlines()
-    with open("20251023-RQ2-fuzz4all-mix-2.log", "r") as f:
+    with open("202510271008-RQ2-fuzz4all-mix.log", "r") as f:
         fuzz4all_mix_lines = f.readlines()
 
     tracefuzz_data = extract_fuzz_data(tracefuzz_lines, tracefuzz_pattern)
@@ -179,4 +179,4 @@ if __name__ == "__main__":
 
     plot_all(tracefuzz_data, dyfuzz_data, fuzz4all_data, fuzz4all_mix_data)
 
-    plt.savefig("RQ2.pdf", dpi=300)
+    plt.savefig("RQ3.pdf", dpi=300)
