@@ -201,7 +201,12 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
     dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
         open(dataset_path, "r")
     )
+    calc_initial_seed_coverage_dataset(dataset)
     while True:
-        _fuzz_dataset(dataset)
+        try:
+            _fuzz_dataset(dataset)
+        except KeyboardInterrupt:
+            logger.info("Fuzzing interrupted by user.")
+            break
 
         
