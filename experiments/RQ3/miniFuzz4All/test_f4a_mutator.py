@@ -167,7 +167,7 @@ def test_update_strategy_combine_branch(monkeypatch):
     assert mut.c_prompt.strip() in res
 
 
-# USE_OPENAI_API=1 uv run pytest -q experiments/RQ2/miniFuzz4All/test_f4a_mutator.py::test_generate_four_strategies_real_client --cov=experiments --cov-report=term-missing -s
+# USE_OPENAI_API=1 uv run pytest -q experiments/RQ3/miniFuzz4All/test_f4a_mutator.py::test_generate_four_strategies_real_client --cov=experiments --cov-report=term-missing -s
 @pytest.mark.skipif(
     os.getenv("USE_OPENAI_API") is None,
     reason="Requires a real OpenAI API key and network access",
