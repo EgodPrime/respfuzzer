@@ -137,7 +137,7 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
     param_list = convert_to_param_list(*args, **kwargs)
     seed = get_random_state()
-    logger.info(f"Replay fuzz {full_name} with seed {seed}")
+    logger.info(f"Replay fuzz {full_name} with random state {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
     logger.info(f"Replayed params: args={args}, kwargs={kwargs}")

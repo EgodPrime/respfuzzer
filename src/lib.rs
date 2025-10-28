@@ -14,7 +14,7 @@ use pyo3::{prelude::*, types::{PyBytes}};
 
 #[pyfunction]
 #[pyo3(name = "set_random_state")]
-fn chain_rng_set_state(seed: u32) -> PyResult<()> {
+fn chain_rng_set_state(seed: u64) -> PyResult<()> {
     //! Set the internal RNG state
     unsafe {
         _STATE = seed;
@@ -24,7 +24,7 @@ fn chain_rng_set_state(seed: u32) -> PyResult<()> {
 
 #[pyfunction]
 #[pyo3(name = "get_random_state")]
-fn chain_rng_get_state() -> PyResult<u32> {
+fn chain_rng_get_state() -> PyResult<u64> {
     //! Get the internal RNG state
     unsafe {
         Ok(_STATE)

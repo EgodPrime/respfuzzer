@@ -16,11 +16,6 @@ def replay_mutation_one(seed_id: int, random_state: int):
     """
     Replay a mutation for a specific seed with a given random state.
     """
-    fake_stdout = io.StringIO()
-    fake_stderr = io.StringIO()
-    sys.stdout = fake_stdout
-    sys.stderr = fake_stderr
-
     seed = get_seed(seed_id)
     if seed is None:
         logger.error(f"Seed {seed_id} not found in DB.")
