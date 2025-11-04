@@ -9,23 +9,20 @@ LLM的判断依据包含：
 
 ## 该脚本的大致工作流程
 
-1. 读取 replay_results.json 文件，获取所有的漏洞复现结果列表。该列表的每一项都包含`seed_id`、`random_state`、`params_snapshot`（变异后函数调用参数的内存快照）、`result`（stderr描述）三个字段。
-2. 通过`get_seed`获取每个漏洞对应的`seed`对象，通过`seed.function_call`获取变异前的函数调用代码`function_call`。
-3. 构造 LLM 的输入提示（prompt），包括 `function_call`、`params_snapshot`和任务描述（复原出变异后的函数调用代码）。
-4. 调用 LLM 接口，获取模型对每个漏洞的变异后函数调用代码的复原结果`poc`。
-5. 通过`seed.func_name`获取函数的名称，然后通过 `get_function` 获取目标`function`对象，再通过`function.source`获取目标函数的源码`func_source`。
-6. 构造 LLM 的输入提示（prompt），包括 POC 代码、stderr描述和目标函数源码`func_source`，以及任务描述（判断该stderr描述是否意味着一个崩溃或者潜在的安全漏洞）。
-7. 调用 LLM 接口，获取模型对每个漏洞的判断结果（是否为真实漏洞）和判断的推理过程。
-8. 根据模型的判断结果，过滤掉假阳性漏洞，只保留真实漏洞。（这里如何尽可能减少LLM误判带来的损失呢？）
-9. 过滤后的漏洞结果应该包含`seed_id`、`random_state`、`result`（stderr描述）、`func_source`（目标函数源码）、`poc`（POC代码）等字段。
-10. 将过滤后的漏洞结果保存到 filtered_replay_results.json 文件中。
+1. 读取 replay_results.json 文件，获取所有的漏洞复现结果列表。该列表的每一项都包含`seed_id`、`random_state`、`result`（stderr描述）和`poc`（POC代码）等字段。
+2. 通过`get_seed`获取每个漏洞对应的`seed`对象。
+3. 通过`seed.func_name`获取函数的名称，然后通过 `get_function` 获取目标`function`对象，再通过`function.source`获取目标函数的源码`func_source`。
+4. 构造 LLM 的输入提示（prompt），包括 POC 代码、stderr描述和目标函数源码`func_source`，以及任务描述（判断该stderr描述是否意味着一个崩溃或者潜在的安全漏洞）。
+5. 调用 LLM 接口，获取模型对每个漏洞的判断结果（是否为真实漏洞）、风险等级和判断的推理过程。
+6. 根据模型的判断结果，过滤掉假阳性漏洞，只保留真实漏洞。（这里如何尽可能减少LLM误判带来的损失呢？）
+7. 过滤后的漏洞结果应该包含`seed_id`、`random_state`、`result`（stderr描述）、`func_source`（目标函数源码）、`poc`（POC代码）、`risk_level`（风险等级）和`reasoning`（模型的推理过程）等字段。
+8. 将过滤后的漏洞结果保存到 filtered_replay_results.json 文件中。
 
 ## 实现架构
 
-- judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> bool
-- batch_judge(func_sources: list[str], pocs: list[str], stderrs: list[str], max_workers: int) -> list[bool]
+- judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> tuple[bool, int, str]
+- batch_judge(func_sources: list[str], pocs: list[str], stderrs: list[str], max_workers: int) -> list[tuple[bool, int, str]]
 - load_replay_results(path: str) -> list[dict[str, int|str]]
-- reproduce_poc(seed: Seed, params_snapshot: str) -> str # 其实应该在replay的过程中就顺便完成这个工作
 - main() -> None
 """
 
@@ -35,59 +32,140 @@ import json
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 from tracefuzz.repos.function_table import get_function
+import re
 from tracefuzz.repos.seed_table import get_seed
 
 client = openai.OpenAI(base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 model_name = "qwen3-30b-a3b"
 
-def judge_is_vulnerable(description: str) -> bool:
-    prompt = f"""
-## 任务
-请判断以下Python程序的错误描述(stderr)是否意味着一个崩溃或者潜在的安全漏洞。如果是，请回答“是”，否则回答“否”。
-## 注意
-- 需要区分Python解释器报错和程序本身的崩溃。仅当错误描述表明程序崩溃或存在安全漏洞时，才回答“是”。
-- 超时可以视为潜在的安全漏洞，应回答“是”。
-- 如果错误描述仅包含Python异常（如“IndexError”、“TypeError”等），通常不表示程序崩溃，应回答“否”。
-- 如果错误描述看起来像是C语言级别或者linux内核级别的错误，应回答“是”。
-- 如果错误描述不明确，无法判断是否为crash或安全漏洞，应回答“否”。
-"""
-    prompt += f"\n错误描述：{description}\n你的回答："
-
+def chat_completion(prompt: str) -> str:
     response = client.chat.completions.create(
         model=model_name,
         messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+            {"role": "system", "content": "You are a helpful assistant that helps people find bugs in code."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0,
+        max_tokens=512,
     )
+    return response.choices[0].message.content
 
-    answer = response.choices[0].message.content.strip()
+def judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> bool:
+    prompt = f"""## Task
+你是一个资深的安全研究员，专门负责分析漏洞复现结果。
+你需要根据`source`, `poc`和`stderr`判断该复现结果是否意味着一个崩溃或者潜在的安全漏洞。
 
-    logger.debug(f"对于描述：{description}，模型回答：{answer}")
-    return answer == "是"
+## 判断标准
+- 如果错误描述中包含明显的崩溃信息（如 segmentation fault, buffer overflow, null pointer dereference 等），则判断为真实漏洞。
+- 如果不包含明显的崩溃信息，则结合目标函数源码和POC代码进行分析，判断是否可能存在实现上的漏洞。
+- 如果无法确定，则倾向于判断为假阳性。
 
-def batch_judge(descriptions: list[str]) -> list[bool]:
+## 预期输出形式
+<is_bug>True/False</is_bug>
+<risk_level>0/1/2/3</risk_level>  # 0表示无风险（明显的用户使用错误），1表示缺少边界检查或者Docstring未做出明确边界约定等低风险漏洞，2表示即使用户小心使用也可能触发的漏洞，3表示明确存在崩溃、溢出、远程代码执行等高风险漏洞。
+<reasoning>你的推理过程</reasoning>
+
+## Example
+
+<source>
+def copy_buffer(input):
+    ''' Copies input buffer'''
+    buffer = [0] * 10
+    for i in range(len(input)):
+        buffer[i] = input[i]
+    return buffer
+</source>
+<poc>
+copy_buffer([1,2,3,4,5,6,7,8,9,10,11,12])
+</poc>
+<stderr>
+IndexError: list assignment index out of range
+</stderr>
+<is_bug>True</is_bug>
+<risk_level>1</risk_level>
+<reasoning>
+虽然错误信息是 IndexError，但结合源码可以看出函数并没有进行边界检查，并且Docstring也没有明确说明输入长度限制。因此这是一个低风险漏洞，攻击者可以利用这个漏洞导致程序异常终止。
+</reasoning>
+
+## Start
+<source>
+{func_source}
+</source>
+<poc>
+{poc}
+</poc>
+<stderr>
+{stderr}
+</stderr>
+"""
+    for _ in range(10):
+        response = chat_completion(prompt)
+        re_str = re.compile(r"<is_bug>(True|False)</is_bug>.*<risk_level>(\d+)</risk_level>.*<reasoning>(.*?)</reasoning>", re.DOTALL)
+        m = re_str.search(response)
+        if m:
+            is_bug = m.group(1) == "True"
+            risk_level = int(m.group(2))
+            reasoning = m.group(3).strip()
+            return is_bug, risk_level, reasoning
+        else:
+            logger.warning(f"Failed to parse LLM response, retrying...\nResponse was:\n{response}")
+    logger.error(f"Failed to parse LLM response after multiple attempts. Returning default values.")
+
+    return False, 0, ""
+
+def batch_judge(func_sources: list[str], pocs: list[str], stderrs: list[str], max_workers: int=4) -> list[tuple[bool, int, str]]:
     results = []
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(judge_is_vulnerable, desc) for desc in descriptions]
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for func_source, poc, stderr in zip(func_sources, pocs, stderrs):
+            futures.append(executor.submit(judge_is_vulnerable, func_source, poc, stderr))
         for future in futures:
             results.append(future.result())
     return results
 
-if __name__ == '__main__':
-    replay_results: dict[str,list[dict[str,int|str]]] = json.load(open('replay_results.json', 'r', encoding='utf-8'))
-    filtered_results: dict[str,list[dict]] = {}
-    for library_name, results in replay_results.items():
-        descriptions = [res['result'] for res in results]
-        judgments = batch_judge(descriptions)
-        filtered_results[library_name] = []
-        for res, is_vuln in zip(results, judgments):
-            if is_vuln:
-                new_res = deepcopy(res)
-                new_res["validated"] = False
-                filtered_results[library_name].append(new_res)
+def load_replay_results(path: str) -> dict[str,list[dict[str, int|str]]]:
+    with open(path, "r") as f:
+        results = json.load(f)
+    return results
 
-    with open('filtered_replay_results.json', 'w', encoding='utf-8') as f:
-        json.dump(filtered_results, f, indent=2, ensure_ascii=False)
+def main() -> None:
+    replay_results = load_replay_results("replay_results.json")
+    final_results = {}
+    for library_name, results in replay_results.items():
+        func_sources = []
+        pocs = []
+        stderrs = []
+        for result in results:
+            seed_id = result["seed_id"]
+            seed = get_seed(seed_id)
+            if seed is None:
+                logger.error(f"Seed {seed_id} not found.")
+                func_sources.append("")
+                pocs.append(result["poc"])
+                stderrs.append(result["result"])
+                continue
+            func_name = seed.func_name
+            function = get_function(func_name)
+            if function is None:
+                logger.error(f"Function {func_name} not found.")
+                func_sources.append("")
+            else:
+                func_sources.append(function.source)
+            pocs.append(result["poc"])
+            stderrs.append(result["result"])
+        judgments = batch_judge(func_sources, pocs, stderrs, max_workers=4)
+        filtered_results = []
+        for result, (is_bug, risk_level, reasoning) in zip(results, judgments):
+            if is_bug:
+                filtered_result = deepcopy(result)
+                filtered_result["risk_level"] = risk_level
+                filtered_result["reasoning"] = reasoning
+                filtered_results.append(filtered_result)
+        logger.info(f"Library {library_name}: {len(filtered_results)}/{len(results)} vulnerabilities retained after filtering.")
+        final_results[library_name] = filtered_results
+    with open("filtered_replay_results.json", "w") as f:
+        json.dump(final_results, f, indent=4)
+
+
+if __name__ == "__main__":
+    main()

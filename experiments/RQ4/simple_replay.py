@@ -38,9 +38,9 @@ replay_results.json:
 
 ## 关键函数
 
-- replay_mutation_and_execution(function_call: str, random_state: int) -> tuple[str, str]
+- replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str, str]
 - pure_execution(function_call: str) -> str
-- synthesize_poc(function_call: str, params_snapshot: str, stderr: str) -> str
+- synthesize_poc(function_call: str, mutated_params_snapshot: str, stderr: str) -> str
 - replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]
 - replay_from_summary(data: dict[str, list[dict[str, int]]]) -> dict[str, list[dict[str, int|str]]]
 
@@ -54,44 +54,247 @@ replay_results.json:
         2.2.3. 调用`pure_execution`函数对合成的POC代码进行纯执行，验证其stderr描述是否与重放结果一致。
         2.2.4. 如果一致，将POC代码保存到重放结果中。
 3. 将所有重放结果保存到`replay_results.json`文件中。
+
+## 备注
+提取参数快照来自于重放过程中loguru的输出，其代码语句为`logger.info(f"Replayed params: args={args}, kwargs={kwargs}")`,可以使用正则表达式进行提取。
 """
 
 from loguru import logger
 import subprocess
+import re
+import openai
+from tracefuzz.repos.seed_table import get_seed
+import concurrent.futures
+from copy import deepcopy
+import tempfile
+import difflib
 
-def replay_from_summary(data: dict[str, list[dict[str, int]]]) -> dict[str, list]:
+# 前置变量：并发数量（可根据需要调整或在运行前修改此变量）
+MAX_CONCURRENCY = 4
+
+def call_llm_api(prompt: str) -> str:
+    client = openai.OpenAI(api_key="no", base_url="http://192.168.2.29:8023")
+    response = client.chat.completions.create(
+        model="qwen3-30b-a3b",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        top_p=0.9,
+        presence_penalty=1,
+        max_tokens=1024,
+    )
+    return response.choices[0].message.content.strip()
+
+def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str, str]:
     """
-    Replay all mutations recorded in the crash summary data.
+    Replay the mutation and execute the function call, returning stderr and params snapshot.
     """
-    res = {}
-    for library_name, crash_list in data.items():
-        for crash in crash_list:
-            seed_id = crash['seed_id']
-            random_state = crash['random_state']
-            result = ''
-            logger.info(
-                f"Replaying seed {seed_id} from library {library_name} with random state {random_state}"
-            )
-            p = subprocess.Popen(
-                ["replay_mutation", "single_shot", str(seed_id), str(random_state)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+    p = subprocess.Popen(
+        ["replay_mutation", "single_shot", str(seed_id), str(random_state)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        _, stderr = p.communicate(timeout=5)
+        stderr = stderr.decode()
+        logger.info(f"Replay's stderr:\n{stderr}")
+        re_str = r"Replayed params: args=\((.*)\), kwargs=\{(.*)\}"
+        m = re.search(re_str, stderr, re.DOTALL)
+        mutated_params_snapshot = ""
+        if m:
+            mutated_params_snapshot = f"args=({m.group(1)}), kwargs={{{m.group(2)}}}"
+        logger.info(f"Params snapshot: {mutated_params_snapshot}")
+        
+    except subprocess.TimeoutExpired:
+        p.kill()
+        logger.warning(f"Replay timed out after 5 seconds")
+        stderr = "Timeout after 5 seconds"
+    except Exception as e:
+        logger.error(f"Error during replay: {e}")
+        stderr = f"{e}"
+        mutated_params_snapshot = ""
+    
+    return stderr, mutated_params_snapshot
+
+def pure_execution(function_call: str) -> str:
+    """
+    Purely execute the function call without any mutation, returning stderr.
+    """
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(function_call.encode())
+        temp_file_path = temp_file.name
+    p = subprocess.Popen(
+        ["python", temp_file_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        _, stderr = p.communicate(timeout=5)
+        stderr = stderr.decode()
+        logger.info(f"Pure execution stderr: {stderr}")
+    except subprocess.TimeoutExpired:
+        p.kill()
+        logger.warning(f"Pure execution timed out after 5 seconds")
+        stderr = "Timeout after 5 seconds"
+    except Exception as e:
+        logger.error(f"Error during pure execution: {e}")
+        stderr = f"{e}"
+    
+    return stderr
+
+def llm_judge_similarity(stderr_orig: str, stderr_new: str) -> bool:
+    """
+    Use LLM to judge the similarity between two stderr strings.
+    Returns True if similar, False otherwise.
+    """
+    prompt = f""" ## Task
+You are a security researcher. Given two stderr outputs from program executions, determine if they indicate the same underlying issue.
+You should consider the context and content of the error messages, not just exact string matches.
+
+## Examples
+
+### Example 1: very similar
+
+<stderr_orig>
+Segmentation fault (core dumped)
+</stderr_orig>
+<stderr_new>
+Segmentation fault (core dumped)
+</stderr_new>
+<is_similar>True</is_similar>
+
+### Example 2: similar stack traces and very similar error messages
+
+<stderr_orig>
+Traceback (most recent call last):
+  File "example.py", line 10, in <module>
+    main()
+  File "example.py", line 6, in main
+    result = 1 / 0
+ZeroDivisionError: division by zero
+</stderr_orig>
+<stderr_new>
+Traceback (most recent call last):
+  File "test.py", line 5, in <module>
+    compute()
+  File "test.py", line 2, in compute
+    value = 10 / 0
+ZeroDivisionError: division by zero
+</stderr_new>
+<is_similar>True</is_similar>
+
+## Start
+<stderr_orig>{stderr_orig}</stderr_orig>
+<stderr_new>{stderr_new}</stderr_new>
+"""
+    response = call_llm_api(prompt)
+    return response
+
+def synthesize_poc(function_call: str, mutated_params_snapshot: str, stderr: str) -> str:
+    """
+    Synthesize a POC code snippet using LLM based on the function call, params snapshot, and stderr.
+    """
+    prompt_base = f""" ## Task
+You are a security researcher. Given the following `function_call` that caused an `stderr` when executed with certain mutated parameters `mutated_params_snapshot`, generate a minimal Proof of Concept (POC) code snippet that reproduces the same error.
+
+## Constraints
+- The POC should be as minimal as possible while still reproducing the error.
+- Use the provided `function_call` and `mutated_params_snapshot` to construct the POC.
+- Output only the POC code snippet without any additional explanations or comments or useless print statements.
+- Ouput should be warpped in <poc></poc> tags.
+
+## Example
+<function_call>
+from some_library import vulnerable_function
+vulnerable_function(user_input="malicious_payload")
+</function_call>
+<mutated_params_snapshot>args=('malicious_payload',), kwargs={{}}</mutated_params_snapshot>
+<stderr>Segmentation fault (core dumped)</stderr>
+<poc>
+from some_library import vulnerable_function
+vulnerable_function(user_input="malicious_payload")
+</poc>
+"""
+
+    prompt_history = ""
+
+    prompt_data= f"""
+## Start
+<function_call>{function_call}</function_call>
+<mutated_params_snapshot>{mutated_params_snapshot}</mutated_params_snapshot>
+<stderr>{stderr}</stderr>
+"""
+    
+    for _ in range(10):
+        prompt = prompt_base + prompt_history + prompt_data
+        poc_code = call_llm_api(prompt)
+        # Extract POC code from <poc> tags
+        m = re.search(r"<poc>(.*?)</poc>", poc_code, re.DOTALL)
+        if m:
+            poc_code_snippet = m.group(1).strip()
+            # Validate the generated POC
+            pure_stderr = pure_execution(poc_code_snippet)
+            is_similar = llm_judge_similarity(stderr, pure_stderr)
+            if is_similar:
+                return poc_code_snippet
+            else:
+                logger.info("Generated POC did not reproduce the same stderr, retrying...")
+                prompt_history += f"""
+## Failed Attempt
+<poc>{poc_code_snippet}</poc>
+<output>{pure_stderr}</output>
+"""
+    return ""
+
+def replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]:
+    """
+    Replay one record given seed_id and random_state, returning the result and synthesized POC.
+    """
+    seed = get_seed(seed_id)
+    function_call = seed.function_call
+    stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
+    poc_code = synthesize_poc(function_call, mutated_params_snapshot, stderr)
+    return {
+        'seed_id': seed_id,
+        'random_state': random_state,
+        'result': stderr,
+        'poc': poc_code
+    }
+
+def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int = MAX_CONCURRENCY) -> dict[str, list]:
+    """
+    Replay all mutations recorded in the crash summary data using a thread pool.
+    每个 (seed_id, random_state) 对应一个并发任务，任务完成后将结果归并到对应的 library_name 列表中。
+    """
+    res: dict[str, list] = {}
+    future_map: dict[concurrent.futures.Future, str] = {}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # 提交所有任务
+        for library_name, crash_list in data.items():
+            for crash in crash_list:
+                seed_id = crash['seed_id']
+                random_state = crash['random_state']
+                logger.info(
+                    f"Replaying seed {seed_id} from library {library_name} with random state {random_state}"
+                )
+                future = executor.submit(replay_one_record, seed_id, random_state)
+                c = deepcopy(crash)
+                c['library_name'] = library_name
+                future_map[future] = c
+
+        # 收集结果并归并
+        for future in concurrent.futures.as_completed(future_map):
+            crash = future_map[future]
+            library_name = crash['library_name']
             try:
-                _, stderr = p.communicate(timeout=5)
-                logger.info(f"Replay stderr: {stderr.decode()}")
-                result = stderr.decode()
-            except subprocess.TimeoutExpired:
-                p.kill()
-                logger.warning(f"Replay timed out after 5 seconds")
-                result = "Timeout"
+                record_result = future.result()
+            except Exception as e:
+                logger.error(f"Error during replaying record {crash}: {e}")
+                continue
             if library_name not in res:
                 res[library_name] = []
-            res[library_name].append({
-                'seed_id': seed_id,
-                'random_state': random_state,
-                'result': result
-            })
+            res[library_name].append(record_result)
+
     return res
 
 if __name__ == '__main__':
