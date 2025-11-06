@@ -9,12 +9,13 @@ from tracefuzz.lib.fuzz.mutate import get_random_state, set_random_state
 from tracefuzz.lib.fuzz.mutator import mutate_param_list
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
+from tracefuzz.utils.dump import dump_any_obj
 
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
 execution_timeout = fuzz_config["execution_timeout"]
 mutants_per_seed = fuzz_config["mutants_per_seed"]
-
+rc = get_redis_client()
 
 def handle_timeout(signum, frame):
     """
@@ -47,12 +48,26 @@ def execute_once(func: Callable, *args, **kwargs):
         res = func(*args, **kwargs)
         signal.setitimer(signal.ITIMER_REAL, 0)
         return res
-    except TimeoutError as e:
+    except TimeoutError as te:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        logger.warning(e)
+        seed_id = rc.hget("fuzz", "seed_id")
+        exec_cnt = rc.hget("fuzz", "exec_cnt")
+        random_state = rc.hget("exec_record", int(exec_cnt) + 1)
+        logger.warning(
+            f"TimeoutError during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
+        )
         raise e
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
+        seed_id = rc.hget("fuzz", "seed_id")
+        exec_cnt = rc.hget("fuzz", "exec_cnt")
+        exec_cnt = int(exec_cnt) if exec_cnt else 0
+        random_state = rc.hget("exec_record", exec_cnt + 1)
+        exception_type = type(e).__name__
+        logger.warning(
+            f"{exception_type} during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
+        )
+        pass
 
 
 def convert_to_param_list(*args, **kwargs) -> list:
@@ -101,7 +116,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     and execute the function with each set of mutated parameters.
     """
     full_name = f"{func.__module__}.{func.__name__}"
-    rc = get_redis_client()
+    
     exec_cnt = rc.hget("fuzz", "exec_cnt")
     if exec_cnt:
         exec_cnt = int(exec_cnt)
@@ -121,14 +136,19 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     rc.hset("fuzz", "current_func", full_name)
 
     for i in range(exec_cnt + 1, mutants_per_seed + 1):
-        # logger.debug(f"{i}th mutation")
-        seed = get_random_state()
-        rc.hset(f"exec_record", i, seed)
+        random_state = get_random_state()
+        rc.hset(f"exec_record", i, random_state)
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-        rc.hincrby("fuzz", "exec_cnt", 1)
         execute_once(func, *args, **kwargs)
-        # rc.hset("exec_cnt", full_name, i)
+        """
+        在记录变异前的随机状态时，使用了exec_cnt + 1，这是因为当前获取的exec_cnt是在本次执行之前已经执行过的次数。
+        如果执行成功，则外部获取到的exec_cnt会加1；
+        如果执行过程中出现异常或者超时，则不会增加exec_cnt，外部获取到的exec_cnt仍然是上一次成功执行的值，
+        所以在获取变异前的随机状态时，需要使用exec_cnt + 1来获取当前变异对应的随机状态。
+        即：想获取第i次变异的随机状态时，i对应的exec_cnt应该是i-1。
+        """
+        rc.hincrby("fuzz", "exec_cnt", 1)
 
     logger.info(f"Fuzz {full_name} done")
 
@@ -140,7 +160,10 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Replay fuzz {full_name} with random state {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-    logger.info(f"Replayed params: args={args}, kwargs={kwargs}")
+    with open(f'/tmp/tracefuzz_replay_{seed}_args.dump', 'wb') as f:
+        f.write(dump_any_obj(args))
+    with open(f'/tmp/tracefuzz_replay_{seed}_kwargs.dump', 'wb') as f:
+        f.write(dump_any_obj(kwargs))
     func(*args, **kwargs)
     logger.info(f"Replay fuzz {full_name} done")
 

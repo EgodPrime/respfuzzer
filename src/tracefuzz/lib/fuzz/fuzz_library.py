@@ -11,12 +11,14 @@ import psutil  # 新增：用于监控资源
 import redis
 from loguru import logger
 
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path
+from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_ctx
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seeds_iter
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
 from tracefuzz.utils.redis_util import get_redis_client
+
+import traceback
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -34,11 +36,14 @@ def safe_fuzz(seed: Seed) -> None:
     )
 
     try:
-        target = importlib.import_module(seed.library_name)
-        instrument_function_via_path(target, seed.func_name)
-        exec(seed.function_call)
+        with instrument_function_via_path_ctx(seed.func_name):
+            exec(seed.function_call)
+    except TimeoutError as te:
+        raise te
     except Exception as e:
-        pass
+        logger.error(f"Seems seed {seed.id} is invalid:\n{e}")
+        # traceback.print_stack()
+        raise e
 
 
 def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1.0):
@@ -114,6 +119,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> int
     if len(seed.args) == 0:
         max_try_per_seed = 1
 
+    redis_client.hset("fuzz", "seed_id", seed.id)
     redis_client.hset("fuzz", "current_func", seed.func_name)
     redis_client.hset("fuzz", "exec_cnt", 0)
     redis_client.delete("exec_record")

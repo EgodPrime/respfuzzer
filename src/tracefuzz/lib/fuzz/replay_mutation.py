@@ -21,7 +21,7 @@ def replay_mutation_one(seed_id: int, random_state: int):
         logger.error(f"Seed {seed_id} not found in DB.")
         return None
     
-    logger.info(f"Seed {seed_id} function call: {seed.function_call}")
+    # logger.info(f"Seed {seed_id} function call: {seed.function_call}")
 
     lib_name = seed.library_name
     lib = importlib.import_module(lib_name)
@@ -29,10 +29,7 @@ def replay_mutation_one(seed_id: int, random_state: int):
     instrument_function_via_path_replay(lib, func_path)
 
     set_random_state(random_state)
-    try:
-        exec(seed.function_call)
-    except Exception as e:
-        logger.warning(f"Error replaying seed {seed_id}: {e}")
+    exec(seed.function_call)
 
 
 def replay_from_log(log_path: str):

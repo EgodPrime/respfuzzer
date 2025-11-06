@@ -59,6 +59,7 @@ replay_results.json:
 提取参数快照来自于重放过程中loguru的输出，其代码语句为`logger.info(f"Replayed params: args={args}, kwargs={kwargs}")`,可以使用正则表达式进行提取。
 """
 
+import threading
 from loguru import logger
 import subprocess
 import re
@@ -97,11 +98,12 @@ def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str,
         _, stderr = p.communicate(timeout=5)
         stderr = stderr.decode()
         logger.info(f"Replay's stderr:\n{stderr}")
-        re_str = r"Replayed params: args=\((.*)\), kwargs=\{(.*)\}"
-        m = re.search(re_str, stderr, re.DOTALL)
-        mutated_params_snapshot = ""
-        if m:
-            mutated_params_snapshot = f"args=({m.group(1)}), kwargs={{{m.group(2)}}}"
+        with open(f'/tmp/tracefuzz_replay_{random_state}_args.dump', 'rb') as f:
+            args_dump = f.read()
+        with open(f'/tmp/tracefuzz_replay_{random_state}_kwargs.dump', 'rb') as f:
+            kwargs_dump = f.read()
+        mutated_params_snapshot = f"args={args_dump}, kwargs={kwargs_dump}"
+            
         logger.info(f"Params snapshot: {mutated_params_snapshot}")
         
     except subprocess.TimeoutExpired:
@@ -201,14 +203,20 @@ You are a security researcher. Given the following `function_call` that caused a
 - Use the provided `function_call` and `mutated_params_snapshot` to construct the POC.
 - Output only the POC code snippet without any additional explanations or comments or useless print statements.
 - Ouput should be warpped in <poc></poc> tags.
+- The `mutated_params_snapshot` provides args and kwargs, but both of them are serialized as bytes by pickle. You need to deserialize them before use.
+- You can deserialize the args and kwargs using `pickle.loads`.
 
 ## Example
 <function_call>
 from some_library import vulnerable_function
 vulnerable_function(user_input="malicious_payload")
 </function_call>
-<mutated_params_snapshot>args=('malicious_payload',), kwargs={{}}</mutated_params_snapshot>
-<stderr>Segmentation fault (core dumped)</stderr>
+<mutated_params_snapshot>
+args=('malicious_payload',), kwargs={{}}
+</mutated_params_snapshot>
+<stderr>
+Segmentation fault (core dumped)
+</stderr>
 <poc>
 from some_library import vulnerable_function
 vulnerable_function(user_input="malicious_payload")
@@ -249,6 +257,7 @@ def replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]:
     """
     Replay one record given seed_id and random_state, returning the result and synthesized POC.
     """
+    logger.info(f"Replaying seed {seed_id} with random state {random_state}")
     seed = get_seed(seed_id)
     function_call = seed.function_call
     stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
@@ -274,9 +283,6 @@ def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int 
             for crash in crash_list:
                 seed_id = crash['seed_id']
                 random_state = crash['random_state']
-                logger.info(
-                    f"Replaying seed {seed_id} from library {library_name} with random state {random_state}"
-                )
                 future = executor.submit(replay_one_record, seed_id, random_state)
                 c = deepcopy(crash)
                 c['library_name'] = library_name
