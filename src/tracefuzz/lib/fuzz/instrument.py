@@ -82,91 +82,13 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
-def instrument_function_via_path(mod: ModuleType, path: str):
-    """
-    Instrument a function via its module and path.
-
-    This function takes a module and a string path representing the location
-    of a function within that module. It then instruments the function by
-    wrapping it with the `instrument_function` decorator.
-
-    Args:
-        mod: The module where the function is located.
-        path: The string path to the function within the module.
-
-    Returns:
-        None. The function is modified in place.
-
-    Raises:
-        None. However, it logs errors if the path is invalid or if the function
-        cannot be found.
-    """
-    mods = path.split(".")
-    if mods[0] != mod.__name__:
-        logger.error(
-            f"Invalid package path: {path} does not start with {mod.__name__}!"
-        )
-        return
-    parent = mod
-    for name in mods[1:-1]:
-        parent = getattr(parent, name, None)
-    if parent is None:
-        logger.error(f"Cannot find module {path}!")
-        return
-    orig_func = getattr(parent, mods[-1], None)
-    if orig_func is None:
-        logger.error(f"Cannot find function {path}!")
-        return
-    new_func = instrument_function(orig_func)
-    setattr(new_func, "orig_func", orig_func)
-
-    setattr(parent, mods[-1], new_func)
-    # logger.debug(f"Instrumented {path}")
-
-def instrument_function_via_path_replay(mod: ModuleType, path: str):
-    mods = path.split(".")
-    if mods[0] != mod.__name__:
-        logger.error(
-            f"Invalid package path: {path} does not start with {mod.__name__}!"
-        )
-        return
-    parent = mod
-    for name in mods[1:-1]:
-        parent = getattr(parent, name, None)
-    if parent is None:
-        logger.error(f"Cannot find module {path}!")
-        return
-    orig_func = getattr(parent, mods[-1], None)
-    if orig_func is None:
-        logger.error(f"Cannot find function {path}!")
-        return
-    new_func = instrument_function_replay(orig_func)
-    setattr(new_func, "orig_func", orig_func)
-    setattr(parent, mods[-1], new_func)
-    logger.info(f"Instrumented {path} for replay")
-
-def instrument_function_via_path_f4a(mod: ModuleType, path: str):
-    mods = path.split(".")
-    if mods[0] != mod.__name__:
-        logger.error(
-            f"Invalid package path: {path} does not start with {mod.__name__}!"
-        )
-        return
-    parent = mod
-    for name in mods[1:-1]:
-        parent = getattr(parent, name, None)
-    if parent is None:
-        logger.error(f"Cannot find module {path}!")
-        return
-    orig_func = getattr(parent, mods[-1], None)
-    if orig_func is None:
-        logger.error(f"Cannot find function {path}!")
-        return
-    new_func = instrument_function_f4a(orig_func)
-    setattr(new_func, "orig_func", orig_func)
-
-    setattr(parent, mods[-1], new_func)
-    # logger.debug(f"Instrumented {path} for f4a")
+def instrument_function_check(func: FunctionType | BuiltinFunctionType):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        res = func(*args, **kwargs)
+        wrapper.called=True
+        return res
+    return wrapper
 
 @contextmanager
 def instrument_function_via_path_ctx(full_func_path: str):
@@ -246,10 +168,56 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
         setattr(parent, mods[-1], orig_func)
         # logger.debug(f"Restored original function for {full_func_path}")
 
+@contextmanager
+def instrument_function_via_path_check_ctx(full_func_path: str):
+    """
+    用于检验指定函数是否被调用过的插桩上下文管理器。
+
+    Example 1:
+    >>> with instrument_function_via_path_check_ctx("module.submodule.function") as instrumented_func:
+    ...     # 在此上下文中调用 instrumented_func
+    ...     instrumented_func()
+    ...     if instrumented_func.called:
+    ...         print("Function was called")
+    ...     else:
+    ...         print("Function was not called")
+
+    Example 2:
+    >>> code = "module.submodule.function()"
+    >>> with instrument_function_via_path_check_ctx("module.submodule.function") as instrumented_func:
+    ...     # 通过exec的方式调用函数
+    ...     exec(code)
+    ...     if instrumented_func.called:
+    ...         print("Function was called")
+    ...     else:
+    ...         print("Function was not called")
+    """
+    mods = full_func_path.split(".")
+    mod = importlib.import_module(mods[0])
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+    if parent is None:
+        logger.error(f"Cannot find module {full_func_path}!")
+        yield
+        return
+    orig_func = getattr(parent, mods[-1], None)
+    if orig_func is None:
+        logger.error(f"Cannot find function {full_func_path}!")
+        yield
+        return
+    new_func = instrument_function_check(orig_func)
+    try:
+        setattr(parent, mods[-1], new_func)
+        logger.debug(f"Instrumented {full_func_path} for check")
+        yield
+    finally:
+        setattr(parent, mods[-1], orig_func)
+        logger.debug(f"Restored original function for {full_func_path}")
+
 mod_has_been_seen = set()
 top_mod = None
 top_mod_name = None
-
 
 def instrument_module(mod: ModuleType) -> None:
     """
