@@ -5,6 +5,7 @@ import tempfile
 import time
 import traceback
 from typing import List, Optional
+from multiprocessing import Process
 
 import openai
 from loguru import logger
@@ -12,8 +13,9 @@ from loguru import logger
 from tracefuzz.models import ExecutionResultType, Function, Seed
 from tracefuzz.repos.function_table import get_functions
 from tracefuzz.repos.seed_table import create_seed
-from tracefuzz.repos.solve_history_table import create_solve_history
 from tracefuzz.utils.config import get_config
+from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
+from tracefuzz.utils.process_helper import manage_process_with_timeout
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -166,13 +168,34 @@ res = c(x, y)
 
 
 class QueitExecutor:
-    def execute(self, code: str) -> dict:
+    def gen_code(self, code: str, full_name: str) -> str:
+        """
+        生成用于执行的完整代码，包含对目标函数调用的检查。
+
+        例如，假设full_name是"a.b.c"，生成的代码结构如下：
+
+
+        >>> with instrument_function_via_path_check_ctx("a.b.c") as f:
+            code
+            if not f.called:
+                raise Exception(f"未包含对{full_name}的有效调用")
+        """
+        res = f"""from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
+
+with instrument_function_via_path_check_ctx("{full_name}") as f:
+    {code}
+    if not f.called:
+        raise Exception(f"未包含对{full_name}的有效调用")
+"""
+        return res
+        
+    def execute(self, code: str, full_name: str) -> dict:
         ret_code = 1
         stdout = ""
         stderr = ""
         proc = None
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
-            f.write(code)
+            f.write(self.gen_code(code, full_name))
             f.flush()
             command = ["python", f.name]
             try:
@@ -344,76 +367,69 @@ def solve(function: Function) -> Optional[str]:
     history: List[dict] = []
     solved = False
     code = None
-    try:
-        while True:
-            # generate may raise; handle and record the error into history so we can save it later
-            try:
-                code = attempter.generate(function, history)
-            except Exception as e:
-                err_msg = f"Attempter error: {str(e)}"
-                logger.debug(err_msg)
-                history.append({"role": "attempter_error", "content": err_msg})
-                budget -= 1
-                if budget <= 0:
-                    break
-                continue
-
-            history.append({"role": "attempter", "content": code})
-
-            # judge may raise; handle and record the error into history so we can save it later
-            try:
-                judgment = judger.judge(code, function)
-                if judgment["valid"]:
-                    logger.debug(f"Judger accepted the code:\n{code}")
-                else:
-                    logger.debug(f"Judger rejected the code: {judgment['reason']}")
-                    history.append(
-                        {
-                            "role": "judger",
-                            "content": f"Judger rejected the code: {judgment['reason']}",
-                        }
-                    )
-                    budget -= 1
-                    if budget <= 0:
-                        break
-                    continue
-            except Exception as e:
-                err_msg = f"Judger error: {str(e)}"
-                logger.debug(err_msg)
-                history.append({"role": "judger_error", "content": err_msg})
-                budget -= 1
-                if budget <= 0:
-                    break
-                continue
-
-            result = executor.execute(code)
-
-            if result["result_type"] == ExecutionResultType.OK:
-                solved = True
-                break
-            else:
-                if cfg.get("use_reasoner", True) is False:
-                    break
-
-                try:
-                    reason = reasoner.explain(code, result)
-                except Exception as e:
-                    reason = f"Reasoner error: {str(e)}"
-                    logger.debug(reason)
-
-                logger.debug(f"reason:\n{reason}")
-                history.append({"role": "executor", "content": result.get("stderr")})
-                history.append({"role": "reasoner", "content": reason})
-                budget -= 1
-                if budget == 0:
-                    break
-                continue
-    finally:
+    while True:
+        # generate may raise; handle and record the error into history so we can save it later
         try:
-            create_solve_history(function, history)
-        except Exception:
-            # ensure solve never crashes due to history persistence failures
-            logger.exception("Failed to write solve history")
+            code = attempter.generate(function, history)
+        except Exception as e:
+            err_msg = f"Attempter error: {str(e)}"
+            logger.debug(err_msg)
+            history.append({"role": "attempter_error", "content": err_msg})
+            budget -= 1
+            if budget <= 0:
+                break
+            continue
+
+        history.append({"role": "attempter", "content": code})
+
+        # judge may raise; handle and record the error into history so we can save it later
+        try:
+            judgment = judger.judge(code, function)
+            if judgment["valid"]:
+                logger.debug(f"Judger accepted the code:\n{code}")
+            else:
+                logger.debug(f"Judger rejected the code: {judgment['reason']}")
+                history.append(
+                    {
+                        "role": "judger",
+                        "content": f"Judger rejected the code: {judgment['reason']}",
+                    }
+                )
+                budget -= 1
+                if budget <= 0:
+                    break
+                continue
+        except Exception as e:
+            err_msg = f"Judger error: {str(e)}"
+            logger.debug(err_msg)
+            history.append({"role": "judger", "content": err_msg})
+            budget -= 1
+            if budget <= 0:
+                break
+            continue
+
+        result = executor.execute(code, function.func_name)
+
+        if result["result_type"] == ExecutionResultType.OK:
+            solved = True
+            break
+        else:
+            if cfg.get("use_reasoner", True) is False:
+                break
+
+            try:
+                reason = reasoner.explain(code, result)
+            except Exception as e:
+                reason = f"Reasoner error: {str(e)}"
+                logger.debug(reason)
+
+            logger.debug(f"reason:\n{reason}")
+            history.append({"role": "executor", "content": result.get("stderr")})
+            history.append({"role": "reasoner", "content": reason})
+            budget -= 1
+            if budget == 0:
+                break
+            continue
 
     if solved:
         return code

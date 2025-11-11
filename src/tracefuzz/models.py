@@ -40,11 +40,6 @@ class Function(BaseModel):
         return self
 
 
-class ArgumentExpr(BaseModel):
-    name: str
-    expr: str
-
-
 class Seed(BaseModel):
     id: int | None = None
     func_id: int
@@ -53,14 +48,14 @@ class Seed(BaseModel):
     args: list[Argument]
     function_call: str
 
-
-class ChatHistory(BaseModel):
+class Mutant(BaseModel):
     id: int | None = None
-    function_id: int
+    func_id: int
+    seed_id: int
     library_name: str
     func_name: str
-    history: list[dict[str, str]]
-
+    args: list[Argument]
+    function_call: str
 
 class ExecutionResultType(IntEnum):
     OK = 0

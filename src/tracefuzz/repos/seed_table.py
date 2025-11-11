@@ -8,7 +8,7 @@ from tracefuzz.repos.base import get_db_cursor
 with get_db_cursor() as cur:
     cur.execute(
         """CREATE TABLE IF NOT EXISTS seed (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             func_id INTEGER,
             library_name TEXT,
             func_name TEXT,
@@ -18,11 +18,10 @@ with get_db_cursor() as cur:
     )
 
 
-def create_seed(seed: Seed) -> int:
+def create_seed(seed: Seed) -> Optional[int]:
     """
     将 Seed 插入到数据库中，并返回新生成的 ID。
     """
-    # 将 args 和 arg_exprs 转为 JSON 字符串
     args_text = json.dumps([arg.model_dump() for arg in seed.args])
 
     with get_db_cursor() as cur:
@@ -33,7 +32,7 @@ def create_seed(seed: Seed) -> int:
                 func_name, 
                 args, 
                 function_call
-            ) VALUES (?, ?, ?, ?, ?)""",
+            ) VALUES (%s, %s, %s, %s, %s) RETURNING id""",
             (
                 seed.func_id,
                 seed.library_name,
@@ -42,7 +41,8 @@ def create_seed(seed: Seed) -> int:
                 seed.function_call,
             ),
         )
-        return cur.lastrowid
+        row = cur.fetchone()
+        return row[0] if row is not None else None
 
 
 def create_seeds(seeds: list[Seed]) -> list[int]:
@@ -52,15 +52,14 @@ def create_seeds(seeds: list[Seed]) -> list[int]:
 
 def get_seed(seed_id: int) -> Optional[Seed]:
     """
-    根据 ID 获取一个 Solution。
+    根据 ID 获取一个 Seed。
     """
     with get_db_cursor() as cur:
-        cur.execute("SELECT * FROM seed WHERE id = ?", (seed_id,))
+        cur.execute("SELECT * FROM seed WHERE id = %s", (seed_id,))
         row = cur.fetchone()
         if not row:
             return None
 
-        # 解析 JSON 字符串回模型
         args = [Argument(**arg) for arg in json.loads(row[4])]
 
         seed = Seed(
@@ -76,12 +75,11 @@ def get_seed(seed_id: int) -> Optional[Seed]:
 
 def get_seed_by_function_name(function_name: str) -> Optional[Seed]:
     with get_db_cursor() as cur:
-        cur.execute("SELECT * FROM seed WHERE func_name = ?", (function_name,))
+        cur.execute("SELECT * FROM seed WHERE func_name = %s", (function_name,))
         row = cur.fetchone()
         if not row:
             return None
 
-        # 解析 JSON 字符串回模型
         args = [Argument(**arg) for arg in json.loads(row[4])]
 
         seed = Seed(
@@ -97,7 +95,7 @@ def get_seed_by_function_name(function_name: str) -> Optional[Seed]:
 
 def get_seed_by_function_id(func_id: int) -> Optional[Seed]:
     with get_db_cursor() as cur:
-        cur.execute("SELECT * FROM seed WHERE func_id = ?", (func_id,))
+        cur.execute("SELECT * FROM seed WHERE func_id = %s", (func_id,))
         row = cur.fetchone()
         if not row:
             return None
@@ -123,11 +121,11 @@ def get_seeds(
     params = []
 
     if library_name:
-        filter_conditions.append("library_name = ?")
+        filter_conditions.append("library_name = %s")
         params.append(library_name)
 
     if func_name:
-        filter_conditions.append("func_name = ?")
+        filter_conditions.append("func_name = %s")
         params.append(func_name)
 
     where_clause = (
@@ -165,11 +163,11 @@ def get_seeds_iter(
     params = []
 
     if library_name:
-        filter_conditions.append("library_name = ?")
+        filter_conditions.append("library_name = %s")
         params.append(library_name)
 
     if func_name:
-        filter_conditions.append("func_name = ?")
+        filter_conditions.append("func_name = %s")
         params.append(func_name)
 
     where_clause = (

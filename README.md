@@ -81,7 +81,9 @@ The framework uses `config.toml` for configuration. Key settings include:
 
 ### Fuzzing Parameters
 - `execution_timeout`: Timeout for function execution.
-- `mutants_per_seed`: Number of mutations per seed.
+- `llm_fuzz_per_seed`: Number of LLM-based mutations per seed.
+- `data_fuzz_per_seed`: Number of data-based mutations per seed.
+- `max_try_per_seed`: Maximum attempts per seed.
 
 
 ## Usage Examples

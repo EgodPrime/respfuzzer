@@ -8,6 +8,6 @@ source $config_file
 # Generate function calls for each library
 for library in "${libraries[@]}"
 do
-    echo "reflective_seeder generate_seeds $library"
-    reflective_seeder generate_seeds "$library"
+    echo "uv run reflective_seeder generate_seeds $library"
+    uv run reflective_seeder generate_seeds "$library"
 done

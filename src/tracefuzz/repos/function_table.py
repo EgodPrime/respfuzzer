@@ -6,8 +6,8 @@ from tracefuzz.repos.base import get_db_cursor
 
 with get_db_cursor() as cur:
     cur.execute(
-        f"""CREATE TABLE IF NOT EXISTS function (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        """CREATE TABLE IF NOT EXISTS function (
+            id SERIAL PRIMARY KEY,
             func_name TEXT, 
             library_name TEXT,
             source TEXT, 
@@ -18,11 +18,12 @@ with get_db_cursor() as cur:
     )
 
 
-def create_function(function: Function) -> int:
+def create_function(function: Function) -> Optional[int]:
     args_text = json.dumps([arg.model_dump() for arg in function.args])
     with get_db_cursor() as cur:
         cur.execute(
-            f"""INSERT INTO function (func_name, library_name, source, args, ret_type, is_builtin) VALUES (?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO function (func_name, library_name, source, args, ret_type, is_builtin)
+               VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
             (
                 function.func_name,
                 function.library_name,
@@ -32,12 +33,13 @@ def create_function(function: Function) -> int:
                 function.is_builtin,
             ),
         )
-        return cur.lastrowid
+        row = cur.fetchone()
+        return row[0] if row is not None else None
 
 
 def get_function(func_name: str) -> Optional[Function]:
     with get_db_cursor() as cur:
-        cur.execute(f"SELECT * FROM function WHERE func_name = ?", (func_name,))
+        cur.execute("SELECT * FROM function WHERE func_name = %s", (func_name,))
         row = cur.fetchone()
         if row:
             return Function(
@@ -55,11 +57,13 @@ def get_function(func_name: str) -> Optional[Function]:
 
 def get_functions(library_name: str | None) -> List[Function]:
     if library_name:
-        filter = f"WHERE func_name LIKE '{library_name}.%'"
+        sql = "SELECT * FROM function WHERE func_name LIKE %s"
+        params = (f"{library_name}.%",)
     else:
-        filter = ""
+        sql = "SELECT * FROM function"
+        params = ()
     with get_db_cursor() as cur:
-        cur.execute(f"SELECT * FROM function {filter}")
+        cur.execute(sql, params)
         rows = cur.fetchall()
         function_list = [
             Function(
@@ -78,11 +82,13 @@ def get_functions(library_name: str | None) -> List[Function]:
 
 def get_function_iter(library_name: Optional[str]) -> Iterator[Function]:
     if library_name:
-        filter = f"WHERE func_name LIKE '{library_name}.%'"
+        sql = "SELECT * FROM function WHERE func_name LIKE %s"
+        params = (f"{library_name}.%",)
     else:
-        filter = ""
+        sql = "SELECT * FROM function"
+        params = ()
     with get_db_cursor() as cur:
-        cur.execute(f"SELECT * FROM function {filter}")
+        cur.execute(sql, params)
         for row in cur:
             yield Function(
                 id=row[0],

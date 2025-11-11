@@ -9,5 +9,5 @@ source $config_file
 for library in "${libraries[@]}"
 do
     echo "reflective_seeder extract_functions $library"
-    reflective_seeder extract_functions "$library"
+    uv run reflective_seeder extract_functions "$library"
 done

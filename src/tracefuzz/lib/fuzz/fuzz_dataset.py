@@ -78,7 +78,7 @@ def fuzz_single_seed(seed: Seed) -> int:
     """
     config = get_config("fuzz")
     execution_timeout = config.get("execution_timeout")
-    mutants_per_seed = config.get("mutants_per_seed")
+    mutants_per_seed = config.get("data_fuzz_per_seed")
     max_try_per_seed = config.get("max_try_per_seed")
 
     if len(seed.args) == 0:

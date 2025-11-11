@@ -14,7 +14,7 @@ from tracefuzz.utils.redis_util import get_redis_client
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
 execution_timeout = fuzz_config["execution_timeout"]
-mutants_per_seed = fuzz_config["mutants_per_seed"]
+data_fuzz_per_seed = fuzz_config["data_fuzz_per_seed"]
 rc = get_redis_client()
 
 
@@ -113,7 +113,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
 
     This function will execute the function with different mutated parameters.
     If there are no arguments, it will execute the function once.
-    Otherwise, it will generate mutants_per_seed different parameter mutations
+    Otherwise, it will generate data_fuzz_per_seed different parameter mutations
     and execute the function with each set of mutated parameters.
     """
     full_name = f"{func.__module__}.{func.__name__}"
@@ -121,7 +121,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     exec_cnt = rc.hget("fuzz", "exec_cnt")
     if exec_cnt:
         exec_cnt = int(exec_cnt)
-        if exec_cnt >= mutants_per_seed:
+        if exec_cnt >= data_fuzz_per_seed:
             # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
             return
 
@@ -136,7 +136,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Start fuzz {full_name}")
     rc.hset("fuzz", "current_func", full_name)
 
-    for i in range(exec_cnt + 1, mutants_per_seed + 1):
+    for i in range(exec_cnt + 1, data_fuzz_per_seed + 1):
         random_state = get_random_state()
         rc.hset(f"exec_record", i, random_state)
         mt_param_list = mutate_param_list(param_list)
@@ -181,7 +181,7 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         execute_once(func, *args, **kwargs)
         return
 
-    for i in range(1, mutants_per_seed + 1):
+    for i in range(1, data_fuzz_per_seed + 1):
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)

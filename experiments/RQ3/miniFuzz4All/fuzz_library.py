@@ -72,7 +72,7 @@ def manage_process_with_timeout(process: Process, timeout: float, seed_id: int) 
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
     execution_timeout = config.get("execution_timeout")
-    mutants_per_seed = config.get("mutants_per_seed")
+    llm_fuzz_per_seed = config.get("llm_fuzz_per_seed")
     max_try_per_seed = config.get("max_try_per_seed")
 
     if len(seed.args) == 0:
@@ -84,7 +84,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
 
     for attempt in range(1, max_try_per_seed + 1):
         exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
-        if exec_cnt >= mutants_per_seed:
+        if exec_cnt >= llm_fuzz_per_seed:
             break
 
         logger.info(
@@ -94,12 +94,12 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: Redis) -> None:
             target=safe_fuzz,
             args=(
                 seed,
-                mutants_per_seed - exec_cnt,
+                llm_fuzz_per_seed - exec_cnt,
                 redis_client,
             ),
         )
         timeout = (max_try_per_seed - attempt + 1) * execution_timeout + (
-            mutants_per_seed - exec_cnt
+            llm_fuzz_per_seed - exec_cnt
         ) / 100
         success = manage_process_with_timeout(process, timeout, seed.id)
 

@@ -3,9 +3,6 @@ base_url = "https://api.openai.com/v1"
 api_key = "sk-xxxxxxx" # your OpenAI API key
 model_name = "gpt-4-0613"
 temperature = 0.7
-top_p = 0.8
-top_k = 20
-presence_penalty = 1.0
 
 [db_config]
 db_name = "tracefuzz" # without .db suffix
@@ -17,7 +14,8 @@ db = 0
 
 [fuzz]
 execution_timeout = 5.0
-mutants_per_seed = 100000
+llm_fuzz_per_seed = 100
+data_fuzz_per_seed = 100
 max_try_per_seed = 10
 
 [reflective_seeder]
@@ -29,4 +27,4 @@ use_docs = true
 strategy = 1
 concurrency = 10
 execution_timeout = 5.0
-mutants_per_seed = 100
+llm_fuzz_per_seed = 100

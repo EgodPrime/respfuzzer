@@ -1,9 +1,9 @@
 """
 该模块提供用于基于大型语言模型（LLM）进行模糊测试的变异函数。
 变异分为以下4类：
-1. 仅要求变异，不做限制要求。
+1. 要求变异目标函数的输入参数。
 2. 要求变异且保持语义等价。
-3. 要求拓展之前的代码。
+3. 要求调用目标库中的其他函数以形成函数调用链。
 4. 要求精简之前的代码。
 """
 
@@ -14,13 +14,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from loguru import logger
 
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
-from tracefuzz.models import Seed
-from tracefuzz.utils.llm_helper import query
+from tracefuzz.models import Seed, Mutant
+from tracefuzz.repos.mutant_table import create_mutant
+from tracefuzz.utils.llm_helper import SimpleLLMClient
+from tracefuzz.utils.config import get_config
+
+llm_cfg = get_config("llm_mutator")
+client = SimpleLLMClient(**llm_cfg)
+
 
 PROMPT_MUTATE = (
-    '"""Please create a mutated program that modifies the previous generation"""',
+    '"""Please create a program that mutates the input parameters of the target function call"""', 
     '"""Please create a semantically equivalent program to the previous generation"""',
-    '"""Please create an expanded version of the previous generation"""',
+    '"""Please create a program that calls other functions from the target library to form a chain of function calls"""',
     '"""Please create a simplified version of the previous generation"""',
 )
 
@@ -32,11 +38,16 @@ def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
     history = [
         {
             "role": "system",
-            "content": "You are a helpful programming assistant. You will ouput only Python code snippets without any explanations.",
+            "content": (
+            "You are a helpful programming assistant."
+            "You ouput only Python code snippets without any explanations."
+            "You never generate `print` statements."
+            "You always ensure the target function is called in your code."
+            ),
         },
         {
             "role": "user",
-            "content": f"Please generate a Python function call using {seed.func_name}.",
+            "content": f"Target function is {seed.func_name}. Please generate a program that calls it.",
         },
         {"role": "assistant", "content": seed.function_call},
         {"role": "user", "content": prompt},
@@ -44,7 +55,7 @@ def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
     return history
 
 
-def llm_mutate(seed: Seed, mutation_type: int) -> str:
+def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     """
     使用LLM对给定的种子进行变异。
     mutation_type:
@@ -58,17 +69,28 @@ def llm_mutate(seed: Seed, mutation_type: int) -> str:
 
     prompt = PROMPT_MUTATE[mutation_type]
     messages = make_fake_history(seed, prompt)
-    mutated_code = query(messages)
+    mutated_code = client.chat(messages, temperature=1.5)
 
-    return mutated_code
+    # Save the mutant to the database
+    mutant = Mutant(
+        func_id=seed.func_id,
+        seed_id=seed.id,
+        library_name=seed.library_name,
+        func_name=seed.func_name,
+        args=seed.args,
+        function_call=mutated_code,
+    )
+    create_mutant(mutant)
+
+    return mutant
 
 
-def random_llm_mutate(seed: Seed) -> str:
+def random_llm_mutate(seed: Seed) -> Mutant:
     """
     随机选择一种变异类型并对种子进行变异。
     """
-
     mutation_type = random.randint(0, len(PROMPT_MUTATE) - 1)
+    # logger.debug(f"Randomly selected mutation type: {mutation_type}")
     return llm_mutate(seed, mutation_type)
 
 
@@ -100,42 +122,41 @@ def check_semantic(seed: Seed, mutated_code: str) -> bool:
         return False  # pragma: no cover
 
 
-def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[str]:
+def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
     """
     使用多线程批量对种子进行随机变异。
     """
-    mutated_codes = []
+    mutants = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(random_llm_mutate, seed) for _ in range(n)]
         for future in as_completed(futures):
-            mutated_codes.append(future.result())
-    return mutated_codes
+            mutants.append(future.result())
+    return mutants
 
 
 def batch_random_llm_mutate_valid_only(
     seed: Seed, n: int, max_workers: int = 4
-) -> list[str]:
+) -> list[Mutant]:
     """
     使用多线程批量对种子进行随机变异，并仅返回语法和语义有效的变异代码。
     """
-    mutated_codes = batch_random_llm_mutate(seed, n, max_workers)
-    valid_mutated_codes = []
+    mutants = batch_random_llm_mutate(seed, n, max_workers)
+    valid_mutants = []
     # 先检查语法
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(check_syntax, code): code for code in mutated_codes}
+        futures = {executor.submit(check_syntax, mutant.function_call): mutant for mutant in mutants}
         for future in as_completed(futures):
-            code = futures[future]
+            mutant = futures[future]
             if future.result():
-                valid_mutated_codes.append(code)
-    final_valid_codes = []
+                valid_mutants.append(mutant)
+    final_valid_mutants = []
     # 再检查语义
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(check_semantic, seed, code): code
-            for code in valid_mutated_codes
+            executor.submit(check_semantic, seed, mutant.function_call): mutant for mutant in valid_mutants
         }
         for future in as_completed(futures):
-            code = futures[future]
+            mutant = futures[future]
             if future.result():
-                final_valid_codes.append(code)
-    return final_valid_codes
+                final_valid_mutants.append(mutant)
+    return final_valid_mutants

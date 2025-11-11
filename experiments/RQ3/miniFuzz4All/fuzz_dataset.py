@@ -52,7 +52,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     """
     cfg = get_config("fuzz4all")
     execution_timeout = cfg.get("execution_timeout")
-    mutants_per_seed = cfg.get("mutants_per_seed")
+    llm_fuzz_per_seed = cfg.get("llm_fuzz_per_seed")
     concurrency = cfg.get("concurrency", 10)
 
     logger.debug(f"seed is :\n{seed.function_call}")
@@ -66,8 +66,8 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     f4a_mutator = Fuzz4AllMutator(seed)
 
     logger.info(f"Start fuzz seed {seed.id}.")
-    for i in range(0, mutants_per_seed, concurrency):
-        batch_size = min(concurrency, mutants_per_seed - i)
+    for i in range(0, llm_fuzz_per_seed, concurrency):
+        batch_size = min(concurrency, llm_fuzz_per_seed - i)
         t0 = time.time()
         batch = f4a_mutator.generate_n(batch_size)
         dt = time.time() - t0
