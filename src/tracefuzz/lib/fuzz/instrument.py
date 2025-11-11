@@ -97,6 +97,7 @@ def instrument_function_check(func: FunctionType | BuiltinFunctionType):
         wrapper.called = True
         return res
 
+    wrapper.called = False
     return wrapper
 
 
@@ -212,18 +213,18 @@ def instrument_function_via_path_check_ctx(full_func_path: str):
         parent = getattr(parent, name, None)
     if parent is None:
         logger.error(f"Cannot find module {full_func_path}!")
-        yield
+        yield None
         return
     orig_func = getattr(parent, mods[-1], None)
     if orig_func is None:
         logger.error(f"Cannot find function {full_func_path}!")
-        yield
+        yield None
         return
     new_func = instrument_function_check(orig_func)
     try:
         setattr(parent, mods[-1], new_func)
         logger.debug(f"Instrumented {full_func_path} for check")
-        yield
+        yield new_func
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")

@@ -80,3 +80,63 @@ def test_random_llm_mutate_uses_random_and_delegates(monkeypatch):
     assert result == "code-2"
     assert recorded["seed"] is seed
     assert recorded["mutation_type"] == 2
+
+
+def test_check_syntax_valid_and_invalid():
+    valid_code = "def foo():\n    return 42"
+    invalid_code = "def foo(:\n    return 42"
+
+    assert lm.check_syntax(valid_code) is True
+    assert lm.check_syntax(invalid_code) is False
+
+
+def test_check_semantic_calls_in_code():
+    # 以内置模块math为例
+    seed = SimpleNamespace(func_name="math.sqrt", function_call="math.sqrt(4)")
+    valid_code = "import math\nmath.sqrt(16)"
+    invalid_code = "def bar():\n    return 42"  # does not call math.sqrt
+    assert lm.check_semantic(seed, valid_code) is True
+    assert lm.check_semantic(seed, invalid_code) is False
+
+
+def test_batch_random_llm_mutate(monkeypatch):
+    seed = SimpleNamespace(func_name="f", function_call="f()")
+    n = 5
+    max_workers = 2
+
+    # stub random_llm_mutate to return predictable code
+    def fake_random_llm_mutate(s):
+        return f"mutated-code-for-{s.func_name}"
+
+    monkeypatch.setattr(lm, "random_llm_mutate", fake_random_llm_mutate)
+
+    results = lm.batch_random_llm_mutate(seed, n, max_workers)
+
+    assert len(results) == n
+    for code in results:
+        assert code == f"mutated-code-for-{seed.func_name}"
+
+
+def test_batch_random_llm_mutate_valid_only(monkeypatch):
+    seed = SimpleNamespace(func_name="math.sqrt", function_call="math.sqrt(4)")
+    n = 5
+    max_workers = 2
+
+    # Prepare a sequence of codes to be returned by the fake mutator
+    codes = [
+        "import math\nmath.sqrt(16)",  # valid
+        "def foo():\n    return 42",  # invalid (no math.sqrt)
+        "import math\nmath.sqrt(25)",  # valid
+        "def bar(:\n    return 0",  # invalid syntax
+        "import math\nmath.sqrt(36)",  # valid
+        "import math\nmath.max(1,2)",  # invalid (no math.sqrt)
+    ]
+    code_iter = iter(codes)
+
+    def fake_random_llm_mutate(s):
+        return next(code_iter)
+
+    monkeypatch.setattr(lm, "random_llm_mutate", fake_random_llm_mutate)
+    results = lm.batch_random_llm_mutate_valid_only(seed, n, max_workers)
+
+    assert len(results) == 3  # only 3 valid codes
