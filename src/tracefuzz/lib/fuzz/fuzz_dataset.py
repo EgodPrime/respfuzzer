@@ -1,22 +1,22 @@
-import importlib
-from importlib.util import find_spec
 import io
 import json
 import os
 import sys
 from multiprocessing import Process, Queue
-from typing import Callable
 
 import dcov
-import redis
 from loguru import logger
 
-from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout, kill_process_tree_linux
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_ctx, instrument_function_via_path_f4a_ctx
+from tracefuzz.lib.fuzz.fuzz_library import kill_process_tree_linux
+from tracefuzz.lib.fuzz.instrument import (
+    instrument_function_via_path_ctx,
+    instrument_function_via_path_f4a_ctx,
+)
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
+
 
 def continue_safe_execute(recv: Queue, send: Queue) -> None:
     """
@@ -147,18 +147,25 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> None:
             p = dcov.count_bitmap_py()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
 
-def calc_initial_seed_coverage_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> int:
+
+def calc_initial_seed_coverage_dataset(
+    dataset: dict[str, dict[str, dict[str, list[int]]]],
+) -> int:
     logger.info("Calculating initial seed coverage for the dataset....")
     send = Queue()
     recv = Queue()
-    worker_process = Process(target=continue_safe_execute, args=(send, recv), name="CoverageWorker")
+    worker_process = Process(
+        target=continue_safe_execute, args=(send, recv), name="CoverageWorker"
+    )
     worker_process.start()
     for library_name in dataset:
         for func_name in dataset[library_name]:
             full_func_name = f"{library_name}.{func_name}"
             seed = get_seed_by_function_name(full_func_name)
             if not seed:
-                logger.warning(f"Seed for function {full_func_name} not found, skipping.")
+                logger.warning(
+                    f"Seed for function {full_func_name} not found, skipping."
+                )
                 continue
             send.put(("execute", seed))
             # logger.info(f"Seed for function {full_func_name} sent to worker process.")
@@ -166,14 +173,18 @@ def calc_initial_seed_coverage_dataset(dataset: dict[str, dict[str, dict[str, li
                 recv.get(timeout=10)
                 # logger.info(f"Seed for function {full_func_name} executed successfully.")
             except Exception:
-                logger.warning(f"Seed {seed.id} execution timeout, restarting worker process.")
+                logger.warning(
+                    f"Seed {seed.id} execution timeout, restarting worker process."
+                )
                 if worker_process.is_alive():
                     kill_process_tree_linux(worker_process)
                 else:
                     worker_process.join()
                 send = Queue()
                 recv = Queue()
-                worker_process = Process(target=continue_safe_execute, args=(send, recv))
+                worker_process = Process(
+                    target=continue_safe_execute, args=(send, recv)
+                )
                 worker_process.start()
                 continue
     send.put(("exit", None))
@@ -181,6 +192,7 @@ def calc_initial_seed_coverage_dataset(dataset: dict[str, dict[str, dict[str, li
 
     p = dcov.count_bitmap_py()
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
+
 
 def fuzz_dataset(dataset_path: str) -> None:
     """Fuzz functions specified in the dataset JSON file."""
@@ -192,6 +204,7 @@ def fuzz_dataset(dataset_path: str) -> None:
     )
     calc_initial_seed_coverage_dataset(dataset)
     _fuzz_dataset(dataset)
+
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:
     """Continuously fuzz functions specified in the dataset JSON file."""
@@ -208,5 +221,3 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
         except KeyboardInterrupt:
             logger.info("Fuzzing interrupted by user.")
             break
-
-        

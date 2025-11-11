@@ -8,14 +8,15 @@ from loguru import logger
 from tracefuzz.lib.fuzz.mutate import get_random_state, set_random_state
 from tracefuzz.lib.fuzz.mutator import mutate_param_list
 from tracefuzz.utils.config import get_config
-from tracefuzz.utils.redis_util import get_redis_client
 from tracefuzz.utils.dump import dump_any_obj
+from tracefuzz.utils.redis_util import get_redis_client
 
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
 execution_timeout = fuzz_config["execution_timeout"]
 mutants_per_seed = fuzz_config["mutants_per_seed"]
 rc = get_redis_client()
+
 
 def handle_timeout(signum, frame):
     """
@@ -116,7 +117,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     and execute the function with each set of mutated parameters.
     """
     full_name = f"{func.__module__}.{func.__name__}"
-    
+
     exec_cnt = rc.hget("fuzz", "exec_cnt")
     if exec_cnt:
         exec_cnt = int(exec_cnt)
@@ -160,12 +161,13 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Replay fuzz {full_name} with random state {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-    with open(f'/tmp/tracefuzz_replay_{seed}_args.dump', 'wb') as f:
+    with open(f"/tmp/tracefuzz_replay_{seed}_args.dump", "wb") as f:
         f.write(dump_any_obj(args))
-    with open(f'/tmp/tracefuzz_replay_{seed}_kwargs.dump', 'wb') as f:
+    with open(f"/tmp/tracefuzz_replay_{seed}_kwargs.dump", "wb") as f:
         f.write(dump_any_obj(kwargs))
     func(*args, **kwargs)
     logger.info(f"Replay fuzz {full_name} done")
+
 
 def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
@@ -184,4 +186,4 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
 
-    logger.debug(f"Tracefuzz fuzz {full_name} done")        
+    logger.debug(f"Tracefuzz fuzz {full_name} done")

@@ -1,7 +1,5 @@
 import importlib
-import io
 import re
-import sys
 from multiprocessing import Process
 
 from loguru import logger
@@ -20,7 +18,7 @@ def replay_mutation_one(seed_id: int, random_state: int):
     if seed is None:
         logger.error(f"Seed {seed_id} not found in DB.")
         return None
-    
+
     # logger.info(f"Seed {seed_id} function call: {seed.function_call}")
 
     lib_name = seed.library_name

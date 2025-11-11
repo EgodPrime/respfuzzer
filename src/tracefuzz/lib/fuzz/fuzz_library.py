@@ -1,4 +1,3 @@
-import importlib
 import io
 import multiprocessing
 import os
@@ -17,8 +16,6 @@ from tracefuzz.repos.seed_table import get_seeds_iter
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
 from tracefuzz.utils.redis_util import get_redis_client
-
-import traceback
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -58,7 +55,6 @@ def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1
         pgid = os.getpgid(process.pid)
     except OSError:
         return
-
 
     os.killpg(pgid, signal.SIGKILL)
     try:

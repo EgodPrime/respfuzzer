@@ -4,8 +4,9 @@ import random
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seeds_iter
 
-
 random.seed(4399)
+
+
 def sample_apis(json_data: dict, total_samples: int = 100):
     # 统计每个库的API数量
     api_counts = {lib: len(apis) for lib, apis in json_data.items()}
@@ -56,7 +57,7 @@ def sample_dyfuzz_format(n_samples: int = 200):
     for seed in get_seeds_iter():
         if len(seed.args) == 0:
             continue
-        if 'download(' in seed.function_call or 'main(' in seed.function_call:
+        if "download(" in seed.function_call or "main(" in seed.function_call:
             continue
         save_to_data(seed, data)
     output_file_name = "tracefuzz_seeds.json"

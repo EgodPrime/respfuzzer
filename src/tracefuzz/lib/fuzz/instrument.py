@@ -1,16 +1,20 @@
+import importlib
 import inspect
+from contextlib import contextmanager
 from functools import wraps
-from sys import path
 from types import BuiltinFunctionType, FunctionType, ModuleType
 
-from contextlib import contextmanager
 from loguru import logger
-import importlib
+
+from tracefuzz.lib.fuzz.fuzz_function import (
+    fuzz_function,
+    fuzz_function_f4a,
+    replay_fuzz,
+)
 from tracefuzz.utils.config import get_config
 
-from tracefuzz.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz, fuzz_function_f4a
-
 fuzzed_set = set()
+
 
 def instrument_function(func: FunctionType | BuiltinFunctionType):
     """
@@ -55,9 +59,12 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 fuzzed_dict: dict[str:int] = {}
 cfg = get_config("fuzz4all")
 limit_per_function = cfg.get("mutants_per_seed", 1)
+
+
 def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -82,13 +89,16 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 def instrument_function_check(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
         res = func(*args, **kwargs)
-        wrapper.called=True
+        wrapper.called = True
         return res
+
     return wrapper
+
 
 @contextmanager
 def instrument_function_via_path_ctx(full_func_path: str):
@@ -107,7 +117,7 @@ def instrument_function_via_path_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         logger.debug(f"Instrumented {full_func_path}")
@@ -115,6 +125,7 @@ def instrument_function_via_path_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_replay_ctx(full_func_path: str):
@@ -133,7 +144,7 @@ def instrument_function_via_path_replay_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function_replay(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         logger.debug(f"Instrumented {full_func_path} for replay")
@@ -141,6 +152,7 @@ def instrument_function_via_path_replay_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_f4a_ctx(full_func_path: str):
@@ -159,7 +171,7 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function_f4a(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         # logger.debug(f"Instrumented {full_func_path} for f4a")
@@ -167,6 +179,7 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         # logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_check_ctx(full_func_path: str):
@@ -215,9 +228,11 @@ def instrument_function_via_path_check_ctx(full_func_path: str):
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
 
+
 mod_has_been_seen = set()
 top_mod = None
 top_mod_name = None
+
 
 def instrument_module(mod: ModuleType) -> None:
     """

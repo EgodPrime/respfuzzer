@@ -65,9 +65,10 @@ res = c(x, y)
 {history}
 </history>
 """
-        
+
         if cfg.get("use_docs", True) is False:
             from inspect import _ParameterKind
+
             func_name = function.func_name
             func_args = function.args
             func_sig = f"def {func_name}("
@@ -122,8 +123,8 @@ res = c(x, y)
 {history}
 </history>
 """
-            
-# Add a small retry loop for transient API errors
+
+        # Add a small retry loop for transient API errors
         last_exc = None
         for attempt in range(3):
             try:
@@ -393,7 +394,7 @@ def solve(function: Function) -> Optional[str]:
             else:
                 if cfg.get("use_reasoner", True) is False:
                     break
-                
+
                 try:
                     reason = reasoner.explain(code, result)
                 except Exception as e:

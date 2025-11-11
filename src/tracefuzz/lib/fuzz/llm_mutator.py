@@ -7,8 +7,8 @@
 4. 要求精简之前的代码。
 """
 
-from tracefuzz.utils.llm_helper import query
 from tracefuzz.models import Seed
+from tracefuzz.utils.llm_helper import query
 
 PROMPT_MUTATE = (
     '"""Please create a mutated program that modifies the previous generation"""',
@@ -17,23 +17,25 @@ PROMPT_MUTATE = (
     '"""Please create a simplified version of the previous generation"""',
 )
 
+
 def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
     """
     构造对话历史记录，以便在调用LLM时提供上下文。
     """
     history = [
         {
-            "role": "system", 
-            "content": "You are a helpful programming assistant. You will ouput only Python code snippets without any explanations."
+            "role": "system",
+            "content": "You are a helpful programming assistant. You will ouput only Python code snippets without any explanations.",
         },
         {
             "role": "user",
-            "content": f'Please generate a Python function call using {seed.func_name}.',
+            "content": f"Please generate a Python function call using {seed.func_name}.",
         },
         {"role": "assistant", "content": seed.function_call},
         {"role": "user", "content": prompt},
     ]
     return history
+
 
 def llm_mutate(seed: Seed, mutation_type: int) -> str:
     """
@@ -52,6 +54,7 @@ def llm_mutate(seed: Seed, mutation_type: int) -> str:
     mutated_code = query(messages)
 
     return mutated_code
+
 
 def random_llm_mutate(seed: Seed) -> str:
     """

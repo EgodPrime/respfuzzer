@@ -1,13 +1,16 @@
 import importlib
-import sqlite3
 import json
-
+import sqlite3
 from typing import Optional
+
 from tracefuzz.models import Argument, Function, Seed
 from tracefuzz.repos.function_table import get_db_cursor, get_function_iter
 from tracefuzz.repos.seed_table import get_seed_by_function_id
 
-def get_data_for_view_from_database(db_path: str, library_name: Optional[str]=None) -> dict[str, dict[str, int|float| str]]:
+
+def get_data_for_view_from_database(
+    db_path: str, library_name: Optional[str] = None
+) -> dict[str, dict[str, int | float | str]]:
 
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -19,7 +22,9 @@ def get_data_for_view_from_database(db_path: str, library_name: Optional[str]=No
         filter = f"WHERE func_name LIKE '{library_name}.%'"
     else:
         filter = ""
-    cursor.execute(f"SELECT * FROM function {filter}", (library_name,) if library_name else ())
+    cursor.execute(
+        f"SELECT * FROM function {filter}", (library_name,) if library_name else ()
+    )
     function_records = cursor.fetchall()
 
     for record in function_records:
@@ -39,7 +44,7 @@ def get_data_for_view_from_database(db_path: str, library_name: Optional[str]=No
             seed_table[function.library_name] = {}
         if not function.func_name in seed_table[function.library_name]:
             seed_table[function.library_name][function.func_name] = None
-        
+
         cursor.execute("SELECT * FROM seed WHERE func_id = ?", (function.id,))
         seed_record = cursor.fetchone()
         if seed_record:
@@ -53,8 +58,8 @@ def get_data_for_view_from_database(db_path: str, library_name: Optional[str]=No
                 function_call=seed_record[5],
             )
             seed_table[function.library_name][function.func_name] = seed
-        
-    res:dict[str,dict[str,int|float|str]] = {}
+
+    res: dict[str, dict[str, int | float | str]] = {}
     for lib_name in function_table:
         udf_count = 0
         udf_solved = 0
@@ -98,13 +103,12 @@ def get_data_for_view_from_database(db_path: str, library_name: Optional[str]=No
             "tf_solved_str": tf_solved_str,
         }
     return res
-    
 
 
-def get_data_for_view(library_name=None) -> dict[str, dict[str, int|float| str]]:
+def get_data_for_view(library_name=None) -> dict[str, dict[str, int | float | str]]:
     function_table: dict[str, dict[str, Function]] = {}
     seed_table: dict[str, dict[str, Seed]] = {}
-    
+
     for function in get_function_iter(library_name):
         if not function.library_name in function_table:
             function_table[function.library_name] = {}
@@ -118,11 +122,10 @@ def get_data_for_view(library_name=None) -> dict[str, dict[str, int|float| str]]
         if seed:
             seed_table[function.library_name][function.func_name] = seed
 
-
     # UDF: User-Defined Function
     # BF: Built-in Function
     # TF: Total Function
-    res:dict[str,dict[str,int|float|str]] = {}
+    res: dict[str, dict[str, int | float | str]] = {}
     for lib_name in function_table:
         udf_count = 0
         udf_solved = 0

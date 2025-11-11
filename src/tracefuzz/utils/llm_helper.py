@@ -4,6 +4,7 @@
 """
 
 import openai
+
 from tracefuzz.utils.config import get_config
 
 llm_cfg = get_config("llm")
@@ -17,6 +18,7 @@ PRESENCE_PENALTY = llm_cfg.get("presence_penalty", 1.0)
 
 client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
+
 def _chat(messages, **kwargs) -> str:
     response = client.chat.completions.create(
         model=MODEL_NAME,
@@ -25,6 +27,7 @@ def _chat(messages, **kwargs) -> str:
         **kwargs,
     )
     return response.choices[0].message.content
+
 
 def chat(messages, **kwargs) -> str:
     if "temperature" not in kwargs:
@@ -37,7 +40,7 @@ def chat(messages, **kwargs) -> str:
         kwargs["presence_penalty"] = PRESENCE_PENALTY
     return _chat(messages, **kwargs)
 
+
 def query(prompt: str, **kwargs) -> str:
     messages = [{"role": "user", "content": prompt}]
     return chat(messages, **kwargs)
-
