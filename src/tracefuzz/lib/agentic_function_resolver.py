@@ -180,10 +180,13 @@ class QueitExecutor:
             if not f.called:
                 raise Exception(f"未包含对{full_name}的有效调用")
         """
-        res = f"""from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
+        # ident code with 4 spaces
+        indented_code = "\n    ".join(code.split("\n"))
+        res = f"""
+from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 
 with instrument_function_via_path_check_ctx("{full_name}") as f:
-    {code}
+    {indented_code}
     if not f.called:
         raise Exception(f"未包含对{full_name}的有效调用")
 """
