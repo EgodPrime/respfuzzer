@@ -29,3 +29,8 @@ sentence_nist(references, hypothesis, 19)
 
 # This raises ZeroDivisionError
 sentence_nist(references, hypothesis, 0)
+
+"""
+$ python -c "import sys, nltk;print(sys.version_info, nltk.__version__)"
+sys.version_info(major=3, minor=13, micro=9, releaselevel='final', serial=0) 3.9.2
+"""
