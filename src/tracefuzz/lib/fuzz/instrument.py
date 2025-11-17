@@ -175,11 +175,11 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
 
     try:
         setattr(parent, mods[-1], new_func)
-        # logger.debug(f"Instrumented {full_func_path} for f4a")
+        logger.debug(f"Instrumented {full_func_path} for f4a")
         yield
     finally:
         setattr(parent, mods[-1], orig_func)
-        # logger.debug(f"Restored original function for {full_func_path}")
+        logger.debug(f"Restored original function for {full_func_path}")
 
 
 @contextmanager
@@ -223,11 +223,11 @@ def instrument_function_via_path_check_ctx(full_func_path: str):
     new_func = instrument_function_check(orig_func)
     try:
         setattr(parent, mods[-1], new_func)
-        logger.debug(f"Instrumented {full_func_path} for check")
+        # logger.debug(f"Instrumented {full_func_path} for check")
         yield new_func
     finally:
         setattr(parent, mods[-1], orig_func)
-        logger.debug(f"Restored original function for {full_func_path}")
+        # logger.debug(f"Restored original function for {full_func_path}")
 
 
 mod_has_been_seen = set()

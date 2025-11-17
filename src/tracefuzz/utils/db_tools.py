@@ -6,6 +6,131 @@ from typing import Optional
 from tracefuzz.models import Argument, Function, Seed
 from tracefuzz.repos.function_table import get_db_cursor, get_function_iter
 from tracefuzz.repos.seed_table import get_seed_by_function_id
+from tracefuzz.utils.config import get_config
+
+
+def get_data_for_view_from_postgresql(
+    db_name: str, library_name: Optional[str] = None
+) -> dict[str, dict[str, int | float | str]]:
+    """Fetch data for view from a PostgreSQL database.
+
+    Table `function`:
+        id	int4
+        func_name	text
+        library_name	text
+        source	text
+        args	text
+        ret_type	text
+        is_builtin	int4
+
+    Table `seed`:
+        id	int4
+        func_id	int4
+        library_name	text
+        func_name	text
+        args	text
+        function_call	text
+
+    """
+    import psycopg2
+
+    db_cfg = get_config("db_config")
+    host = db_cfg.get("host")
+    port = db_cfg.get("port")
+    user = db_cfg.get("user")
+    password = db_cfg.get("password")
+
+    conn = psycopg2.connect(
+        dbname=db_name, host=host, port=port, user=user, password=password
+    )
+    cursor = conn.cursor()
+
+    function_table: dict[str, dict[str, Function]] = {}
+    seed_table: dict[str, dict[str, Seed]] = {}
+
+    if library_name:
+        sql = f"SELECT * FROM function WHERE func_name LIKE '{library_name}.%'"
+    else:
+        sql = "SELECT * FROM function"
+    cursor.execute(sql)
+    function_records = cursor.fetchall()
+
+    for record in function_records:
+        function = Function(
+            id=record[0],
+            func_name=record[1],
+            library_name=record[2],
+            source=record[3],
+            args=json.loads(record[4]),
+            ret_type=record[5],
+            is_builtin=record[6],
+        )
+        if not function.library_name in function_table:
+            function_table[function.library_name] = {}
+        function_table[function.library_name][function.func_name] = function
+        if not function.library_name in seed_table:
+            seed_table[function.library_name] = {}
+        if not function.func_name in seed_table[function.library_name]:
+            seed_table[function.library_name][function.func_name] = None
+
+        cursor.execute("SELECT * FROM seed WHERE func_id = %s", (function.id,))
+        seed_record = cursor.fetchone()
+        if seed_record:
+            args = [Argument(**arg) for arg in json.loads(seed_record[4])]
+            seed = Seed(
+                id=seed_record[0],
+                func_id=seed_record[1],
+                library_name=seed_record[2],
+                func_name=seed_record[3],
+                args=args,
+                function_call=seed_record[5],
+            )
+            seed_table[function.library_name][function.func_name] = seed
+
+    res: dict[str, dict[str, int | float | str]] = {}
+    for lib_name in function_table:
+        udf_count = 0
+        udf_solved = 0
+        bf_count = 0
+        bf_solved = 0
+        for func_name in function_table[lib_name]:
+            function = function_table[lib_name][func_name]
+            seed = seed_table[lib_name][func_name]
+            is_builtin = function.is_builtin
+            if is_builtin:
+                bf_count += 1
+                if seed and seed.function_call:
+                    bf_solved += 1
+            else:
+                udf_count += 1
+                if seed and seed.function_call:
+                    udf_solved += 1
+        tf_count = udf_count + bf_count
+        tf_solved = udf_solved + bf_solved
+
+        udf_percent = (
+            f"{(udf_solved / udf_count * 100):.2f}%" if udf_count > 0 else "N/A"
+        )
+        udf_solved_str = f"{udf_solved} ({udf_percent})"
+        bf_percent = f"{(bf_solved / bf_count * 100):.2f}%" if bf_count > 0 else "N/A"
+        bf_solved_str = f"{bf_solved} ({bf_percent})"
+        tf_percent = f"{(tf_solved / tf_count * 100):.2f}%" if tf_count > 0 else "N/A"
+        tf_solved_str = f"{tf_solved} ({tf_percent})"
+        res[lib_name] = {
+            "udf_count": udf_count,
+            "udf_solved": udf_solved,
+            "udf_solved_percent": udf_percent,
+            "udf_solved_str": udf_solved_str,
+            "bf_count": bf_count,
+            "bf_solved": bf_solved,
+            "bf_solved_percent": bf_percent,
+            "bf_solved_str": bf_solved_str,
+            "tf_count": tf_count,
+            "tf_solved": tf_solved,
+            "tf_solved_percent": tf_percent,
+            "tf_solved_str": tf_solved_str,
+        }
+    return res
 
 
 def get_data_for_view_from_database(

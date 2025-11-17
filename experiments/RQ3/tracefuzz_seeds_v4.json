@@ -1,0 +1,1226 @@
+{
+  "nltk": {
+    "accuracy": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "chunk.tree2conlltags": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "print_string": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "classify.decisiontree.entropy": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "translate.ribes_score.corpus_ribes": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "cut_string": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "chunk.named_entity.find": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "decorators.decorator": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "edge_closure": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "tokenize.punkt.demo": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "inference.discourse.spacer": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "metrics.distance.jaro_similarity": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "tbl.error_list": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "metrics.aline.R": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "tokenize.simple.regexp_span_tokenize": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "translate.ribes_score.position_of_ngram": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "classify.util.names_demo_features": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "guess_encoding": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "sem.drt.unique_variable": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "ne_chunk": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "tokenize.regexp.regexp_tokenize": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "sem.logic.read_logic": {
+      "pn": [
+        3,
+        3
+      ]
+    }
+  },
+  "dask": {
+    "optimization.inline": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "threaded.pack_exception": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "threaded.get": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "utils.get_scheduler_lock": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "optimization.functions_of": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "tokenize.normalize_bound_method": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "utils.takes_multiple_arguments": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "highlevelgraph.tokenize": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "optimization.unwrap_partial": {
+      "pn": [
+        1,
+        1
+      ]
+    }
+  },
+  "numpy": {
+    "indices": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "polynomial.laguerre.lagval3d": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "ma.extras.compress_rows": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "polynomial.hermite_e.hermeweight": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "polynomial.laguerre.lagvander3d": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "_core.numeric.ones": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "ma.compress_rows": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "_core._multiarray_umath.compare_chararrays": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "ma.average": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "_core.numeric.set_printoptions": {
+      "pn": [
+        12,
+        12
+      ]
+    },
+    "polynomial.laguerre.lagfit": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "polynomial.hermite.herm2poly": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "ma.size": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "polynomial.laguerre.lagmulx": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "_core.numeric.fromiter": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "ma.core.asanyarray": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "polynomial.laguerre.laggauss": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "polynomial.chebyshev.chebvander3d": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "tri": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "ma.core.power": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "ma.extras.union1d": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "polynomial.polynomial.polycompanion": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "ma.core.argsort": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "_core._multiarray_umath.promote_types": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "asmatrix": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "_core.numeric.asanyarray": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "testing.assert_array_almost_equal": {
+      "pn": [
+        5,
+        5
+      ]
+    }
+  },
+  "pandas": {
+    "set_eng_float_format": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "plotting.bootstrap_plot": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "io.common.import_optional_dependency": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "io.formats.format.concat": {
+      "pn": [
+        10,
+        10
+      ]
+    },
+    "io.api.read_sql_query": {
+      "pn": [
+        9,
+        9
+      ]
+    },
+    "plotting.parallel_coordinates": {
+      "pn": [
+        12,
+        12
+      ]
+    },
+    "io.formats.format.is_numeric_dtype": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "io.pickle.doc": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "io.pickle.read_pickle": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "io.api.read_json": {
+      "pn": [
+        18,
+        18
+      ]
+    },
+    "io.formats.printing.is_sequence": {
+      "pn": [
+        1,
+        1
+      ]
+    }
+  },
+  "sklearn": {
+    "kernel_approximation.validate_data": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "datasets.clear_data_home": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "externals.array_api_compat.numpy.fft.ihfft": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "externals.array_api_compat.numpy.zeros": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "model_selection.train_test_split": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "externals.array_api_compat.numpy.empty": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "svm.l1_min_c": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "externals.array_api_compat.numpy.trunc": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "cluster.kmeans_plusplus": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "linear_model.orthogonal_mp": {
+      "pn": [
+        8,
+        8
+      ]
+    },
+    "preprocessing.maxabs_scale": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "externals.array_api_compat.numpy.eye": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "covariance.fast_mcd": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "metrics.cluster.homogeneity_completeness_v_measure": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "decomposition.dict_learning": {
+      "pn": [
+        16,
+        16
+      ]
+    }
+  },
+  "scipy": {
+    "linalg.pinv": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "stats.contingency.margins": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "special.pbvv_seq": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "stats.mstats_basic.winsorize": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "stats.morestats.chi2_contingency": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "optimize.dual_annealing": {
+      "pn": [
+        15,
+        15
+      ]
+    },
+    "linalg.matfuncs.signm": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "linalg.lstsq": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "special.softmax": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "linalg.qz": {
+      "pn": [
+        8,
+        8
+      ]
+    },
+    "signal.findfreqs": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "stats._mstats_basic.trima": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "signal.dstep": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "stats.stats.relfreq": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "stats.bartlett": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "optimize.linprog_verbose_callback": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "stats.mstats_basic.skewtest": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "linalg.special_matrices.leslie": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "spatial.distance.is_valid_y": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "linalg.qr_delete": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "datasets.clear_cache": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "special.ber_zeros": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "signal.sosfreqz": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "stats.mstats_basic.siegelslopes": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "signal.cheb1ap": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "integrate.quadpack.quad": {
+      "pn": [
+        15,
+        15
+      ]
+    },
+    "interpolate.polyint.approximate_taylor_polynomial": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "interpolate.insert": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "signal.windows.get_window": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "stats.trimboth": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "stats.circstd": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "linalg.special_matrices.circulant": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "linalg.dft": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "stats.stats.kstest": {
+      "pn": [
+        9,
+        9
+      ]
+    },
+    "stats.mstats.kstest": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "stats.mstats.gmean": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "sparse.linalg.dsolve.spsolve": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "special.yvp": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "stats.mstats.trima": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "special.riccati_jn": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "special.kerp_zeros": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "ndimage.vectorized_filter": {
+      "pn": [
+        10,
+        10
+      ]
+    },
+    "stats.mstats_extras.median_cihs": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "stats.ttest_rel": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "stats.circvar": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "interpolate.pade": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "ndimage.grey_closing": {
+      "pn": [
+        9,
+        9
+      ]
+    },
+    "stats._mstats_basic.skew": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "signal.symiirorder1": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "stats.mstats_basic.trimmed_mean": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "stats.mstats.kurtosistest": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "interpolate.polyint.barycentric_interpolate": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "linalg.solve_discrete_lyapunov": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "linalg.matfuncs.rsf2csf": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "stats.siegelslopes": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "spatial.procrustes": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "stats.stats.tsem": {
+      "pn": [
+        7,
+        7
+      ]
+    },
+    "signal.argrelextrema": {
+      "pn": [
+        5,
+        5
+      ]
+    }
+  },
+  "requests": {
+    "get": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "cookies.create_cookie": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "models.super_len": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "adapters.extract_cookies_to_jar": {
+      "pn": [
+        3,
+        3
+      ]
+    }
+  },
+  "spacy": {
+    "util.get_minor_version_range": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "displacy.set_render_wrapper": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "lang.lex_attrs.like_email": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "ml.models.build_mean_max_reducer": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "ml.create_pretrain_vectors": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "ml.callbacks.nvtx_range_wrapper_for_pipe_method": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "cli.assemble.show_validation_error": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "lang.lex_attrs.is_space": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "util.is_minor_version_match": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "pipe_analysis.analyze_pipes": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "scorer.trapezoid": {
+      "pn": [
+        4,
+        4
+      ]
+    }
+  },
+  "torch": {
+    "cross": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "ldexp": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "diff": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "lcm_": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "sinc": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "max": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "tensor_split": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "q_per_channel_axis": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "view_as_complex_copy": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "flatten": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "allclose": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "layer_norm": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "isreal": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "sigmoid": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "qr": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "bmm": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "equal": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "bincount": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "floor_": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "arccos_": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "fmod": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "hamming_window": {
+      "pn": [
+        9,
+        9
+      ]
+    },
+    "logical_not": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "tensor": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "isclose": {
+      "pn": [
+        5,
+        5
+      ]
+    }
+  },
+  "paddle": {
+    "t": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "remainder_": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "addmm_": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "bitwise_or_": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "save": {
+      "pn": [
+        4,
+        4
+      ]
+    },
+    "unbind": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "log2_": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "dsplit": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "ones_like": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "index_fill_": {
+      "pn": [
+        5,
+        5
+      ]
+    },
+    "numel": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "greater_than_": {
+      "pn": [
+        3,
+        3
+      ]
+    },
+    "to_dlpack": {
+      "pn": [
+        1,
+        1
+      ]
+    },
+    "sgn": {
+      "pn": [
+        2,
+        2
+      ]
+    },
+    "logspace": {
+      "pn": [
+        6,
+        6
+      ]
+    },
+    "argsort": {
+      "pn": [
+        5,
+        5
+      ]
+    }
+  },
+  "prophet": {
+    "diagnostics.mdape": {
+      "pn": [
+        2,
+        2
+      ]
+    }
+  },
+  "yaml": {
+    "safe_load": {
+      "pn": [
+        1,
+        1
+      ]
+    }
+  }
+}

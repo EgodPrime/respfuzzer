@@ -5,7 +5,6 @@ import tempfile
 import time
 import traceback
 from typing import List, Optional
-from multiprocessing import Process
 
 import openai
 from loguru import logger
@@ -14,8 +13,6 @@ from tracefuzz.models import ExecutionResultType, Function, Seed
 from tracefuzz.repos.function_table import get_functions
 from tracefuzz.repos.seed_table import create_seed
 from tracefuzz.utils.config import get_config
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
-from tracefuzz.utils.process_helper import manage_process_with_timeout
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -191,7 +188,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         raise Exception(f"未包含对{full_name}的有效调用")
 """
         return res
-        
+
     def execute(self, code: str, full_name: str) -> dict:
         ret_code = 1
         stdout = ""

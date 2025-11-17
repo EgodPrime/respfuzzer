@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from multiprocessing import Process, Queue
+from time import time
 
 import dcov
 from loguru import logger
@@ -12,7 +13,8 @@ from tracefuzz.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
     instrument_function_via_path_f4a_ctx,
 )
-from tracefuzz.models import Seed
+from tracefuzz.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
+from tracefuzz.models import HasCode, Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
 from tracefuzz.utils.redis_util import get_redis_client
@@ -30,17 +32,21 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
+
     seen_library = set()
     with dcov.LoaderWrapper() as l:
         while True:
             try:
+                seed: HasCode
                 command, seed = recv.get(timeout=5)
             except TimeoutError:
                 logger.error("No command received in 5 seconds, take care!")
                 exit(1)
+
             if seed and seed.library_name not in seen_library:
                 l.add_library(seed.library_name)
                 seen_library.add(seed.library_name)
+
             match command:
                 case "execute":
                     try:
@@ -57,7 +63,7 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
                         pass
                     finally:
                         send.put("done")
-                case "fuzz_f4a":
+                case "fuzz_f4a":  # TODO: remove this branch later
                     try:
                         with instrument_function_via_path_f4a_ctx(seed.func_name):
                             exec(seed.function_call)
@@ -66,71 +72,69 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
                     finally:
                         send.put("done")
                 case "exit":
+                    logger.info("Exiting worker process as instructed.")
                     break
                 case _:
-                    logger.warning(f"Unknown command received: {command}")
+                    logger.error(f"Unknown command received: {command}")
+                    exit(1)
 
 
-def fuzz_single_seed(seed: Seed) -> int:
+def fuzz_single_seed(seed: Seed) -> None:
     """
     Fuzz a single seed with retries and monitoring.
     Returns the number of executions.
     """
     config = get_config("fuzz")
     execution_timeout = config.get("execution_timeout")
-    mutants_per_seed = config.get("data_fuzz_per_seed")
-    max_try_per_seed = config.get("max_try_per_seed")
-
-    if len(seed.args) == 0:
-        max_try_per_seed = 1
-
+    llm_fuzz_per_seed = config.get("llm_fuzz_per_seed")
+    data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
-    redis_client.hset("fuzz", "current_func", seed.func_name)
-    redis_client.hset("fuzz", "exec_cnt", 0)
-    redis_client.delete("exec_record")
 
-    logger.debug(f"seed is :\n{seed.function_call}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
+
+    t0 = time()
+    mutants = batch_random_llm_mutate_valid_only(
+        seed, llm_fuzz_per_seed, max_workers=100
+    )
+    dt = time() - t0
+    logger.info(
+        f"LLM mutation completed, generated {llm_fuzz_per_seed} mutants ({len(mutants)} valid) in {dt:.2f}s"
+    )
 
     send, recv = Queue(), Queue()
     process = Process(target=continue_safe_execute, args=(send, recv))
     process.start()
-    for attempt in range(1, max_try_per_seed + 1):
-        exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
-        logger.info(
-            f"Start fuzz seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={mutants_per_seed-exec_cnt}."
-        )
-        timeout = (max_try_per_seed - attempt + 1) * execution_timeout + (
-            mutants_per_seed - exec_cnt
-        ) / 100
+    for mutant in mutants:
+        redis_client.hset("fuzz", "current_func", seed.func_name)
+        redis_client.hset("fuzz", "exec_cnt", 0)
+        redis_client.delete("exec_record")
 
-        send.put(("fuzz", seed))
+        logger.info(
+            f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}"
+        )
+
         try:
-            recv.get(timeout=timeout)
+            send.put(("fuzz", mutant))
+            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
         except Exception:
             exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
             randome_state = redis_client.hget("exec_record", exec_cnt + 1)
-            logger.warning(
-                f"Seed {seed.id} execution {exec_cnt+1} timeout after {timeout} seconds, restarting worker process. Last random state: {randome_state}"
+            logger.info(
+                f"Mutant {mutant.id} execution {exec_cnt+1} timeout after {execution_timeout} seconds, restarting worker process. Last random state: {randome_state}"
             )
             if process.is_alive():
                 kill_process_tree_linux(process)
             else:
                 process.join()
 
-            if exec_cnt >= mutants_per_seed:
-                break
-            else:
-                send, recv = Queue(), Queue()
-                process = Process(target=continue_safe_execute, args=(send, recv))
-                process.start()
-                continue
-        send.put(("exit", None))
-        process.join()
-        break
+            send, recv = Queue(), Queue()
+            process = Process(target=continue_safe_execute, args=(send, recv))
+            process.start()
+            continue
+    send.put(("exit", None))
+    process.join()
 
-    final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
-    logger.info(f"Fuzz seed {seed.id} done with {final_exec_cnt} executions.")
-    return final_exec_cnt
+    logger.info(f"Fuzzing for seed {seed.id} completed.")
 
 
 def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> None:
@@ -152,43 +156,35 @@ def calc_initial_seed_coverage_dataset(
     dataset: dict[str, dict[str, dict[str, list[int]]]],
 ) -> int:
     logger.info("Calculating initial seed coverage for the dataset....")
-    send = Queue()
-    recv = Queue()
-    worker_process = Process(
-        target=continue_safe_execute, args=(send, recv), name="CoverageWorker"
-    )
-    worker_process.start()
+    send, recv = Queue(), Queue()
+    process = Process(target=continue_safe_execute, args=(send, recv))
+    process.start()
     for library_name in dataset:
         for func_name in dataset[library_name]:
             full_func_name = f"{library_name}.{func_name}"
             seed = get_seed_by_function_name(full_func_name)
             if not seed:
-                logger.warning(
-                    f"Seed for function {full_func_name} not found, skipping."
+                logger.error(
+                    f"Seed for function {full_func_name} not found, take care!"
                 )
-                continue
-            send.put(("execute", seed))
-            # logger.info(f"Seed for function {full_func_name} sent to worker process.")
+                exit(1)
             try:
+                send.put(("execute", seed))
                 recv.get(timeout=10)
-                # logger.info(f"Seed for function {full_func_name} executed successfully.")
             except Exception:
                 logger.warning(
                     f"Seed {seed.id} execution timeout, restarting worker process."
                 )
-                if worker_process.is_alive():
-                    kill_process_tree_linux(worker_process)
+                if process.is_alive():
+                    kill_process_tree_linux(process)
                 else:
-                    worker_process.join()
-                send = Queue()
-                recv = Queue()
-                worker_process = Process(
-                    target=continue_safe_execute, args=(send, recv)
-                )
-                worker_process.start()
+                    process.join()
+                send, recv = Queue(), Queue()
+                process = Process(target=continue_safe_execute, args=(send, recv))
+                process.start()
                 continue
     send.put(("exit", None))
-    worker_process.join()
+    process.join()
 
     p = dcov.count_bitmap_py()
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
@@ -196,6 +192,8 @@ def calc_initial_seed_coverage_dataset(
 
 def fuzz_dataset(dataset_path: str) -> None:
     """Fuzz functions specified in the dataset JSON file."""
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
@@ -208,6 +206,8 @@ def fuzz_dataset(dataset_path: str) -> None:
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:
     """Continuously fuzz functions specified in the dataset JSON file."""
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")

@@ -4,10 +4,10 @@
 """
 
 import json
-from typing import Iterator, List, Optional
 import threading
+from typing import Optional
 
-from tracefuzz.models import Argument, Mutant
+from tracefuzz.models import Mutant
 from tracefuzz.repos.base import get_db_cursor
 
 with get_db_cursor() as cur:
@@ -24,6 +24,7 @@ with get_db_cursor() as cur:
     )
 
 _db_lock = threading.Lock()
+
 
 def create_mutant(mutant: Mutant) -> Optional[int]:
     args_text = json.dumps([arg.model_dump() for arg in mutant.args])
@@ -44,10 +45,12 @@ def create_mutant(mutant: Mutant) -> Optional[int]:
             row = cur.fetchone()
             return row[0] if row is not None else None
 
+
 def delete_mutant(mutant_id: int) -> None:
     with _db_lock:
         with get_db_cursor() as cur:
             cur.execute("DELETE FROM mutant WHERE id = %s", (mutant_id,))
+
 
 def get_mutant(mutant_id: int) -> Optional[Mutant]:
     with get_db_cursor() as cur:
@@ -65,6 +68,7 @@ def get_mutant(mutant_id: int) -> Optional[Mutant]:
             )
         else:
             return None
+
 
 def update_mutant(mutant: Mutant) -> None:
     args_text = json.dumps([arg.model_dump() for arg in mutant.args])

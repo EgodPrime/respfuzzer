@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import Protocol
 
 from pydantic import BaseModel, model_validator
 
@@ -48,6 +49,7 @@ class Seed(BaseModel):
     args: list[Argument]
     function_call: str
 
+
 class Mutant(BaseModel):
     id: int | None = None
     func_id: int
@@ -56,6 +58,14 @@ class Mutant(BaseModel):
     func_name: str
     args: list[Argument]
     function_call: str
+
+
+class HasCode(Protocol):
+    id: int | None = None
+    library_name: str
+    func_name: str
+    function_call: str
+
 
 class ExecutionResultType(IntEnum):
     OK = 0

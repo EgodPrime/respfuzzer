@@ -1,8 +1,8 @@
-from asyncio.log import logger
 import multiprocessing
 import os
 import signal
 import time
+from asyncio.log import logger
 
 import psutil
 
@@ -26,7 +26,10 @@ def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1
     except:
         pass
 
-def manage_process_with_timeout(process: multiprocessing.Process, timeout: float) -> bool:
+
+def manage_process_with_timeout(
+    process: multiprocessing.Process, timeout: float
+) -> bool:
     start_time = time.time()
     process.start()
 
@@ -35,7 +38,9 @@ def manage_process_with_timeout(process: multiprocessing.Process, timeout: float
         try:
             p = psutil.Process(process.pid)
             if p.cpu_percent() > 150 or p.memory_percent() > 80:
-                logger.warning(f"Process {process.pid} resource usage too high, killing...")
+                logger.warning(
+                    f"Process {process.pid} resource usage too high, killing..."
+                )
                 break
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             break

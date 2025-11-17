@@ -8,23 +8,26 @@
 """
 
 import ast
+import io
 import random
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional
 
 from loguru import logger
 
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
-from tracefuzz.models import Seed, Mutant
+from tracefuzz.models import Mutant, Seed
 from tracefuzz.repos.mutant_table import create_mutant
-from tracefuzz.utils.llm_helper import SimpleLLMClient
 from tracefuzz.utils.config import get_config
+from tracefuzz.utils.llm_helper import SimpleLLMClient
 
 llm_cfg = get_config("llm_mutator")
 client = SimpleLLMClient(**llm_cfg)
 
 
 PROMPT_MUTATE = (
-    '"""Please create a program that mutates the input parameters of the target function call"""', 
+    '"""Please create a program that mutates the input parameters of the target function call"""',
     '"""Please create a semantically equivalent program to the previous generation"""',
     '"""Please create a program that calls other functions from the target library to form a chain of function calls"""',
     '"""Please create a simplified version of the previous generation"""',
@@ -39,10 +42,10 @@ def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
         {
             "role": "system",
             "content": (
-            "You are a helpful programming assistant."
-            "You ouput only Python code snippets without any explanations."
-            "You never generate `print` statements."
-            "You always ensure the target function is called in your code."
+                "You are a helpful programming assistant."
+                "You ouput only Python code snippets without any explanations."
+                "You never generate `print` statements."
+                "You always ensure the target function is called in your code."
             ),
         },
         {
@@ -80,46 +83,52 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
         args=seed.args,
         function_call=mutated_code,
     )
-    create_mutant(mutant)
+    mutant_id = create_mutant(mutant)
+    mutant.id = mutant_id
 
     return mutant
 
 
-def random_llm_mutate(seed: Seed) -> Mutant:
+def random_llm_mutate(seed: Seed) -> Optional[Mutant]:
     """
     随机选择一种变异类型并对种子进行变异。
     """
     mutation_type = random.randint(0, len(PROMPT_MUTATE) - 1)
-    # logger.debug(f"Randomly selected mutation type: {mutation_type}")
+    logger.trace(f"Randomly selected mutation type: {mutation_type}")
     return llm_mutate(seed, mutation_type)
 
 
-def check_syntax(code: str) -> bool:
+def filter_syntax(mutant: Mutant) -> bool:
     "使用AST检查变异代码的语法有效性。"
-
     try:
-        ast.parse(code)
-        return True
+        ast.parse(mutant.function_call)
+        return mutant
     except SyntaxError:
-        return False
+        return None
 
 
-def check_semantic(seed: Seed, mutated_code: str) -> bool:
+def filter_semantic(mutant: Mutant) -> Optional[Mutant]:
     """
     检查语义有效性（至少包含对目标函数的调用）。
     通过插桩代码并执行来验证变异代码是否调用了目标函数。
     """
     try:
-        with instrument_function_via_path_check_ctx(seed.func_name) as check_ctx:
+        sys.stdout = io.StringIO()
+        sys.stderr = io.StringIO()
+        with instrument_function_via_path_check_ctx(mutant.func_name) as check_ctx:
             if check_ctx is None:  # pragma: no cover
                 logger.error(
-                    f"Failed to instrument function {seed.func_name} for semantic check."
+                    f"Failed to instrument function {mutant.func_name} for semantic check."
                 )  # pragma: no cover
-                return False  # pragma: no cover
-            exec(mutated_code)
-            return check_ctx.called
+                return None  # pragma: no cover
+            exec(mutant.function_call)
+            if check_ctx.called:
+                return mutant
     except Exception:  # pragma: no cover
-        return False  # pragma: no cover
+        return None  # pragma: no cover
+    finally:
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
 
 
 def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
@@ -144,7 +153,7 @@ def batch_random_llm_mutate_valid_only(
     valid_mutants = []
     # 先检查语法
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(check_syntax, mutant.function_call): mutant for mutant in mutants}
+        futures = {executor.submit(filter_syntax, mutant): mutant for mutant in mutants}
         for future in as_completed(futures):
             mutant = futures[future]
             if future.result():
@@ -153,7 +162,7 @@ def batch_random_llm_mutate_valid_only(
     # 再检查语义
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {
-            executor.submit(check_semantic, seed, mutant.function_call): mutant for mutant in valid_mutants
+            executor.submit(filter_semantic, mutant): mutant for mutant in valid_mutants
         }
         for future in as_completed(futures):
             mutant = futures[future]

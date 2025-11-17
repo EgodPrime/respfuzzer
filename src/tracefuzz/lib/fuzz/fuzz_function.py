@@ -57,17 +57,17 @@ def execute_once(func: Callable, *args, **kwargs):
         logger.warning(
             f"TimeoutError during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
         )
-        raise e
+        raise te
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        seed_id = rc.hget("fuzz", "seed_id")
-        exec_cnt = rc.hget("fuzz", "exec_cnt")
-        exec_cnt = int(exec_cnt) if exec_cnt else 0
-        random_state = rc.hget("exec_record", exec_cnt + 1)
-        exception_type = type(e).__name__
-        logger.warning(
-            f"{exception_type} during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
-        )
+        # seed_id = rc.hget("fuzz", "seed_id")
+        # exec_cnt = rc.hget("fuzz", "exec_cnt")
+        # exec_cnt = int(exec_cnt) if exec_cnt else 0
+        # random_state = rc.hget("exec_record", exec_cnt + 1)
+        # exception_type = type(e).__name__
+        # logger.warning(
+        #     f"{exception_type} during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
+        # )
         pass
 
 
@@ -133,7 +133,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
         execute_once(func, *args, **kwargs)
         return
 
-    logger.info(f"Start fuzz {full_name}")
+    logger.debug(f"Start fuzz {full_name}")
     rc.hset("fuzz", "current_func", full_name)
 
     for i in range(exec_cnt + 1, data_fuzz_per_seed + 1):
@@ -151,7 +151,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
         """
         rc.hincrby("fuzz", "exec_cnt", 1)
 
-    logger.info(f"Fuzz {full_name} done")
+    logger.debug(f"Fuzz {full_name} done")
 
 
 def replay_fuzz(func: Callable, *args, **kwargs) -> None:

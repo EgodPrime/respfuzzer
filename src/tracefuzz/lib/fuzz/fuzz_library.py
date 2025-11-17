@@ -1,23 +1,19 @@
 import io
-import multiprocessing
 import os
-import signal
 import sys
 import time
 from multiprocessing import Process
 
-import psutil  # 新增：用于监控资源
 import redis
 from loguru import logger
 
 from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_ctx
+from tracefuzz.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seeds_iter
 from tracefuzz.utils.config import get_config
-from tracefuzz.utils.paths import FUZZ_BLACKLIST_PATH
+from tracefuzz.utils.process_helper import manage_process_with_timeout
 from tracefuzz.utils.redis_util import get_redis_client
-from tracefuzz.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
-from tracefuzz.utils.process_helper import kill_process_tree_linux, manage_process_with_timeout
 
 
 def safe_fuzz(seed: Seed) -> None:
@@ -30,7 +26,7 @@ def safe_fuzz(seed: Seed) -> None:
     sys.stdout = fake_stdout
     sys.stderr = fake_stderr
 
-    logger.info(
+    logger.debug(
         f"Safe fuzzing seed {seed.id}: {seed.func_name} with PID {os.getpid()}, PGID {os.getpgid(0)}"
     )
 
@@ -43,6 +39,7 @@ def safe_fuzz(seed: Seed) -> None:
         logger.error(f"Seems seed {seed.id} is invalid:\n{e}")
         # traceback.print_stack()
         raise e
+
 
 def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> None:
     """
@@ -59,13 +56,14 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> Non
     redis_client.hset("fuzz", "current_func", seed.func_name)
 
     t0 = time.time()
-    mutants = batch_random_llm_mutate_valid_only(seed, llm_fuzz_per_seed, max_workers=100)
+    mutants = batch_random_llm_mutate_valid_only(
+        seed, llm_fuzz_per_seed, max_workers=100
+    )
     dt = time.time() - t0
     logger.info(
         f"LLM mutation completed, generated {len(mutants)}/{llm_fuzz_per_seed} mutants in {dt:.2f}s"
     )
-    
-    
+
     for mutant in mutants:
         logger.debug(f"LLM mutated code for seed {seed.id}:\n{mutant.function_call}\n")
         redis_client.hset("fuzz", "exec_cnt", 0)
@@ -75,8 +73,8 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> Non
             exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
             if exec_cnt >= data_fuzz_per_seed:
                 break
-            process = Process(target=safe_fuzz, args=(seed,))
-            
+            process = Process(target=safe_fuzz, args=(mutant,))
+
             """动态调整超时时间
             总时间 = 固定时间 + 浮动时间
             固定时间=execution_timeout
@@ -87,7 +85,7 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> Non
             """
             timeout = execution_timeout + (data_fuzz_per_seed - exec_cnt) / 100
 
-            logger.info(
+            logger.debug(
                 f"Start fuzz mutant {mutant.id} of seed {seed.id} ({seed.func_name}), attempt={attempt}, exec_cnt_res={data_fuzz_per_seed-exec_cnt}, process PID={process.pid}"
             )
             success = manage_process_with_timeout(process, timeout)
@@ -95,30 +93,28 @@ def fuzz_single_seed(seed: Seed, config: dict, redis_client: redis.Redis) -> Non
             if not success:
                 exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
                 randome_state = redis_client.hget("exec_record", exec_cnt + 1)
-                logger.warning(
+                logger.info(
                     f"Mutant {mutant.id} of seed {seed.id} not completed successfully with random state {randome_state}."
                 )
                 continue  # 重试
 
         final_exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
-        logger.info(f"Finished fuzzing mutant {mutant.id} of seed {seed.id}, total executions: {final_exec_cnt}")
+        logger.info(
+            f"Finished fuzzing mutant {mutant.id} of seed {seed.id}, total executions: {final_exec_cnt}"
+        )
 
 
 def fuzz_one_library(library_name: str) -> None:
     """
     Fuzz the specified library with seeds from the database.
     """
+
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
+
     config = get_config("fuzz")
     redis_client = get_redis_client()
     redis_client.delete("fuzz")
 
-    blacklist = set()
-    if FUZZ_BLACKLIST_PATH.exists():
-        with open(FUZZ_BLACKLIST_PATH, "r") as f:
-            blacklist = {line.strip() for line in f}
-
     for seed in get_seeds_iter(library_name):
-        if seed.func_name in blacklist:
-            logger.info(f"Skipping blacklisted function: {seed.func_name}")
-            continue
         fuzz_single_seed(seed, config, redis_client)

@@ -15,6 +15,7 @@ TEMPERATURE = llm_cfg.get("temperature", 0.7)
 
 client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
+
 class SimpleLLMClient:
     def __init__(self, **cfg):
         self.client = openai.OpenAI(
@@ -31,15 +32,16 @@ class SimpleLLMClient:
             **kwargs,
         )
         return response.choices[0].message.content
-    
+
     def chat(self, messages, **kwargs) -> str:
         if "temperature" not in kwargs:
             kwargs["temperature"] = self.temperature
         return self._chat(messages, **kwargs)
-    
+
     def query(self, prompt: str, **kwargs) -> str:
         messages = [{"role": "user", "content": prompt}]
         return self.chat(messages, **kwargs)
+
 
 def _chat(messages, **kwargs) -> str:
     response = client.chat.completions.create(

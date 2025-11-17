@@ -1,5 +1,5 @@
-import sqlite3
 from contextlib import contextmanager
+
 import psycopg2
 
 from tracefuzz.utils.config import get_config
@@ -28,6 +28,7 @@ db_path = RUNDATA_DIR.joinpath(db_name)
 #     finally:
 #         cur.close()
 #         conn.close()
+
 
 @contextmanager
 def get_db_cursor(commit: bool = True):
