@@ -8,7 +8,6 @@ from time import time
 import dcov
 from loguru import logger
 
-from tracefuzz.lib.fuzz.fuzz_library import kill_process_tree_linux
 from tracefuzz.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
     instrument_function_via_path_f4a_ctx,
@@ -17,6 +16,7 @@ from tracefuzz.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
 from tracefuzz.models import HasCode, Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
+from tracefuzz.utils.process_helper import kill_process_tree_linux
 from tracefuzz.utils.redis_util import get_redis_client
 
 

@@ -158,14 +158,15 @@ def batch_random_llm_mutate_valid_only(
             mutant = futures[future]
             if future.result():
                 valid_mutants.append(mutant)
-    final_valid_mutants = []
-    # 再检查语义
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(filter_semantic, mutant): mutant for mutant in valid_mutants
-        }
-        for future in as_completed(futures):
-            mutant = futures[future]
-            if future.result():
-                final_valid_mutants.append(mutant)
-    return final_valid_mutants
+    return valid_mutants
+    # final_valid_mutants = []
+    # # 再检查语义
+    # with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    #     futures = {
+    #         executor.submit(filter_semantic, mutant): mutant for mutant in valid_mutants
+    #     }
+    #     for future in as_completed(futures):
+    #         mutant = futures[future]
+    #         if future.result():
+    #             final_valid_mutants.append(mutant)
+    # return final_valid_mutants

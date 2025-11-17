@@ -3,9 +3,9 @@
 
 
 一共有4个数据库，对应四个对照组：
-- rq2_111: CSG + SAE + DRM
-- rq2_110: CSG + SAE
-- rq2_101: CSG + DRM
+- rq2_111: CSG + SCE + DCM
+- rq2_110: CSG + SCE
+- rq2_101: CSG + DCM
 - rq2_100: CSG only
 
 通过`get_data_for_view_from_postgresql`函数获取每个数据库的结果数据，Data 形式：
@@ -103,9 +103,9 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     """绘制 RQ1 结果图表
 
     Args:
-        data_111 (dict): CSG+SAE+DRM
-        data_110 (dict): CSG+SAE
-        data_101 (dict): CSG+DRM
+        data_111 (dict): CSG+SCE+DCM
+        data_110 (dict): CSG+SCE
+        data_101 (dict): CSG+DCM
         data_100 (dict): CSG only
     """
     library_names = list(data_111.keys())
@@ -124,9 +124,9 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
     report  = (
         f"Average Function Coverage Rate:\n"
-        f"CSG+SAE+DRM: {average_111:.2f}%\n"
-        f"CSG+SAE: {average_110:.2f}%\n"
-        f"CSG+DRM: {average_101:.2f}%\n"
+        f"CSG+SCE+DCM: {average_111:.2f}%\n"
+        f"CSG+SCE: {average_110:.2f}%\n"
+        f"CSG+DCM: {average_101:.2f}%\n"
         f"CSG only: {average_100:.2f}%\n"
     )
     print(report)
@@ -137,9 +137,9 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     top_values_100 = [data_100[lib_name]["tf_solved_percent"] for lib_name in library_map]
 
 
-    plot_one_bar(x_data, y_data_111, top_values=top_values_111, offset=-0.3, x_ticks=library_names, ax=ax, label="CSG+SAE+DRM")
-    plot_one_bar(x_data, y_data_110, top_values=top_values_110, offset=-0.1, x_ticks=library_names, ax=ax, label="CSG+SAE")
-    plot_one_bar(x_data, y_data_101, top_values=top_values_101, offset=0.1, x_ticks=library_names, ax=ax, label="CSG+DRM")
+    plot_one_bar(x_data, y_data_111, top_values=top_values_111, offset=-0.3, x_ticks=library_names, ax=ax, label="CSG+SCE+DCM")
+    plot_one_bar(x_data, y_data_110, top_values=top_values_110, offset=-0.1, x_ticks=library_names, ax=ax, label="CSG+SCE")
+    plot_one_bar(x_data, y_data_101, top_values=top_values_101, offset=0.1, x_ticks=library_names, ax=ax, label="CSG+DCM")
     plot_one_bar(x_data, y_data_100, top_values=top_values_100, offset=0.3, x_ticks=library_names, ax=ax, label="CSG only")
 
     ax.set_xticks(x_data)
@@ -154,9 +154,9 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
 if __name__ == "__main__":
     db_files = {
-        "CSG+SAE+DRM": "rq2_111",
-        "CSG+SAE": "rq2_110",
-        "CSG+DRM": "rq2_101",
+        "CSG+SCE+DCM": "rq2_111",
+        "CSG+SCE": "rq2_110",
+        "CSG+DCM": "rq2_101",
         "CSG only": "rq2_100",
     }
 
@@ -165,9 +165,9 @@ if __name__ == "__main__":
         data_results[label] = get_data_for_view_from_postgresql(db_file)
 
     plot_RQ1(
-        data_111=data_results["CSG+SAE+DRM"],
-        data_110=data_results["CSG+SAE"],
-        data_101=data_results["CSG+DRM"],
+        data_111=data_results["CSG+SCE+DCM"],
+        data_110=data_results["CSG+SCE"],
+        data_101=data_results["CSG+DCM"],
         data_100=data_results["CSG only"]
     )
 
