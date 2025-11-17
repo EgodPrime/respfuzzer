@@ -8,9 +8,7 @@ from tracefuzz.models import Seed
 from tracefuzz.utils.config import get_config
 
 cfg = get_config("fuzz4all")
-llm_cfg = get_config("llm")
-
-# logger.debug(f"LLM Config: {llm_cfg}")
+llm_cfg = get_config("llm_mutator")
 
 client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 

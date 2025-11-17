@@ -13,9 +13,8 @@ import fire
 import psutil
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
-from tracefuzz.lib.fuzz.fuzz_library import kill_process_tree_linux, manage_process_with_timeout
+from tracefuzz.utils.process_helper import kill_process_tree_linux, manage_process_with_timeout
 from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset, continue_safe_execute
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_f4a
 from tracefuzz.models import Seed
 from tracefuzz.repos.seed_table import get_seed_by_function_name
 from tracefuzz.utils.config import get_config
@@ -71,11 +70,11 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
         t0 = time.time()
         batch = f4a_mutator.generate_n(batch_size)
         dt = time.time() - t0
-        logger.debug(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds.")
+        logger.info(f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds.")
 
         for mutated_call in batch:
             v_process = Process(target=validate_test_case, args=(mutated_call,), name="ValidationWorker")
-            res = manage_process_with_timeout(v_process, execution_timeout, seed.id)
+            res = manage_process_with_timeout(v_process, execution_timeout)
             if not res:
                 continue
             try:
@@ -140,6 +139,8 @@ def fuzz_dataset(dataset_path: str) -> None:
     """
     Fuzz the dataset.
     """
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
 
@@ -151,26 +152,12 @@ def fuzz_dataset(dataset_path: str) -> None:
     calc_initial_seed_coverage_dataset(dataset)
     _fuzz_dataset(dataset, "execute")
 
-def fuzz_dataset_mix(dataset_path: str) -> None:
-    """
-    Fuzz the dataset with TraceFuzz enabled.
-    """
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
-
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
-    calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(dataset, "fuzz_f4a")
-
-
 def fuzz_dataset_infinite(dataset_path: str) -> None:
     """
     Fuzz the dataset in an infinite loop.
     """
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
 
@@ -187,32 +174,11 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
             logger.info("Fuzzing interrupted by user. Have a nice day!")
             break
 
-def fuzz_dataset_mix_infinite(dataset_path: str) -> None:
-    """
-    Fuzz the dataset with TraceFuzz enabled in an infinite loop.
-    """
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
-
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
-
-    while True:
-        try:
-            _fuzz_dataset(dataset, "fuzz_f4a")
-        except KeyboardInterrupt:
-            logger.info("Fuzzing interrupted by user. Have a nice day!")
-            break
 
 def main():
     fire.Fire({
         "normal": fuzz_dataset,
-        "mix": fuzz_dataset_mix,
         "infinite": fuzz_dataset_infinite,
-        "mix_infinite": fuzz_dataset_mix_infinite,
     })
 
 
