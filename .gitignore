@@ -28,3 +28,4 @@ experiments/**/RQ*.jpg
 experiments/**/RQ*.pdf
 experiments/RQ4/*.json
 experiments/**/*.log
+experiments/**/*.db
