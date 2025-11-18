@@ -89,7 +89,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
             send.put((command, t_seed))
             logger.debug(f"Sent mutated call to worker: {mutated_call}")
             try:
-                recv.get(timeout=execution_timeout*5)
+                recv.get(timeout=execution_timeout)
             except Exception:
                 logger.warning(f"Mutated call execution timeout after {execution_timeout*5} seconds, restarting worker process.")
                 kill_process_tree_linux(process)
