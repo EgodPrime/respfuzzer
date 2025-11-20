@@ -79,7 +79,9 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
                     exit(1)
 
 
-def fuzz_single_seed(seed: Seed) -> None:
+def fuzz_single_seed(
+    seed: Seed, enable_llm_mutation: bool = True, enable_parameter_mutation: bool = True
+) -> None:
     """
     Fuzz a single seed with retries and monitoring.
     Returns the number of executions.
@@ -92,14 +94,17 @@ def fuzz_single_seed(seed: Seed) -> None:
 
     logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
 
-    t0 = time()
-    mutants = batch_random_llm_mutate_valid_only(
-        seed, llm_fuzz_per_seed, max_workers=100
-    )
-    dt = time() - t0
-    logger.info(
-        f"LLM mutation completed, generated {llm_fuzz_per_seed} mutants ({len(mutants)} valid) in {dt:.2f}s"
-    )
+    if enable_llm_mutation:
+        t0 = time()
+        mutants = batch_random_llm_mutate_valid_only(
+            seed, llm_fuzz_per_seed, max_workers=100
+        )
+        dt = time() - t0
+        logger.info(
+            f"LLM mutation completed, generated {llm_fuzz_per_seed} mutants ({len(mutants)} valid) in {dt:.2f}s"
+        )
+    else:
+        mutants = [seed]
 
     send, recv = Queue(), Queue()
     process = Process(target=continue_safe_execute, args=(send, recv))
@@ -114,7 +119,10 @@ def fuzz_single_seed(seed: Seed) -> None:
         )
 
         try:
-            send.put(("fuzz", mutant))
+            if enable_parameter_mutation:
+                send.put(("fuzz", mutant))
+            else:
+                send.put(("execute", mutant))
             recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
         except Exception:
             exec_cnt = int(redis_client.hget("fuzz", "exec_cnt") or 0)
@@ -137,7 +145,11 @@ def fuzz_single_seed(seed: Seed) -> None:
     logger.info(f"Fuzzing for seed {seed.id} completed.")
 
 
-def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> None:
+def _fuzz_dataset(
+    dataset: dict[str, dict[str, dict[str, list[int]]]],
+    enable_llm_mutation: bool = True,
+    enable_parameter_mutation: bool = True,
+) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
@@ -147,7 +159,11 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]]) -> None:
             seed = get_seed_by_function_name(full_func_name)
             if not seed:
                 continue
-            fuzz_single_seed(seed)
+            fuzz_single_seed(
+                seed,
+                enable_llm_mutation=enable_llm_mutation,
+                enable_parameter_mutation=enable_parameter_mutation,
+            )
             p = dcov.count_bitmap_py()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
 
@@ -190,7 +206,11 @@ def calc_initial_seed_coverage_dataset(
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
 
 
-def fuzz_dataset(dataset_path: str) -> None:
+def fuzz_dataset(
+    dataset_path: str,
+    enable_llm_mutation: bool = True,
+    enable_parameter_mutation: bool = True,
+) -> None:
     """Fuzz functions specified in the dataset JSON file."""
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
@@ -201,7 +221,11 @@ def fuzz_dataset(dataset_path: str) -> None:
         open(dataset_path, "r")
     )
     calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(dataset)
+    _fuzz_dataset(
+        dataset,
+        enable_llm_mutation=enable_llm_mutation,
+        enable_parameter_mutation=enable_parameter_mutation,
+    )
 
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:

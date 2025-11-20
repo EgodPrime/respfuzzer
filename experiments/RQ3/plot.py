@@ -1,13 +1,6 @@
 """
-存在TraceFuzz、DyFuzz、Fuzz4All三种Fuzzer不同形式的日志，需要先做数据预处理，然后复用同一个绘图函数进行绘图
+存在TraceFuzz、DyFuzz、Fuzz4All三种Fuzzer的日志，需要先做数据预处理，然后复用同一个绘图函数进行绘图
 
-TraceFuzz logs:
-2025-10-19 08:30:36.691 | INFO     | tracefuzz.fuzz.fuzz_dataset:fuzz_dataset:131 - Current coverage after fuzzing nltk.tag.tnt.demo: 11383 bits.
-
-DyFuzz logs:
-2025-10-19 08:10:32.924 | INFO     | __main__:<module>:220 - Coverage now: 11179
-
-Fuzz4All logs:
 2025-10-19 21:23:12.357 | INFO     | __main__:fuzz_dataset:150 - Current coverage after fuzzing paddle.log10_: 210141 bits.
 
 对于上述三种日志格式，需要设计三个不同的regex来提取coverage数值和time_used，然后将其传递给同一个plot函数进行绘图
@@ -22,13 +15,12 @@ Fuzz4All logs:
 """
 
 from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime
 import re
 
 time_start_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})"
-tracefuzz_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Current coverage after fuzzing .*: (\d+) bits"
-dyfuzz_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Coverage now: (\d+)"
-fuzz4all_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Current coverage after fuzzing .*: (\d+) bits"
+coverage_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Current coverage after fuzzing .*: (\d+) bits"
 
 def convert_logtime_to_timestamp(log_time_str: str) -> float:
     """Convert log time string to timestamp.
@@ -96,7 +88,7 @@ def plot_x_y(x_data: list, y_data: list, title: str, x_label: str, y_label: str,
     # note the value of the last y_data point
     last_y = y_data[-1] if y_data else 0
     # annotate the last point with its value
-    ax.annotate(f'{int(last_y)}', xy=(x_data[-1], last_y), xytext=(5, 0), textcoords='offset points')
+    # ax.annotate(f'{int(last_y)}', xy=(x_data[-1], last_y), xytext=(5, 0), textcoords='offset points')
     ax.grid(axis='y')
 
 def plot_coverage(data: list[dict], title: str, marker:str, ax: plt.Axes):
@@ -136,47 +128,61 @@ def plot_time_used(data: list[dict], title: str, marker:str, ax: plt.Axes):
         ax=ax
     )
 
-def plot_all(tracefuzz_data: list[dict], dyfuzz_data: list[dict], fuzz4all_data: list[dict], fuzz4all_mix_data: list[dict]):
-    """Plot coverage and time used for all three fuzzers.
-
-    Args:
-        tracefuzz_data (list[dict]): TraceFuzz data.
-        dyfuzz_data (list[dict]): DyFuzz data.
-        fuzz4all_data (list[dict]): Fuzz4All data.
+def plot_all(data: dict[str, list[dict]]):
+    """Plot coverage and time used for all fuzzers.
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
-    plot_coverage(tracefuzz_data, 'Coverage Comparison', marker='o', ax=ax1)
-    plot_coverage(dyfuzz_data, 'Coverage Comparison', marker='s', ax=ax1)
-    plot_coverage(fuzz4all_data, 'Coverage Comparison', marker='^', ax=ax1)
-    plot_coverage(fuzz4all_mix_data, 'Coverage Comparison', marker='d', ax=ax1)
-    ax1.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All', 'Fuzz4All Mix'])
+    for fuzzer_name, fuzzer_data in data.items():
+        plot_coverage(fuzzer_data, 'Coverage Comparison', marker='o', ax=ax1)
+        plot_time_used(fuzzer_data, 'Time Used Comparison', marker='o', ax=ax2)
+    ax1.legend(data.keys())
+    ax2.legend(data.keys())
 
-    plot_time_used(tracefuzz_data, 'Time Used Comparison', marker='o', ax=ax2)
-    plot_time_used(dyfuzz_data, 'Time Used Comparison', marker='s', ax=ax2)
-    plot_time_used(fuzz4all_data, 'Time Used Comparison', marker='^', ax=ax2)
-    plot_time_used(fuzz4all_mix_data, 'Time Used Comparison', marker='d', ax=ax2)
-    ax2.legend(['TraceFuzz', 'DyFuzz', 'Fuzz4All', 'Fuzz4All Mix'])
+    # fig, ax1 = plt.subplots(1, 1, figsize=(10, 6))
+
+    # plot_coverage(respfuzzer_data, 'Coverage Comparison', marker='o', ax=ax1)
+    # plot_coverage(dyfuzz_data, 'Coverage Comparison', marker='s', ax=ax1)
+    # plot_coverage(fuzz4all_data, 'Coverage Comparison', marker='^', ax=ax1)
+    # ax1.legend(['RespFuzzer', 'DyFuzz', 'Fuzz4All'])
 
     plt.tight_layout()
 
 
 if __name__ == "__main__":
-    with open("202510241259-RQ2-tracefuzz.log", "r") as f:
-        tracefuzz_lines = f.readlines()
-    with open("202510241821-RQ2-dyfuzz.log", "r") as f:
+    with open("RQ3-respfuzzer-202511191126.log", "r") as f:
+        respfuzzer_lines = f.readlines()
+    with open("RQ3-respfuzzer-llm-only-10-202511191214.log", "r") as f:
+        respfuzzer_llm_only_10_lines = f.readlines()
+    with open("RQ3-respfuzzer-llm-only-202511182102.log", "r") as f:
+        respfuzzer_llm_only_lines = f.readlines()
+    with open("RQ3-respfuzzer-parameter-only-202511182344.log", "r") as f:
+        respfuzzer_parameter_only_lines = f.readlines()
+    with open("RQ3-dyfuzz-202511181926.log", "r") as f:
         dyfuzz_lines = f.readlines()
-    with open("202510241254-RQ2-fuzz4all.log", "r") as f:
+    with open("RQ3-fuzz4all-202511181925.log", "r") as f:
         fuzz4all_lines = f.readlines()
-    with open("202510271008-RQ2-fuzz4all-mix.log", "r") as f:
-        fuzz4all_mix_lines = f.readlines()
 
-    tracefuzz_data = extract_fuzz_data(tracefuzz_lines, tracefuzz_pattern)
-    dyfuzz_data = extract_fuzz_data(dyfuzz_lines, fuzz4all_pattern)
-    # dyfuzz_data = extract_fuzz_data(dyfuzz_lines, dyfuzz_pattern)
-    fuzz4all_data = extract_fuzz_data(fuzz4all_lines, fuzz4all_pattern)
-    fuzz4all_mix_data = extract_fuzz_data(fuzz4all_mix_lines, fuzz4all_pattern)
 
-    plot_all(tracefuzz_data, dyfuzz_data, fuzz4all_data, fuzz4all_mix_data)
+    respfuzzer_data = extract_fuzz_data(respfuzzer_lines, coverage_pattern)
+    respfuzzer_llm_only_10_data = extract_fuzz_data(respfuzzer_llm_only_10_lines, coverage_pattern)
+    respfuzzer_llm_only_data = extract_fuzz_data(respfuzzer_llm_only_lines, coverage_pattern)
+    respfuzzer_parameter_only_data = extract_fuzz_data(respfuzzer_parameter_only_lines, coverage_pattern)
+    dyfuzz_data = extract_fuzz_data(dyfuzz_lines, coverage_pattern)
+    fuzz4all_data = extract_fuzz_data(fuzz4all_lines, coverage_pattern)
 
-    plt.savefig("RQ3.pdf", dpi=300)
+    data = {
+        'DyFuzz': dyfuzz_data,
+        'Fuzz4All': fuzz4all_data,
+        'RespFuzzer': respfuzzer_data,
+        'RespFuzzer-LLM-Only-10': respfuzzer_llm_only_10_data,
+        'RespFuzzer-LLM-Only': respfuzzer_llm_only_data,
+        'RespFuzzer-Param-Only': respfuzzer_parameter_only_data
+    }
+
+    plot_all(data)
+
+    pp = PdfPages("RQ3.pdf")
+    pp.savefig(dpi=300)
+    pp.close()
+    # plt.savefig("RQ3.pdf", dpi=600)
