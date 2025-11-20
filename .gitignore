@@ -29,3 +29,5 @@ experiments/**/RQ*.pdf
 experiments/RQ4/*.json
 experiments/**/*.log
 experiments/**/*.db
+experiments/RQ4/codeql*
+experiments/RQ4/SecurityEval
