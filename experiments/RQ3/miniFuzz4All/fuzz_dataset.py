@@ -91,7 +91,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
             try:
                 recv.get(timeout=execution_timeout)
             except Exception:
-                logger.warning(f"Mutated call execution timeout after {execution_timeout*5} seconds, restarting worker process.")
+                logger.warning(f"Mutated call execution timeout after {execution_timeout} seconds, restarting worker process.")
                 kill_process_tree_linux(process)
                 try:
                     os.waitpid(-1, os.WNOHANG)
