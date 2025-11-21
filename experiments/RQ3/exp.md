@@ -60,3 +60,8 @@ cd {RESPFUZZER}/experiments/RQ3/DyFuzz
 ## DyFuzz can handle its fuzzing garbage by itself
 python run_respfuzzer.py
 ```
+
+## How to plot a similar figure in our paper
+```bash
+uv run plot.py
+```

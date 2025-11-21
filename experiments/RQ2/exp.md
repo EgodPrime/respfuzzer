@@ -104,5 +104,5 @@ SELECT t1.library_name,
 ## How to plot a similar figure in our paper
 ```bash
 # This will generate a figure named `RQ2.pdf` in the current directory.
-python plot.py
+uv run plot.py
 ```

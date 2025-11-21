@@ -1,5 +1,5 @@
 """
-存在TraceFuzz、DyFuzz、Fuzz4All三种Fuzzer的日志，需要先做数据预处理，然后复用同一个绘图函数进行绘图
+存在RespFuzzer、DyFuzz、Fuzz4All三种Fuzzer的日志，需要先做数据预处理，然后复用同一个绘图函数进行绘图
 
 2025-10-19 21:23:12.357 | INFO     | __main__:fuzz_dataset:150 - Current coverage after fuzzing paddle.log10_: 210141 bits.
 
