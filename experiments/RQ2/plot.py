@@ -99,8 +99,8 @@ def plot_one_bar(x_data:list, y_data:list, top_values:list[int], offset:float, x
             rotation=90
         )
 
-def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
-    """绘制 RQ1 结果图表
+def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
+    """绘制 RQ2 结果图表
 
     Args:
         data_111 (dict): CSG+SCE+DCM
@@ -111,7 +111,7 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     library_names = list(data_111.keys())
     x_data = list(range(len(library_names)))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(10, 5))
 
     y_data_111 = [float(data_111[lib_name]["tf_solved_percent"].strip('%')) for lib_name in library_map]
     average_111 = sum(y_data_111) / len(y_data_111)
@@ -124,10 +124,10 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
     report  = (
         f"Average Function Coverage Rate:\n"
-        f"CSG+SCE+DCM: {average_111:.2f}%\n"
-        f"CSG+SCE: {average_110:.2f}%\n"
-        f"CSG+DCM: {average_101:.2f}%\n"
-        f"CSG only: {average_100:.2f}%\n"
+        f"SCE+RCM: {average_111:.2f}%\n"
+        f"SCE-only: {average_110:.2f}%\n"
+        f"DCM-only: {average_101:.2f}%\n"
+        f"Baseline: {average_100:.2f}%\n"
     )
     print(report)
 
@@ -145,30 +145,32 @@ def plot_RQ1(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     ax.set_xticks(x_data)
     ax.set_xticklabels(library_map.values(), rotation=45, ha='right')
     ax.set_ylabel('Function Coverage Rate (%)')
-    ax.set_title('RQ1 (Draft)')
+    ax.set_title('FCR Results Across Different Configurations')
+    # 适当增加y轴上限，避免柱子标签与顶部重叠
+    ax.set_ylim(0, 120)
     # bottom right
-    ax.legend(loc='lower right')
+    ax.legend(loc='lower left')
     ax.grid(axis='y')
 
     plt.tight_layout()
 
 if __name__ == "__main__":
     db_files = {
-        "CSG+SCE+DCM": "rq2_111",
-        "CSG+SCE": "rq2_110",
-        "CSG+DCM": "rq2_101",
-        "CSG only": "rq2_100",
+        "SCE+RCM": "rq2_111",
+        "SCE-only": "rq2_110",
+        "DCM-only": "rq2_101",
+        "Baseline": "rq2_100",
     }
 
     data_results = {}
     for label, db_file in db_files.items():
         data_results[label] = get_data_for_view_from_postgresql(db_file)
 
-    plot_RQ1(
-        data_111=data_results["CSG+SCE+DCM"],
-        data_110=data_results["CSG+SCE"],
-        data_101=data_results["CSG+DCM"],
-        data_100=data_results["CSG only"]
+    plot_RQ2(
+        data_111=data_results["SCE+RCM"],
+        data_110=data_results["SCE-only"],
+        data_101=data_results["DCM-only"],
+        data_100=data_results["Baseline"]
     )
 
     plt.savefig("RQ2.pdf", dpi=300)

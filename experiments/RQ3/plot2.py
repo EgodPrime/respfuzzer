@@ -94,6 +94,13 @@ def get_band_data(log_prefix: str) -> dict[str, list[dict]]:
             if func_iter < len(data):
                 coverage_values.append(data[func_iter]['coverage'])
                 time_used_values.append(data[func_iter]['time_used'])
+        # 如果样本数量大于3，则删除最高和最低值
+        if len(coverage_values) > 3:
+            coverage_values.remove(max(coverage_values))
+            coverage_values.remove(min(coverage_values))
+        if len(time_used_values) > 3:
+            time_used_values.remove(max(time_used_values))
+            time_used_values.remove(min(time_used_values))
         if coverage_values:
             coverage_data.append({
                 'func_iter': func_iter,
@@ -128,8 +135,8 @@ def plot_band(data: list[dict], legend:str, title: str, x_label: str, y_label: s
     avg_y_data = [entry['avg'] for entry in data]
 
     # fill_between和plot应该使用相同的颜色，但是颜色深浅不同且fill_between有透明度
-    ax.fill_between(x_data, min_y_data, max_y_data, alpha=0.3, color=color)
-    ax.plot(x_data, avg_y_data, color=color, label=legend)
+    ax.fill_between(x_data, min_y_data, max_y_data, alpha=0.5, facecolor=color)
+    ax.plot(x_data, avg_y_data, color=color, label=legend, linewidth=0.1)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(title)
@@ -140,7 +147,7 @@ def plot_band(data: list[dict], legend:str, title: str, x_label: str, y_label: s
 def plot_all(data: dict[str, dict[str, list[dict]]]):
     """Plot coverage and time used for all fuzzers.
     """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
     colors = ['blue', 'green', 'red', 'purple', 'orange', 'brown']
 
@@ -159,9 +166,10 @@ if __name__ == "__main__":
         'DyFuzz': get_band_data('RQ3-dyfuzz'),
         'Fuzz4All': get_band_data('RQ3-fuzz4all'),
         'RespFuzzer': get_band_data('RQ3-respfuzzer-10-10-'),
-        'RespFuzzer-LLM-Only-10': get_band_data('RQ3-respfuzzer-llm-only-10-'),
-        'RespFuzzer-LLM-Only': get_band_data('RQ3-respfuzzer-llm-only-100-'),
-        'RespFuzzer-Param-Only': get_band_data('RQ3-respfuzzer-parameter-only-100-')
+        # 'RespFuzzer-100-100': get_band_data('RQ3-respfuzzer-100-100-'),
+        # 'RespFuzzer-LLM-Only-10': get_band_data('RQ3-respfuzzer-llm-only-10-'),
+        # 'RespFuzzer-LLM-Only-100': get_band_data('RQ3-respfuzzer-llm-only-100-'),
+        # 'RespFuzzer-Param-Only': get_band_data('RQ3-respfuzzer-parameter-only-100-')
     }
 
     plot_all(data)
@@ -169,3 +177,9 @@ if __name__ == "__main__":
     pp = PdfPages("RQ3.pdf")
     pp.savefig(dpi=300)
     pp.close()
+
+    # 汇报统计数据
+    for fuzzer_name, fuzzer_data in data.items():
+        final_coverage = fuzzer_data['coverage'][-1]['avg']
+        total_time_used = fuzzer_data['time_used'][-1]['avg']
+        print(f"{fuzzer_name}: Final Coverage = {int(final_coverage)}, Total Time Used = {int(total_time_used)} s")

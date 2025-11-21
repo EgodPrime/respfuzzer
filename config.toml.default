@@ -5,7 +5,7 @@ model_name = "gpt-4-0613"
 temperature = 0.7
 
 [db_config]
-db_name = "tracefuzz" # without .db suffix
+db_name = "rq2_111" # without .db suffix
 
 [redis]
 host = "127.0.0.1"
@@ -14,12 +14,12 @@ db = 0
 
 [fuzz]
 execution_timeout = 5.0
-llm_fuzz_per_seed = 100
-data_fuzz_per_seed = 100
+llm_fuzz_per_seed = 10
+data_fuzz_per_seed = 10
 max_try_per_seed = 10
 
 [reflective_seeder]
-concurrency = 12 # number of threads for seeding
+concurrency = 4 # number of threads for seeding
 use_reasoner = true
 use_docs = true
 

@@ -1,17 +1,17 @@
-# TraceFuzz
+# RespFuzzer
 
-> This repository contains the implementation and all necessary scripts to reproduce the results of our paper: [TraceFuzz: xxx](https://egodprime.github.io/papers/tracefuzz.pdf)
+> This repository contains the implementation and all necessary scripts to reproduce the results of our paper "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
 
 
 ## Architecture
 
- - ReflectiveSeeder
+ - Reflective Seed Generation
    - src/tracefuzz/lib/library_visitor.py
    - src/tracefuzz/lib/agentic_function_resolver.py
- - FuzzTrigger
+ - Semantic-Guided Mutation
    - src/tracefuzz/lib/fuzz/instrument.py
- - FuzzEngine
    - src/tracefuzz/lib/mutator.py
+   - src/tracefuzz/lib/llm_mutator.py
    - src/tracefuzz/lib/fuzz/fuzz_function.py
    - src/tracefuzz/lib/fuzz/fuzz_library.py
    - src/lib.rs
@@ -67,6 +67,7 @@ vim config.toml
 The framework uses `config.toml` for configuration. Key settings include:
 
 ### Model Configuration
+> used by Reflective Seed Generation
 - `base_url`: Base URL for the model API.
 - `api_key`: API key for authentication.
 - `model_name`: Name of the model to use.
@@ -101,24 +102,14 @@ reflective_seeder generate_seeds numpy
 ```
 
 ## View the Database
-```bash
-# Approach 1: Using the `sqlite_web`
-# This will automatically open a web page in your browser if you are using VSCode
-# You can also access it according to the host and port shown in the terminal
-sqlite_web run_data/<db_name>.db
 
-# Approach 2: Using the `db_tools` CLI
-db_tools view
-```
+This project use PostgreSQL as the database to store extracted functions and generated seeds.
+Navicat is recommended for viewing the database, you are also free to use any other database viewer tools.
 
-### Fuzz a Specific Library
-```bash
-fuzz fuzz_library numpy
-```
 
 ## Libraries Under Test
 
-> The following libraries are used for testing and evaluation of the TraceFuzz framework:
+> The following libraries are used for testing and evaluation of the RespFuzzer framework:
 
 | Library | Type | Composition | URL|
 |---------|------|-------------|----|

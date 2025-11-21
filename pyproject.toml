@@ -1,7 +1,7 @@
 [project]
-name = "tracefuzz"
+name = "respfuzzer"
 version = "0.1.0"
-description = "Fuzz Python Libraries as MCP services"
+description = "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -63,8 +63,8 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [tool.maturin]
-module-name = "tracefuzz.lib.fuzz.mutate"
-python-packages = ["tracefuzz"]
+module-name = "respfuzzer.lib.fuzz.mutate"
+python-packages = ["respfuzzer"]
 python-source = "src"
 
 [tool.uv]
@@ -76,7 +76,7 @@ default = true
 
 
 [project.scripts]
-db_tools = "tracefuzz.cmd.db_tools:main"
-reflective_seeder = "tracefuzz.cmd.reflective_seeder:main"
-fuzz = "tracefuzz.cmd.fuzz:main"
-replay_mutation = "tracefuzz.cmd.replay_mutation:main"
+db_tools = "respfuzzer.cmd.db_tools:main"
+reflective_seeder = "respfuzzer.cmd.reflective_seeder:main"
+fuzz = "respfuzzer.cmd.fuzz:main"
+replay_mutation = "respfuzzer.cmd.replay_mutation:main"
