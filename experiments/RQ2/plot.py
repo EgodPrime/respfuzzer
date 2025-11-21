@@ -66,7 +66,7 @@ library_map = {
 }
 
 from matplotlib import pyplot as plt
-from tracefuzz.utils.db_tools import get_data_for_view_from_postgresql
+from respfuzzer.utils.db_tools import get_data_for_view_from_postgresql
 
 def plot_one_bar(x_data:list, y_data:list, top_values:list[int], offset:float, x_ticks: list[str], ax: plt.Axes, label:str):
     """绘制单个柱子

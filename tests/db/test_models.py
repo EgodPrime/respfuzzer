@@ -1,4 +1,4 @@
-from tracefuzz.models import Function
+from respfuzzer.models import Function
 
 
 def test_function_str():

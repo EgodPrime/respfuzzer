@@ -4,8 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import openai
 
-from tracefuzz.models import Seed
-from tracefuzz.utils.config import get_config
+from respfuzzer.models import Seed
+from respfuzzer.utils.config import get_config
 
 cfg = get_config("fuzz4all")
 llm_cfg = get_config("llm_mutator")

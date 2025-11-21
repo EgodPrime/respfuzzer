@@ -1,6 +1,6 @@
 import fire
 
-from tracefuzz.lib.fuzz.replay_mutation import replay_from_log, replay_mutation_one
+from respfuzzer.lib.fuzz.replay_mutation import replay_from_log, replay_mutation_one
 
 
 def main():

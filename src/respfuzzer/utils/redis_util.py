@@ -1,6 +1,6 @@
 import redis
 
-from tracefuzz.utils.config import get_config
+from respfuzzer.utils.config import get_config
 
 
 def get_redis_client() -> redis.Redis:

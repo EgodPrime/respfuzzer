@@ -1,8 +1,8 @@
 import json
 from typing import Iterator, List, Optional
 
-from tracefuzz.models import Argument, Seed
-from tracefuzz.repos.base import get_db_cursor
+from respfuzzer.models import Argument, Seed
+from respfuzzer.repos.base import get_db_cursor
 
 # 创建数据库表
 with get_db_cursor() as cur:

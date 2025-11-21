@@ -3,10 +3,10 @@ import json
 import sqlite3
 from typing import Optional
 
-from tracefuzz.models import Argument, Function, Seed
-from tracefuzz.repos.function_table import get_db_cursor, get_function_iter
-from tracefuzz.repos.seed_table import get_seed_by_function_id
-from tracefuzz.utils.config import get_config
+from respfuzzer.models import Argument, Function, Seed
+from respfuzzer.repos.function_table import get_db_cursor, get_function_iter
+from respfuzzer.repos.seed_table import get_seed_by_function_id
+from respfuzzer.utils.config import get_config
 
 
 def get_data_for_view_from_postgresql(

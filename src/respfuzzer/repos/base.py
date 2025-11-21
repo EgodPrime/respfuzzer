@@ -2,8 +2,8 @@ from contextlib import contextmanager
 
 import psycopg2
 
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.paths import RUNDATA_DIR
+from respfuzzer.utils.config import get_config
+from respfuzzer.utils.paths import RUNDATA_DIR
 
 config = get_config("db_config")
 db_name = config.get("db_name") + ".db"

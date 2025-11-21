@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from tracefuzz.lib.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
+from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
 
 
 def test_parse_pyi_file():

@@ -2,7 +2,7 @@ import inspect
 from types import BuiltinFunctionType, FunctionType, ModuleType
 from typing import Optional
 
-from tracefuzz.models import Argument, Function
+from respfuzzer.models import Argument, Function
 
 
 def from_function_type(mod: ModuleType, obj: FunctionType) -> Optional[Function]:

@@ -9,10 +9,10 @@ from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 from redis import Redis
 
-from tracefuzz.models import Seed
-from tracefuzz.repos.seed_table import get_seeds_iter
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.redis_util import get_redis_client
+from respfuzzer.models import Seed
+from respfuzzer.repos.seed_table import get_seeds_iter
+from respfuzzer.utils.config import get_config
+from respfuzzer.utils.redis_util import get_redis_client
 
 
 def safe_fuzz(seed: Seed, cnt: int, redis_client: Redis) -> None:

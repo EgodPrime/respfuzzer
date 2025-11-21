@@ -2,8 +2,8 @@ import importlib
 import types
 from types import ModuleType
 
-from tracefuzz.lib.library_visitor import LibraryVisitor
-from tracefuzz.models import Function
+from respfuzzer.lib.library_visitor import LibraryVisitor
+from respfuzzer.models import Function
 
 
 def test_visit_ast():

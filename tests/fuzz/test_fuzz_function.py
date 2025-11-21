@@ -2,13 +2,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tracefuzz.lib.fuzz.fuzz_function import (
+from respfuzzer.lib.fuzz.fuzz_function import (
     convert_to_param_list,
     execute_once,
     fuzz_function,
     reconvert_param_list,
 )
-from tracefuzz.utils.redis_util import get_redis_client
+from respfuzzer.utils.redis_util import get_redis_client
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +43,7 @@ def test_reconvert_param_list():
     assert result_kwargs == {"a": 4, "b": 5}
 
 
-@patch("tracefuzz.lib.fuzz.fuzz_function.logger")
+@patch("respfuzzer.lib.fuzz.fuzz_function.logger")
 def test_fuzz_function_no_args(
     mock_logger,
 ):
@@ -56,7 +56,7 @@ def test_fuzz_function_no_args(
     )
 
 
-@patch("tracefuzz.lib.fuzz.fuzz_function.logger")
+@patch("respfuzzer.lib.fuzz.fuzz_function.logger")
 def test_fuzz_function_with_args(
     mock_logger,
 ):

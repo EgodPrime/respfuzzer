@@ -1,7 +1,7 @@
 import tomllib
 from typing import Optional
 
-from tracefuzz.utils.paths import CONFIG_PATH
+from respfuzzer.utils.paths import CONFIG_PATH
 
 
 def get_config(section: Optional[str] = None) -> dict:

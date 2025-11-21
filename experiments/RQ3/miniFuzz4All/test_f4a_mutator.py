@@ -9,7 +9,7 @@ import types
 import f4a_mutator as fm
 import pytest
 
-from tracefuzz.models import Argument, Seed
+from respfuzzer.models import Argument, Seed
 
 
 class FakeSeed:

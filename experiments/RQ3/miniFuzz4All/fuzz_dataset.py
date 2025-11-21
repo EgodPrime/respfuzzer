@@ -13,11 +13,11 @@ import fire
 import psutil
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
-from tracefuzz.utils.process_helper import kill_process_tree_linux, manage_process_with_timeout
-from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset, continue_safe_execute
-from tracefuzz.models import Seed
-from tracefuzz.repos.seed_table import get_seed_by_function_name
-from tracefuzz.utils.config import get_config
+from respfuzzer.utils.process_helper import kill_process_tree_linux, manage_process_with_timeout
+from respfuzzer.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset, continue_safe_execute
+from respfuzzer.models import Seed
+from respfuzzer.repos.seed_table import get_seed_by_function_name
+from respfuzzer.utils.config import get_config
 
 def validate_test_case(mutated_call: str) -> bool:
     os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程

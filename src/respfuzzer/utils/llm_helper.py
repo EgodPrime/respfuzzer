@@ -5,7 +5,7 @@
 
 import openai
 
-from tracefuzz.utils.config import get_config
+from respfuzzer.utils.config import get_config
 
 llm_cfg = get_config("llm")
 BASE_URL = llm_cfg.get("base_url")

@@ -7,8 +7,8 @@ import json
 import threading
 from typing import Optional
 
-from tracefuzz.models import Mutant
-from tracefuzz.repos.base import get_db_cursor
+from respfuzzer.models import Mutant
+from respfuzzer.repos.base import get_db_cursor
 
 with get_db_cursor() as cur:
     cur.execute(

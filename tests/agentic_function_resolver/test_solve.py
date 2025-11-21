@@ -1,14 +1,14 @@
 from unittest import mock
 
-import tracefuzz.lib.agentic_function_resolver as afr
-from tracefuzz.lib.agentic_function_resolver import (
+import respfuzzer.lib.agentic_function_resolver as afr
+from respfuzzer.lib.agentic_function_resolver import (
     Attempter,
     Judger,
     QueitExecutor,
     Reasoner,
     solve,
 )
-from tracefuzz.models import Argument, ExecutionResultType, Function
+from respfuzzer.models import Argument, ExecutionResultType, Function
 
 
 class MockFunction(Function):

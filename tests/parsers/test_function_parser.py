@@ -1,11 +1,11 @@
 import inspect
 from unittest.mock import Mock, patch
 
-from tracefuzz.lib.parsers.function_parser import (
+from respfuzzer.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from tracefuzz.models import Argument
+from respfuzzer.models import Argument
 
 
 @patch("inspect.getsource")

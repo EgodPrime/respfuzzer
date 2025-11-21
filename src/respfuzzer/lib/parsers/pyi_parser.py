@@ -3,7 +3,7 @@ import os
 from inspect import _ParameterKind
 from typing import Dict, Set
 
-from tracefuzz.models import Argument
+from respfuzzer.models import Argument
 
 
 def is_top_level_function(node):

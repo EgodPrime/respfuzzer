@@ -1,8 +1,8 @@
 import json
 import random
 
-from tracefuzz.models import Seed
-from tracefuzz.repos.seed_table import get_seeds_iter
+from respfuzzer.models import Seed
+from respfuzzer.repos.seed_table import get_seeds_iter
 
 random.seed(4399)
 
@@ -60,6 +60,6 @@ def sample_dyfuzz_format(n_samples: int = 200):
         if "download(" in seed.function_call or "main(" in seed.function_call:
             continue
         save_to_data(seed, data)
-    output_file_name = "tracefuzz_seeds.json"
+    output_file_name = "respfuzzer_seeds.json"
     sampled_data = sample_apis(data, total_samples=n_samples)
     json.dump(sampled_data, open(output_file_name, "w"), indent=2)

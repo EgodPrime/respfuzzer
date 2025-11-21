@@ -3,9 +3,9 @@ from contextlib import contextmanager
 
 import pytest
 
-from tracefuzz.models import Argument, Seed
-from tracefuzz.repos import seed_table
-from tracefuzz.repos.seed_table import (
+from respfuzzer.models import Argument, Seed
+from respfuzzer.repos import seed_table
+from respfuzzer.repos.seed_table import (
     create_seed,
     create_seeds,
     get_seed,

@@ -16,11 +16,11 @@ from typing import Optional
 
 from loguru import logger
 
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
-from tracefuzz.models import Mutant, Seed
-from tracefuzz.repos.mutant_table import create_mutant
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.llm_helper import SimpleLLMClient
+from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
+from respfuzzer.models import Mutant, Seed
+from respfuzzer.repos.mutant_table import create_mutant
+from respfuzzer.utils.config import get_config
+from respfuzzer.utils.llm_helper import SimpleLLMClient
 
 llm_cfg = get_config("llm_mutator")
 client = SimpleLLMClient(**llm_cfg)

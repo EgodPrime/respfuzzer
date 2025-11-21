@@ -7,13 +7,13 @@ from multiprocessing import Process
 import redis
 from loguru import logger
 
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_ctx
-from tracefuzz.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
-from tracefuzz.models import Seed
-from tracefuzz.repos.seed_table import get_seeds_iter
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.process_helper import manage_process_with_timeout
-from tracefuzz.utils.redis_util import get_redis_client
+from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_ctx
+from respfuzzer.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
+from respfuzzer.models import Seed
+from respfuzzer.repos.seed_table import get_seeds_iter
+from respfuzzer.utils.config import get_config
+from respfuzzer.utils.process_helper import manage_process_with_timeout
+from respfuzzer.utils.redis_util import get_redis_client
 
 
 def safe_fuzz(seed: Seed) -> None:

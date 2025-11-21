@@ -9,10 +9,10 @@ from typing import List, Optional
 import openai
 from loguru import logger
 
-from tracefuzz.models import ExecutionResultType, Function, Seed
-from tracefuzz.repos.function_table import get_functions
-from tracefuzz.repos.seed_table import create_seed
-from tracefuzz.utils.config import get_config
+from respfuzzer.models import ExecutionResultType, Function, Seed
+from respfuzzer.repos.function_table import get_functions
+from respfuzzer.repos.seed_table import create_seed
+from respfuzzer.utils.config import get_config
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -180,7 +180,7 @@ class QueitExecutor:
         # ident code with 4 spaces
         indented_code = "\n    ".join(code.split("\n"))
         res = f"""
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_check_ctx
+from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 
 with instrument_function_via_path_check_ctx("{full_name}") as f:
     {indented_code}

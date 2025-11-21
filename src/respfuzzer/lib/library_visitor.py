@@ -5,13 +5,13 @@ from typing import Dict, Iterator, Set
 
 from loguru import logger
 
-from tracefuzz.lib.parsers.function_parser import (
+from respfuzzer.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from tracefuzz.lib.parsers.pyi_parser import _find_all_pyi_files
-from tracefuzz.models import Function
-from tracefuzz.repos.function_table import create_function
+from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files
+from respfuzzer.models import Function
+from respfuzzer.repos.function_table import create_function
 
 logger.level("INFO")
 

@@ -1,4 +1,4 @@
-from tracefuzz.lib.fuzz.instrument import (
+from respfuzzer.lib.fuzz.instrument import (
     instrument_function_check,
     instrument_function_via_path_check_ctx,
 )

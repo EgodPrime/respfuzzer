@@ -1,14 +1,14 @@
 import fire
 
-from tracefuzz.lib.fuzz.fuzz_dataset import fuzz_dataset, fuzz_dataset_infinite
-from tracefuzz.lib.fuzz.fuzz_library import fuzz_one_library
-from tracefuzz.lib.fuzz.llm_mutator import random_llm_mutate
+from respfuzzer.lib.fuzz.fuzz_dataset import fuzz_dataset, fuzz_dataset_infinite
+from respfuzzer.lib.fuzz.fuzz_library import fuzz_one_library
+from respfuzzer.lib.fuzz.llm_mutator import random_llm_mutate
 
 
 def toy_batch_random_llm_mutate(
     seed_file_path: str, full_function_name: str, num_mutations: int
 ):
-    from tracefuzz.models import Seed
+    from respfuzzer.models import Seed
 
     with open(seed_file_path, "r") as f:
         seed_code = f.read()

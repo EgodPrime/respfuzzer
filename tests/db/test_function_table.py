@@ -3,9 +3,9 @@ from contextlib import contextmanager
 
 import pytest
 
-from tracefuzz.models import Argument, Function
-from tracefuzz.repos import function_table
-from tracefuzz.repos.function_table import (
+from respfuzzer.models import Argument, Function
+from respfuzzer.repos import function_table
+from respfuzzer.repos.function_table import (
     create_function,
     get_function,
     get_function_iter,
@@ -77,7 +77,7 @@ def test_create_and_get_function(sample_function):
     finally:
         # cleanup
         if record_id:
-            from tracefuzz.repos.base import get_db_cursor
+            from respfuzzer.repos.base import get_db_cursor
 
             with get_db_cursor() as cur:
                 cur.execute("DELETE FROM function WHERE id = ?", (record_id,))
@@ -111,7 +111,7 @@ def test_get_functions_and_iter(sample_function):
         assert f2.func_name in iter_names
     finally:
         if record_ids:
-            from tracefuzz.repos.base import get_db_cursor
+            from respfuzzer.repos.base import get_db_cursor
 
             with get_db_cursor() as cur:
                 cur.execute(
@@ -138,7 +138,7 @@ def test_get_functions_with_none(sample_function):
         names = {x.func_name for x in funcs}
         assert "otherlib.foo" in names
     finally:
-        from tracefuzz.repos.base import get_db_cursor
+        from respfuzzer.repos.base import get_db_cursor
 
         with get_db_cursor() as cur:
             cur.execute("DELETE FROM function WHERE id = ?", (_id,))
@@ -153,7 +153,7 @@ def test_get_function_iter_none(sample_function):
         iter_names = {ff.func_name for ff in get_function_iter(None)}
         assert "yetanother.func" in iter_names
     finally:
-        from tracefuzz.repos.base import get_db_cursor
+        from respfuzzer.repos.base import get_db_cursor
 
         with get_db_cursor() as cur:
             cur.execute("DELETE FROM function WHERE id = ?", (_id,))

@@ -8,5 +8,5 @@ source $config_file
 for library in "${libraries[@]}"
 do
     echo "fuzz fuzz_library $library"
-    fuzz fuzz_library "$library" > "/home/lisy/tracefuzz/experiments/RQ4/20251106-RQ4-$library.log" 2>&1
+    fuzz fuzz_library "$library" > "/home/lisy/respfuzzer/experiments/RQ4/20251106-RQ4-$library.log" 2>&1
 done

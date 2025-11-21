@@ -1,4 +1,4 @@
-from tracefuzz.lib.fuzz.mutate import (
+from respfuzzer.lib.fuzz.mutate import (
     get_random_state,
     mutate_bytes,
     mutate_float,

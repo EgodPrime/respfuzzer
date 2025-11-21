@@ -4,10 +4,10 @@ from multiprocessing import Process
 
 from loguru import logger
 
-from tracefuzz.lib.fuzz.fuzz_library import manage_process_with_timeout
-from tracefuzz.lib.fuzz.instrument import instrument_function_via_path_replay
-from tracefuzz.lib.fuzz.mutate import set_random_state
-from tracefuzz.repos.seed_table import get_seed
+from respfuzzer.lib.fuzz.fuzz_library import manage_process_with_timeout
+from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_replay
+from respfuzzer.lib.fuzz.mutate import set_random_state
+from respfuzzer.repos.seed_table import get_seed
 
 
 def replay_mutation_one(seed_id: int, random_state: int):
@@ -35,8 +35,8 @@ def replay_from_log(log_path: str):
     Replay all mutations recorded in a log file.
     """
     """
-    2025-10-13 16:43:09.716 | WARNING  | tracefuzz.fuzz.fuzz_library:fuzz_single_seed:110 - Seed 2851 attempt 9 did not complete successfully, last random state: 1760344979.
-    2025-10-13 16:43:15.052 | WARNING  | tracefuzz.fuzz.fuzz_library:fuzz_single_seed:110 - Seed 2851 attempt 10 did not complete successfully, last random state: 1760344984.
+    2025-10-13 16:43:09.716 | WARNING  | respfuzzer.fuzz.fuzz_library:fuzz_single_seed:110 - Seed 2851 attempt 9 did not complete successfully, last random state: 1760344979.
+    2025-10-13 16:43:15.052 | WARNING  | respfuzzer.fuzz.fuzz_library:fuzz_single_seed:110 - Seed 2851 attempt 10 did not complete successfully, last random state: 1760344984.
     """
     pattern = re.compile(
         r"Seed (\d+) attempt \d+ did not complete successfully, last random state: (\d+)\."

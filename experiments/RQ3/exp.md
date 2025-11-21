@@ -26,7 +26,7 @@ If you haven't run RQ2 yet, you can read the RQ2 experiment instructions in `exp
 cd {RESPFUZZER}
 vim config.toml
 cd {RESPFUZZER}/experiments/RQ3/
-export_dyfuzz  # you will get a json named tracefuzz_seeds.json
+export_dyfuzz  # you will get a json named respfuzzer_seeds.json
 ```
 
 ## Run RespFuzzer
@@ -39,7 +39,7 @@ cd ./experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run RespFuzzer
-fuzz fuzz_dataset ../tracefuzz_seeds.json
+fuzz fuzz_dataset ../respfuzzer_seeds.json
 ```
 
 ## Run Fuzz4All Mutation
@@ -50,7 +50,7 @@ cd {RESPFUZZER}/experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run Fuzz4All mutation
-python ../miniFuzz4All/fuzz_dataset.py normal ../tracefuzz_seeds.json
+python ../miniFuzz4All/fuzz_dataset.py normal ../respfuzzer_seeds.json
 ```
 
 ## Run DyFuzz

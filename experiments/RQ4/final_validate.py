@@ -1,5 +1,5 @@
 
-from tracefuzz.lib.fuzz.replay_mutation import replay_mutation_one
+from respfuzzer.lib.fuzz.replay_mutation import replay_mutation_one
 from loguru import logger
 import json
 

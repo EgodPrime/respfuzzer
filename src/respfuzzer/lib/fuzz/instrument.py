@@ -6,12 +6,12 @@ from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
 
-from tracefuzz.lib.fuzz.fuzz_function import (
+from respfuzzer.lib.fuzz.fuzz_function import (
     fuzz_function,
     fuzz_function_f4a,
     replay_fuzz,
 )
-from tracefuzz.utils.config import get_config
+from respfuzzer.utils.config import get_config
 
 fuzzed_set = set()
 

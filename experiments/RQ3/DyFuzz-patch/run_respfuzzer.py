@@ -163,7 +163,7 @@ open("log.txt", "a").write("\n")
 # run(mod,api,n)
 
 # moddic = json.load(open( './sklearn_export.json','r'))
-moddic = json.load(open("../tracefuzz_seeds.json", "r"))
+moddic = json.load(open("../respfuzzer_seeds.json", "r"))
 # ignorelist = ["sigwait","crypt","binhex",'kill','killpg','tcflow','askokcancel',"askquestion"]
 ignorelist = []
 
@@ -174,7 +174,7 @@ ignorelist = []
 
 dcov.open_bitmap_py()
 dcov.clear_bitmap_py()
-from tracefuzz.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
+from respfuzzer.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
 calc_initial_seed_coverage_dataset(moddic)
 for mod in list(moddic.keys()):
     need_skip = []

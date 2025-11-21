@@ -2,7 +2,7 @@ from unittest import mock
 
 import pytest
 
-from tracefuzz.lib.agentic_function_resolver import Reasoner
+from respfuzzer.lib.agentic_function_resolver import Reasoner
 
 
 def test_explain_extracts_explain_tag():
@@ -12,7 +12,7 @@ def test_explain_extracts_explain_tag():
     ]
 
     with mock.patch(
-        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
+        "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
         return_value=mock_response,
     ):
         text = Reasoner().explain("code", {"stderr": "error"})
@@ -27,7 +27,7 @@ def test_explain_returns_raw_if_no_tags():
     ]
 
     with mock.patch(
-        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
+        "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
         return_value=mock_response,
     ):
         text = Reasoner().explain("code", {"stderr": "err"})
@@ -37,7 +37,7 @@ def test_explain_returns_raw_if_no_tags():
 
 def test_explain_raises_on_api_errors():
     with mock.patch(
-        "tracefuzz.lib.agentic_function_resolver.client.chat.completions.create",
+        "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
         side_effect=Exception("api fail"),
     ):
         with pytest.raises(Exception):

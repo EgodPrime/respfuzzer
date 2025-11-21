@@ -31,9 +31,9 @@ import openai
 import json
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
-from tracefuzz.repos.function_table import get_function
+from respfuzzer.repos.function_table import get_function
 import re
-from tracefuzz.repos.seed_table import get_seed
+from respfuzzer.repos.seed_table import get_seed
 
 client = openai.OpenAI(base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 model_name = "qwen3-30b-a3b"

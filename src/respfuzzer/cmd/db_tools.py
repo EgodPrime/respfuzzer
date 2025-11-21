@@ -1,12 +1,12 @@
 import fire
 
-from tracefuzz.utils.db_tools import (
+from respfuzzer.utils.db_tools import (
     cleanup_invalid_function_records,
     delete_duplicate_function_records,
     delete_seed_records,
     view,
 )
-from tracefuzz.utils.export_dyfuzz import sample_dyfuzz_format
+from respfuzzer.utils.export_dyfuzz import sample_dyfuzz_format
 
 
 def main():

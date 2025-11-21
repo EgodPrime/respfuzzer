@@ -6,14 +6,14 @@
 ## Architecture
 
  - Reflective Seed Generation
-   - src/tracefuzz/lib/library_visitor.py
-   - src/tracefuzz/lib/agentic_function_resolver.py
+   - src/respfuzzer/lib/library_visitor.py
+   - src/respfuzzer/lib/agentic_function_resolver.py
  - Semantic-Guided Mutation
-   - src/tracefuzz/lib/fuzz/instrument.py
-   - src/tracefuzz/lib/mutator.py
-   - src/tracefuzz/lib/llm_mutator.py
-   - src/tracefuzz/lib/fuzz/fuzz_function.py
-   - src/tracefuzz/lib/fuzz/fuzz_library.py
+   - src/respfuzzer/lib/fuzz/instrument.py
+   - src/respfuzzer/lib/mutator.py
+   - src/respfuzzer/lib/llm_mutator.py
+   - src/respfuzzer/lib/fuzz/fuzz_function.py
+   - src/respfuzzer/lib/fuzz/fuzz_library.py
    - src/lib.rs
    - src/chain_rng.rs
    - src/mutator.rs
@@ -27,8 +27,8 @@
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/EgodPrime/tracefuzz.git
-cd tracefuzz
+git clone https://github.com/EgodPrime/respfuzzer.git
+cd respfuzzer
 ```
 
 2. Create and activate a virtual environment:

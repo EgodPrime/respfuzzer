@@ -5,11 +5,11 @@ from typing import Callable
 
 from loguru import logger
 
-from tracefuzz.lib.fuzz.mutate import get_random_state, set_random_state
-from tracefuzz.lib.fuzz.mutator import mutate_param_list
-from tracefuzz.utils.config import get_config
-from tracefuzz.utils.dump import dump_any_obj
-from tracefuzz.utils.redis_util import get_redis_client
+from respfuzzer.lib.fuzz.mutate import get_random_state, set_random_state
+from respfuzzer.lib.fuzz.mutator import mutate_param_list
+from respfuzzer.utils.config import get_config
+from respfuzzer.utils.dump import dump_any_obj
+from respfuzzer.utils.redis_util import get_redis_client
 
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
@@ -161,9 +161,9 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Replay fuzz {full_name} with random state {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-    with open(f"/tmp/tracefuzz_replay_{seed}_args.dump", "wb") as f:
+    with open(f"/tmp/respfuzzer_replay_{seed}_args.dump", "wb") as f:
         f.write(dump_any_obj(args))
-    with open(f"/tmp/tracefuzz_replay_{seed}_kwargs.dump", "wb") as f:
+    with open(f"/tmp/respfuzzer_replay_{seed}_kwargs.dump", "wb") as f:
         f.write(dump_any_obj(kwargs))
     func(*args, **kwargs)
     logger.info(f"Replay fuzz {full_name} done")
@@ -174,7 +174,7 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
 
     set_random_state(int(time.time()))
 
-    logger.debug(f"Tracefuzz start fuzz {full_name}")
+    logger.debug(f"RespFuzzer start fuzz {full_name}")
 
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:
@@ -186,4 +186,4 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
 
-    logger.debug(f"Tracefuzz fuzz {full_name} done")
+    logger.debug(f"RespFuzzer fuzz {full_name} done")
