@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_hash64() {
         //! Test for hash64 function not crash
-        let input: u32 = 123456789;
+        let input: u64 = 123456789;
         for _ in 0..100 {
             let _ = hash64(input);
         }

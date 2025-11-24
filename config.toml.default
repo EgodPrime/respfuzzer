@@ -5,6 +5,10 @@ model_name = "gpt-4-0613"
 temperature = 0.7
 
 [db_config]
+host="127.0.0.1"
+port=5432
+user="postgres"
+password="yourpassword"
 db_name = "rq2_111" # without .db suffix
 
 [redis]
@@ -17,6 +21,12 @@ execution_timeout = 5.0
 llm_fuzz_per_seed = 10
 data_fuzz_per_seed = 10
 max_try_per_seed = 10
+
+[llm_mutator]
+base_url = "https://api.openai.com/v1"
+api_key = "sk-xxxxxxx" # your OpenAI API key
+model_name = "gpt-4-0613"
+temperature = 0.7
 
 [reflective_seeder]
 concurrency = 4 # number of threads for seeding
