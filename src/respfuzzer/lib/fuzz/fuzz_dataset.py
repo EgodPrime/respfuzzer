@@ -10,11 +10,10 @@ from loguru import logger
 
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
-    instrument_function_via_path_f4a_ctx,
 )
 from respfuzzer.lib.fuzz.llm_mutator import batch_random_llm_mutate_valid_only
 from respfuzzer.models import HasCode, Seed
-from respfuzzer.repos.seed_table import get_seed_by_function_name
+from respfuzzer.repos.seed_table import get_seed_by_function_name, get_seeds_iter
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
@@ -58,14 +57,6 @@ def continue_safe_execute(recv: Queue, send: Queue) -> None:
                 case "fuzz":
                     try:
                         with instrument_function_via_path_ctx(seed.func_name):
-                            exec(seed.function_call)
-                    except Exception:
-                        pass
-                    finally:
-                        send.put("done")
-                case "fuzz_f4a":  # TODO: remove this branch later
-                    try:
-                        with instrument_function_via_path_f4a_ctx(seed.func_name):
                             exec(seed.function_call)
                     except Exception:
                         pass
@@ -245,3 +236,18 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
         except KeyboardInterrupt:
             logger.info("Fuzzing interrupted by user.")
             break
+
+def fuzz_one_library(library_name: str) -> None:
+    """
+    Fuzz the specified library with seeds from the database.
+    """
+
+    logger.remove()
+    logger.add(sys.__stderr__, level="INFO")
+    dcov.open_bitmap_py()
+    dcov.clear_bitmap_py()
+
+    logger.info(f"Starting fuzzing for library: {library_name}")
+
+    for seed in get_seeds_iter(library_name):
+        fuzz_single_seed(seed)

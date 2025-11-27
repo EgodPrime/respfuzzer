@@ -1,6 +1,7 @@
 """
 ## 该脚本的功能
 读取`crash_summary.json`文件，依次对每个记录的测试用例进行重放（replay），并利用LLM合成POC代码，最终将重放结果保存到`replay_results.json`文件中。
+对于randome_state为None的记录，表示种子本身就导致崩溃，无需合成POC代码，其本身就是POC，直接记录重放结果即可。
 
 ## 输入形式
 crash_summary.json:
@@ -8,7 +9,7 @@ crash_summary.json:
     "library_name_1": [
         {
             "seed_id": int,
-            "random_state": int
+            "random_state": int|None
         },
         ...
     ],
@@ -47,7 +48,7 @@ replay_results.json:
 ## 工作流程
 1. 读取`crash_summary.json`文件，获取所有需要重放的测试用例列表。
 2. 对每个测试用例，调用`replay_one_record`函数进行重放，获取重放结果和LLM合成的POC代码。
-    2.1. 调用`replay_mutation_and_execution`函数进行重放，获取重放结果和参数快照。
+    2.1. 调用`replay_mutation_and_execution`函数进行重放，获取重放结果和参数快照。如果`random_state`为`None`，则不进行2.2的POC合成，直接将重放结果保存到重放结果中。
     2.2. 调用`synthesize_poc`函数合成POC代码。
         2.2.1. 构造LLM的输入提示（prompt），包括函数调用代码、参数快照和重放结果(stderr描述)。
         2.2.2. 调用LLM接口，获取模型合成的POC代码。
@@ -64,7 +65,7 @@ from loguru import logger
 import subprocess
 import re
 import openai
-from respfuzzer.repos.seed_table import get_seed
+from respfuzzer.repos.mutant_table import get_mutant
 import concurrent.futures
 from copy import deepcopy
 import tempfile
@@ -74,7 +75,7 @@ import difflib
 MAX_CONCURRENCY = 4
 
 def call_llm_api(prompt: str) -> str:
-    client = openai.OpenAI(api_key="no", base_url="http://192.168.2.29:8023")
+    client = openai.OpenAI(api_key="no", base_url="http://192.168.1.44:8021")
     response = client.chat.completions.create(
         model="qwen3-30b-a3b",
         messages=[{"role": "user", "content": prompt}],
@@ -110,6 +111,7 @@ def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str,
         p.kill()
         logger.warning(f"Replay timed out after 5 seconds")
         stderr = "Timeout after 5 seconds"
+        mutated_params_snapshot = ""
     except Exception as e:
         logger.error(f"Error during replay: {e}")
         stderr = f"{e}"
@@ -257,17 +259,30 @@ def replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]:
     """
     Replay one record given seed_id and random_state, returning the result and synthesized POC.
     """
-    logger.info(f"Replaying seed {seed_id} with random state {random_state}")
-    seed = get_seed(seed_id)
+    logger.info(f"Replaying mutant {seed_id} with random state {random_state}")
+    seed = get_mutant(seed_id)
     function_call = seed.function_call
-    stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
-    poc_code = synthesize_poc(function_call, mutated_params_snapshot, stderr)
-    return {
-        'seed_id': seed_id,
-        'random_state': random_state,
-        'result': stderr,
-        'poc': poc_code
-    }
+    
+    if random_state is None:
+        logger.debug("SM")
+        stderr = pure_execution(function_call)
+        # If random_state is None, the seed itself causes the crash, no need to synthesize POC
+        return {
+            'seed_id': seed_id,
+            'random_state': random_state,
+            'result': stderr,
+            'poc': function_call  # The function call itself is the POC
+        }
+    else:
+        logger.debug("PM")
+        stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
+        poc_code = synthesize_poc(function_call, mutated_params_snapshot, stderr)
+        return {
+            'seed_id': seed_id,
+            'random_state': random_state,
+            'result': stderr,
+            'poc': poc_code
+        }
 
 def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int = MAX_CONCURRENCY) -> dict[str, list]:
     """

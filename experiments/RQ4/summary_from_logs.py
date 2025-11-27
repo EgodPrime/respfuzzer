@@ -4,15 +4,19 @@ import json
 def find_all_crash(log_path: str) -> list[dict[str, int]]:
     """
     从日志中找出所有疑似崩溃的记录，包含`Seed ID`和`random state`
+
+    Example log lines:
+    Mutant 35283 execution 3 timeout after 5.0 seconds, restarting worker process. Last random state: 5925503564895958435
+    Mutant 81654 execution 1 timeout after 5.0 seconds, restarting worker process. Last random state: None
     """
     crash_list = []
-    re_str = r'Seed (\d+) attempt \d+ did not complete successfully, last random state: (\d+).'
+    re_str = r'Mutant (\d+) execution \d+ timeout after [\d.]+ seconds, restarting worker process. Last random state: (\d+|None)'
     with open(log_path, 'r', encoding='utf-8') as f:
         log_content = f.read()
         crash_entries = re.findall(re_str, log_content)
         for entry in crash_entries:
             seed_id = int(entry[0])
-            random_state = int(entry[1])
+            random_state = None if entry[1] == 'None' else int(entry[1])
             crash_list.append({
                 'seed_id': seed_id,
                 'random_state': random_state
@@ -35,8 +39,8 @@ if __name__ == '__main__':
     log_files = find_all_logs('.')
     crash_data: dict[str, list[dict[str, int]]] = {}
     for log_file in log_files:
-        # yyyymmddhhmm-RQ4-<library_name>.log
-        library_name = log_file.split('-')[-1].replace('.log', '')
+        # RQ4-<library_name>-yyyymmddhhmm.log
+        library_name = log_file.split('-')[1]
         crashes = find_all_crash(log_file)
         if library_name not in crash_data:
             crash_data[library_name] = []

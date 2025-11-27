@@ -1,7 +1,7 @@
 import fire
 
 from respfuzzer.lib.fuzz.fuzz_dataset import fuzz_dataset, fuzz_dataset_infinite
-from respfuzzer.lib.fuzz.fuzz_library import fuzz_one_library
+from respfuzzer.lib.fuzz.fuzz_dataset import fuzz_one_library
 from respfuzzer.lib.fuzz.llm_mutator import random_llm_mutate
 
 

@@ -5,29 +5,26 @@ from multiprocessing import Process
 from loguru import logger
 
 from respfuzzer.lib.fuzz.fuzz_library import manage_process_with_timeout
-from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_replay
+from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_replay_ctx
 from respfuzzer.lib.fuzz.mutate import set_random_state
-from respfuzzer.repos.seed_table import get_seed
+from respfuzzer.repos.mutant_table import get_mutant
 
 
 def replay_mutation_one(seed_id: int, random_state: int):
     """
     Replay a mutation for a specific seed with a given random state.
     """
-    seed = get_seed(seed_id)
+    seed = get_mutant(seed_id)
     if seed is None:
         logger.error(f"Seed {seed_id} not found in DB.")
         return None
 
     # logger.info(f"Seed {seed_id} function call: {seed.function_call}")
 
-    lib_name = seed.library_name
-    lib = importlib.import_module(lib_name)
     func_path = seed.func_name
-    instrument_function_via_path_replay(lib, func_path)
-
-    set_random_state(random_state)
-    exec(seed.function_call)
+    with instrument_function_via_path_replay_ctx(func_path):
+        set_random_state(random_state)
+        exec(seed.function_call)
 
 
 def replay_from_log(log_path: str):
