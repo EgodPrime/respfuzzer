@@ -9,6 +9,7 @@
 
 import ast
 import io
+import math
 import random
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -106,31 +107,6 @@ def filter_syntax(mutant: Mutant) -> bool:
     except SyntaxError:
         return None
 
-
-def filter_semantic(mutant: Mutant) -> Optional[Mutant]:
-    """
-    检查语义有效性（至少包含对目标函数的调用）。
-    通过插桩代码并执行来验证变异代码是否调用了目标函数。
-    """
-    try:
-        sys.stdout = io.StringIO()
-        sys.stderr = io.StringIO()
-        with instrument_function_via_path_check_ctx(mutant.func_name) as check_ctx:
-            if check_ctx is None:  # pragma: no cover
-                logger.error(
-                    f"Failed to instrument function {mutant.func_name} for semantic check."
-                )  # pragma: no cover
-                return None  # pragma: no cover
-            exec(mutant.function_call)
-            if check_ctx.called:
-                return mutant
-    except Exception:  # pragma: no cover
-        return None  # pragma: no cover
-    finally:
-        sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
-
-
 def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
     """
     使用多线程批量对种子进行随机变异。
@@ -159,14 +135,96 @@ def batch_random_llm_mutate_valid_only(
             if future.result():
                 valid_mutants.append(mutant)
     return valid_mutants
-    # final_valid_mutants = []
-    # # 再检查语义
-    # with ThreadPoolExecutor(max_workers=max_workers) as executor:
-    #     futures = {
-    #         executor.submit(filter_semantic, mutant): mutant for mutant in valid_mutants
-    #     }
-    #     for future in as_completed(futures):
-    #         mutant = futures[future]
-    #         if future.result():
-    #             final_valid_mutants.append(mutant)
-    # return final_valid_mutants
+
+class LLMMutator:
+    """采用语义负反馈（语法错误）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
+    当LLM变异产生语法错误或语义错误时，降低对应变异算子的选择概率，奖励初始值为-1
+    当传统变异产生覆盖率增长时，提高对应变异算子的选择概率，奖励初始值为+1
+    变异算子选择是从所有变异算子构成的概率分布中采样得到的
+    负反馈和正反馈都影响每一个变异算子的被选择概率
+
+    主要想法（摘要）
+
+    - 将每个变异算子 i 的选择看作多臂老虎机/多项选择问题（multi-armed bandit）。
+    - 为每个算子维护一个“期望收益估计”或一个概率后验（Dirichlet / Beta / Gaussian），使用贝叶斯采样或指数加权选择算子以在探索/利用间平衡。
+    - 设计统一的奖励 R ∈ [0,1]，把语法、语义、覆盖率增益等信号归一化并做加权和，作为单步观测到的回报。
+    """
+
+    def __init__(self, seed: Seed) -> None:
+        self.seed = seed
+        self.mutation_types = list(range(len(PROMPT_MUTATE)))
+        self.mu = [0.5] * len(self.mutation_types)  # 初始期望奖励 (0.5表示中等期望)
+        self.alpha = 0.1
+        self.tau = 1.0
+
+
+    def select_mutation_type(self) -> int:
+        """
+        根据当前概率分布选择变异算子
+        """
+        # 计算每个算子的概率分布 (Softmax)
+        exp_mu = [math.exp(m / self.tau) for m in self.mu]
+        total = sum(exp_mu)
+        probs = [e / total for e in exp_mu]
+        
+        # 从概率分布中采样
+        return random.choices(
+            population=self.mutation_types,
+            weights=probs,
+            k=1
+        )[0]
+    
+    def update_reward(self, mutation_type: int, reward: float) -> None:
+        """
+        更新变异算子的期望奖励
+        
+        Arguments:
+            mutation_type: 变异算子类型
+            reward: 观察到的奖励值
+        """
+        # 使用指数加权平均更新期望奖励
+        self.mu[mutation_type] = (
+            self.alpha * reward + 
+            (1 - self.alpha) * self.mu[mutation_type]
+        )
+    
+    def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
+        """
+        将多种信号归一化为统一奖励值 [0,1]
+        不存在语法错误是基础要求，达不到有惩罚，达到了没有奖励，此时应该保持奖励为0.5，从而使得0.5*0.1+0.9*0.5=0.5保持不变
+        当存在语法错误时，不会进行传统变异，覆盖率奖励一定为0
+        仅当不存在语法错误时，才会进行传统变异，从而有覆盖率奖励，此时奖励会变成1，从而使得1*0.1+0.9*0.5=0.55略有提升
+
+        Arguments:
+            has_syntax_error: 是否有语法错误
+            coverage_gain: 覆盖率增益 (0~1)
+        """
+        # 基础权重分配
+        w_syntax = 0.5
+        w_coverage = 0.5
+        
+        # 计算基础奖励
+        base_reward = (
+            w_syntax * (1 - int(has_syntax_error)) +
+            w_coverage * coverage_gain
+        )
+        
+        # 归一化到 [0,1]
+        return min(max(base_reward, 0), 1)
+
+    def random_llm_mutate(self) -> Mutant:
+        """
+        随机选择一种变异类型并对种子进行变异。
+        """
+        mutation_type = self.select_mutation_type()
+        logger.trace(f"Randomly selected mutation type: {mutation_type}")
+        while True:
+            res = llm_mutate(self.seed, mutation_type)
+            res = filter_syntax(res)
+            has_syntax_error = res is None
+            if has_syntax_error:
+                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+                continue
+            break
+        # 成功变异后返回变异结果，覆盖率奖励由外部执行后再计算并更新
+        return res
