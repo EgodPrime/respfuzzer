@@ -2,7 +2,7 @@ import subprocess
 import dcov
 import os
 from pathlib import Path
-from LLM_testcases.Logger import Logger
+from Logger import Logger
 def main():
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
@@ -23,7 +23,7 @@ def main():
     
     # workspace-relative defaults (repo root -> experiments/RQ1/...)
     repo_root = Path(__file__).resolve().parents[3]
-    base_dir = str(repo_root / 'experiments' / 'RQ1' / 'generated_tests_by_api')
+    base_dir = str(repo_root / 'experiments' / 'RQ1' / 'LLM_testcases' / 'generated_by_api')
     logger = Logger(str(repo_root / 'experiments' / 'RQ1'), 'cov_log.txt')
 
     for i in range(12):
@@ -34,7 +34,7 @@ def main():
                 file_abs_path = os.path.join(lib_dir, file)
                 full_cmd = [
                     "python",
-                    str(repo_root / 'experiments' / 'RQ1' / 'driver.py'),
+                    str(repo_root / 'experiments' / 'RQ1' / 'coverage' / 'driver.py'),
                     lib,
                     file_abs_path,
                 ]

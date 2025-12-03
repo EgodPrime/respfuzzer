@@ -31,8 +31,6 @@ python3 experiments/RQ1/LLM_testcases/generate_tests_from_apis.py \
     --outdir experiments/RQ1/generated_by_lib \
     --parallel 50 \
     --count-per-lib 20 \
-    --model yb \
-    --api-base <http://127.0.0.1:8021/v1/chat/completions> ## llm_url
 ```
 
 Notes:
@@ -48,7 +46,7 @@ you want per-API tests).
 Usage example:
 
 ```bash
-python3 experiments/RQ1/LLM_testcases/api_list.json \
+python3 experiments/RQ1/LLM_testcases/generate_tests_from_apis_by_api.py \
     --input experiments/RQ1/LLM_testcases/api_list.json \
     --outdir experiments/RQ1/generated_by_api \
     --parallel 50 \

@@ -23,6 +23,17 @@ import json as _json
 
 RUNNER = Path(__file__).resolve().parent / 'seed_instrument_runner.py'
 
+# Ensure repository `src/` is on sys.path so imports like `respfuzzer.*` work
+# when the script is executed directly (helps avoid requiring PYTHONPATH).
+try:
+    repo_root = Path(__file__).resolve().parents[3]
+    src_path = str(repo_root / 'src')
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+except Exception:
+    # best-effort; if this fails, the user can set PYTHONPATH externally
+    pass
+
 
 def is_compilable(path: Path) -> bool:
     try:
@@ -240,24 +251,16 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    # Compute repository-root-relative defaults so the script works across machines.
-    # File is at: <repo>/experiments/RQ1/coverage/check_instrument_calls_fixed.py
-    # parents: 0=coverage,1=RQ1,2=experiments,3=<repo root>
-    repo_root = Path(__file__).resolve().parents[3]
-    default_base = str(repo_root / 'experiments' / 'RQ1' / 'generated_tests_bigrun')
-    default_apis = str(repo_root / 'experiments' / 'RQ1' / 'api_list.json')
-    default_out = str(repo_root / 'experiments' / 'RQ1' / 'instrument_check_report.json')
-
-    p.add_argument('--base', '-b', default=default_base, help='Base directory containing .py seeds')
-    p.add_argument('--apis-json', '-a', default=default_apis, help='API list JSON')
-    p.add_argument('--out', '-o', default=default_out, help='Output report JSON')
+    p.add_argument('--base', '-b', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/generated_by_api', help='Base directory containing .py seeds')
+    p.add_argument('--apis-json', '-a', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/api_list.json', help='API list JSON')
+    p.add_argument('--out', '-o', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/instrument_check_report.json', help='Output report JSON')
     p.add_argument('--timeout', type=int, default=10, help='Per-seed execution timeout in seconds')
     p.add_argument('--workers', '-j', type=int, default=4, help='Parallel workers to run subprocesses')
     p.add_argument('--no-progress', action='store_true', help='Disable progress bar output')
     p.add_argument('--max-seeds', type=int, default=0, help='If >0, process at most this many seeds (for testing)')
     p.add_argument('--start-index', type=int, default=0, help='Start index into the compilable seed list (0-based)')
     p.add_argument('--end-index', type=int, default=0, help='End index (exclusive) into the compilable seed list (0-based). If 0, goes to end')
-    p.add_argument('--skip-interactive', action='store_true', help='Skip seeds that appear interactive (contain Ctrl+C/wait for signal/input prompts)')
+    p.add_argument('--skip-interactive', action='store_true', help='Skip seeds that appear interactive (contain Ctrl+C/等待信号/input prompts)')
     p.add_argument('--libs', type=str, default='', help='Comma-separated list of top-level libs from the APIs JSON to instrument (default: all)')
     args = p.parse_args()
 
@@ -321,12 +324,16 @@ def main() -> None:
         s = txt.lower()
         keywords = [
             'ctrl+c',
+            '按 ctrl',
+            '按 ctrl+c',
+            '等待信号',
+            '等待 ctrl',
             'press ctrl',
-            'press ctrl+c',
-            'wait for signal',
-            'wait for ctrl',
             'disable_signal_handler',
             'signal.pause',
+            'press ctrl+c',
+            '按下 ctrl',
+            '按下 ctrl+c',
             'input(',
             'raw_input('
         ]
@@ -364,7 +371,7 @@ def main() -> None:
         bar_width = 30
         filled = int(bar_width * pct / 100)
         bar = "█" * filled + "-" * (bar_width - filled)
-        return f"Progress: [{bar}] {comp}/{tot} ({pct}%)"
+        return f"进度: [{bar}] {comp}/{tot} ({pct}%)"
 
     # Parse libs filter
     libs_to_instrument = []
