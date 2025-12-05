@@ -33,7 +33,7 @@ from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 from respfuzzer.repos.function_table import get_function
 import re
-from respfuzzer.repos.seed_table import get_seed
+from respfuzzer.repos.mutant_table import get_mutant
 
 client = openai.OpenAI(base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 model_name = "qwen3-30b-a3b"
@@ -221,7 +221,7 @@ def main() -> None:
         stderrs = []
         for result in results:
             seed_id = result["seed_id"]
-            seed = get_seed(seed_id)
+            seed = get_mutant(seed_id)
             if seed is None:
                 logger.error(f"Seed {seed_id} not found.")
                 func_sources.append("")

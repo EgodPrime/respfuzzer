@@ -66,4 +66,4 @@ def test_fuzz_function_with_args(
     args = (1, 2, 3)
     kwargs = {"a": 4, "b": 5}
     fuzz_function(mock_function, *args, **kwargs)
-    mock_logger.info.assert_any_call("Start fuzz test_module.test_function")
+    mock_logger.debug.assert_any_call("Start fuzz test_module.test_function")

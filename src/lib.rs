@@ -84,7 +84,7 @@ fn py_bytes_mutate(py: Python, value: &[u8]) -> PyResult<Py<PyBytes>> {
     unsafe {
         havoc(&mut byte_array, &mut len, false);
     }
-    Ok(PyBytes::new_bound(py, &byte_array).into())
+    Ok(PyBytes::new(py, &byte_array).into())
 }
 
 /// A Python module implemented in Rust. The name of this function must match
