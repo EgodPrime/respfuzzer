@@ -15,7 +15,7 @@ from respfuzzer.lib.fuzz.instrument import (
 )
 
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
-from respfuzzer.models import HasCode, Seed, Mutant
+from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos.seed_table import get_seed_by_function_name, get_seeds_iter
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -95,7 +95,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
 
 def _fuzz_dataset(
     dataset: dict[str, dict[str, dict[str, list[int]]]],
-    enable_feedback_mutation: bool = False,
+    enable_feedback_mutation: bool = True,
 ) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
@@ -186,7 +186,7 @@ def calc_initial_seed_coverage_dataset(
 
 def fuzz_dataset(
     dataset_path: str,
-    enable_feedback_mutation: bool = False,
+    enable_feedback_mutation: bool = True,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file."""
     logger.remove()
@@ -266,7 +266,7 @@ def fuzz_single_seed(
             cov_before = bm.count_bitmap()
             logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
             logger.info(f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}")
-            send.put(("feedback_fuzz", mutant))
+            send.put(("execute", mutant))
             recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
             bm.read()
             cov_after = bm.count_bitmap()

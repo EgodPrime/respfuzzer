@@ -1,4 +1,5 @@
 import signal
+import os
 import time
 from multiprocessing.connection import Connection
 from typing import Callable
@@ -119,11 +120,6 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
 
     exec_cnt = rc.hget("fuzz", "exec_cnt")
-    if exec_cnt:
-        exec_cnt = int(exec_cnt)
-        if exec_cnt >= data_fuzz_per_seed:
-            # logger.info(f"{full_name} has been executed {exec_cnt} times, skip it")
-            return
 
     set_random_state(int(time.time()))
 
@@ -136,7 +132,7 @@ def fuzz_function(func: Callable, *args, **kwargs) -> None:
     logger.debug(f"Start fuzz {full_name}")
     rc.hset("fuzz", "current_func", full_name)
 
-    for i in range(exec_cnt + 1, data_fuzz_per_seed + 1):
+    for i in range(1, data_fuzz_per_seed + 1):
         random_state = get_random_state()
         rc.hset(f"exec_record", i, random_state)
         mt_param_list = mutate_param_list(param_list)
@@ -187,3 +183,22 @@ def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
         execute_once(func, *args, **kwargs)
 
     logger.debug(f"RespFuzzer fuzz {full_name} done")
+
+
+def fuzz_function_feedback(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> None:
+    full_name = f"{func.__module__}.{func.__name__}"
+    pid = os.getpid()
+    set_random_state(int(time.time()))
+    logger.info(f"RespFuzzer start feedback fuzz {full_name}")
+
+    param_list = convert_to_param_list(*args, **kwargs)
+    if len(param_list) == 0:
+        execute_once(func, *args, **kwargs)
+        return
+
+    for _ in range(1, data_fuzz_per_seed + 1):
+        rc.hset("random_state", str(pid), get_random_state())
+        mt_param_list = mutate_param_list(param_list)
+        args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
+        execute_once(func, *args, **kwargs)
+    logger.info(f"RespFuzzer feedback fuzz {full_name} done")

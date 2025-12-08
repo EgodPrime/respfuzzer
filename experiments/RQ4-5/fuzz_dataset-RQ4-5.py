@@ -15,7 +15,7 @@ from respfuzzer.lib.fuzz.instrument import (
 )
 
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
-from respfuzzer.models import HasCode, Seed, Mutant
+from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos.seed_table import get_seed_by_function_name, get_seeds_iter
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -95,7 +95,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
 
 def _fuzz_dataset(
     dataset: dict[str, dict[str, dict[str, list[int]]]],
-    enable_feedback_mutation: bool = False,
+    enable_feedback_mutation: bool = True,
 ) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
@@ -186,7 +186,7 @@ def calc_initial_seed_coverage_dataset(
 
 def fuzz_dataset(
     dataset_path: str,
-    enable_feedback_mutation: bool = False,
+    enable_feedback_mutation: bool = True,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file."""
     logger.remove()
@@ -271,12 +271,12 @@ def fuzz_single_seed(
             bm.read()
             cov_after = bm.count_bitmap()
             logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
-            if enable_feedback_mutation:
-                if cov_after > cov_before:
-                    Mutator.update_reward(mutation_type, 1)
-                    logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
-                else:
-                    Mutator.update_reward(mutation_type, 0) 
+            # if enable_feedback_mutation:
+            #     if cov_after > cov_before:
+            #         Mutator.update_reward(mutation_type, 1)
+            #         logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
+            #     else:
+            #         Mutator.update_reward(mutation_type, 0) 
             
         except Exception as e:
             logger.info(f"Exception occurred: {e}")

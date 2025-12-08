@@ -187,6 +187,7 @@ class LLMMutator:
             self.alpha * reward + 
             (1 - self.alpha) * self.mu[mutation_type]
         )
+        logger.info(f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}")
     
     def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
         """
@@ -212,7 +213,7 @@ class LLMMutator:
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 
-    def random_llm_mutate(self) -> Mutant:
+    def random_llm_mutate(self) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
         """
@@ -220,11 +221,11 @@ class LLMMutator:
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
         while True:
             res = llm_mutate(self.seed, mutation_type)
-            res = filter_syntax(res)
-            has_syntax_error = res is None
-            if has_syntax_error:
-                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                continue
+            # res = filter_syntax(res)
+            # has_syntax_error = res is None
+            # if has_syntax_error:
+            #     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+            #     continue
             break
         # 成功变异后返回变异结果，覆盖率奖励由外部执行后再计算并更新
-        return res
+        return res, mutation_type

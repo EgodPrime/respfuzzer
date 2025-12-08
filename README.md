@@ -46,7 +46,7 @@ uv pip install -e .
 
 4. install dcov for coverage analysis:
 ```bash
-uv pip install git+https://github.com/EgodPrime/dcov.git@pure-python
+uv pip install git+https://github.com/EgodPrime/dcov.git@python_v2
 ```
 
 5. Install the libraries under test:
