@@ -261,23 +261,12 @@ def fuzz_single_seed(
     Mutator = LLMMutator(seed)
     for _ in range(llm_fuzz_per_seed):       
         mutant, mutation_type = Mutator.random_llm_mutate()
+        cov_before = bm.count_bitmap_s()
+        logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
+        logger.info(f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}")
         try:
-            bm.read()
-            cov_before = bm.count_bitmap()
-            logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
-            logger.info(f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}")
-            send.put(("feedback_fuzz", mutant))
-            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
-            bm.read()
-            cov_after = bm.count_bitmap()
-            logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
-            if enable_feedback_mutation:
-                if cov_after > cov_before:
-                    Mutator.update_reward(mutation_type, 1)
-                    logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
-                else:
-                    Mutator.update_reward(mutation_type, 0) 
-            
+            send.put(("execute", mutant))
+            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)   
         except Exception as e:
             logger.info(f"Exception occurred: {e}")
             random_state = redis_client.hget("random_state", str(child_pid))
@@ -293,6 +282,14 @@ def fuzz_single_seed(
             process.start()
             child_pid = process.pid
             continue
+        cov_after = bm.count_bitmap_s()
+        logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
+        if enable_feedback_mutation:
+            if cov_after > cov_before:
+                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
+                logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
+            else:
+                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0)) 
         
     send.put(("exit", None))
     process.join()

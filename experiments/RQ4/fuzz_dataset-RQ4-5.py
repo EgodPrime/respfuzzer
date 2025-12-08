@@ -285,11 +285,8 @@ def fuzz_single_seed(
         cov_after = bm.count_bitmap_s()
         logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
         if enable_feedback_mutation:
-            if cov_after > cov_before:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
-                logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
-            else:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0)) 
+            Mutator.update_reward(mutation_type, 0.5)
+            logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
         
     send.put(("exit", None))
     process.join()

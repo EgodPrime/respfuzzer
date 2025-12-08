@@ -1,4 +1,4 @@
-# RQ4 Experiment
+# RQ5 Experiment
 
 ## SecurityEval Experiment
 
@@ -28,7 +28,7 @@ export PATH=$PATH:$(pwd)/codeql
 uv run agentic_function_resolver_vul.py
 ```
 
-The test cases will be generated in the `experiments/RQ4/SecurityEval/Testcases_RespFuzzer` directory.
+The test cases will be generated in the `experiments/RQ5/SecurityEval/Testcases_RespFuzzer` directory.
 
 ### Analyze Test Cases with bandit
 
