@@ -221,11 +221,11 @@ class LLMMutator:
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
         while True:
             res = llm_mutate(self.seed, mutation_type)
-            res = filter_syntax(res)
-            has_syntax_error = res is None
-            if has_syntax_error:
-                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                continue
+            # res = filter_syntax(res)
+            # has_syntax_error = res is None
+            # if has_syntax_error:
+            #     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+            #     continue
             break
         # 成功变异后返回变异结果，覆盖率奖励由外部执行后再计算并更新
         return res, mutation_type
