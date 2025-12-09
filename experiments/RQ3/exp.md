@@ -61,7 +61,7 @@ cd {RESPFUZZER}/experiments/RQ3/DyFuzz
 python run_respfuzzer.py
 ```
 
-## How to plot a similar figure in our paper
+## How to draw a similar table in the paper
 ```bash
-uv run plot.py
+uv run reoort.py
 ```

@@ -1,26 +1,14 @@
 """
-存在RespFuzzer、DyFuzz、Fuzz4All三种Fuzzer的日志，需要先做数据预处理，然后复用同一个绘图函数进行绘图
-
+2025-11-18 11:26:59.088 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:190 - Initial coverage after executing all seeds: 81786 bits.
 2025-10-19 21:23:12.357 | INFO     | __main__:fuzz_dataset:150 - Current coverage after fuzzing paddle.log10_: 210141 bits.
-
-对于上述三种日志格式，需要设计三个不同的regex来提取coverage数值和time_used，然后将其传递给同一个plot函数进行绘图
-提取形式：
-[
-    {
-        'func_iter': int,
-        'coverage': int,
-        'time_used': float
-    }
-]
 """
 
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 from datetime import datetime
 import re
 
 time_start_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})"
 coverage_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Current coverage after fuzzing .*: (\d+) bits"
+initial_coverage_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Initial coverage after executing all seeds: (\d+) bits"
 
 def convert_logtime_to_timestamp(log_time_str: str) -> float:
     """Convert log time string to timestamp.
@@ -45,13 +33,21 @@ def extract_fuzz_data(log_lines: list[str], pattern: str) -> list[dict]:
         list[dict]: Extracted data with func_iter, coverage, and time_used.
     """
     time_start: float = 0.0
-    matcch_start = re.search(time_start_pattern, log_lines[0])
-    if matcch_start:
-        
-        time_start_str = matcch_start.group(1)
+    match_start = re.search(time_start_pattern, log_lines[0])
+    if match_start:
+        time_start_str = match_start.group(1)
         time_start = convert_logtime_to_timestamp(time_start_str)
+
+    for i in range(10):
+        match_coverage_start = re.search(initial_coverage_pattern, log_lines[i])
+        coverage_start = 0
+        if match_coverage_start:
+            coverage_start = int(match_coverage_start.group(2))
+            break
+    
     data = []
     func_iter = 0
+    
     for line in log_lines:
         match = re.search(pattern, line)
         if match:
@@ -59,7 +55,7 @@ def extract_fuzz_data(log_lines: list[str], pattern: str) -> list[dict]:
             coverage_str = match.group(2)
             log_time = convert_logtime_to_timestamp(log_time_str)
             time_used = log_time - time_start
-            coverage = int(coverage_str)
+            coverage = int(coverage_str)-coverage_start
             data.append({
                 'func_iter': func_iter,
                 'coverage': coverage,
@@ -119,67 +115,40 @@ def get_band_data(log_prefix: str) -> dict[str, list[dict]]:
     res['time_used'] = time_used_data
     return res
 
-def plot_band(data: list[dict], legend:str, title: str, x_label: str, y_label: str, color:str, ax: plt.Axes):
-    """Plot band data on the given Axes.
-
-    Args:
-        data (list[dict]): List of dictionaries containing band data.
-        title (str): Title of the plot.
-        x_label (str): Label for the x-axis.
-        y_label (str): Label for the y-axis.
-        ax (plt.Axes): The matplotlib Axes to plot on.
+def gen_table_latex(data: dict[str, dict[str, list[dict]]]) -> str:
+    r"""
+    \begin{tabular}{lrr}
+        \toprule
+        \textbf{Configuration} & \textbf{Avg. Line Coverage} & \textbf{Avg. Time Cost (second)} \\
+        \toprule
+        ... \\
+        \bottomrule
+    \end{tabular}
     """
-    x_data = [entry['func_iter'] for entry in data]
-    min_y_data = [entry['min'] for entry in data]
-    max_y_data = [entry['max'] for entry in data]
-    avg_y_data = [entry['avg'] for entry in data]
-
-    # fill_between和plot应该使用相同的颜色，但是颜色深浅不同且fill_between有透明度
-    ax.fill_between(x_data, min_y_data, max_y_data, alpha=0.5, facecolor=color)
-    ax.plot(x_data, avg_y_data, color=color, label=legend, linewidth=0.1)
-    ax.set_xlabel(x_label)
-    ax.set_ylabel(y_label)
-    ax.set_title(title)
-    ax.grid(axis='y')
-    # ax.annotate(f'{int(avg_y_data[-1])}', xy=(x_data[-1], avg_y_data[-1]), xytext=(5, 0), textcoords='offset points')
-
-
-def plot_all(data: dict[str, dict[str, list[dict]]]):
-    """Plot coverage and time used for all fuzzers.
-    """
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
-
-    colors = ['blue', 'green', 'red', 'purple', 'orange', 'brown']
-
-    for (fuzzer_name, fuzzer_data), color in zip(data.items(), colors):
-        plot_band(fuzzer_data['coverage'], fuzzer_name, 'Coverage Comparison', 'Function Iteration', 'Line Coverage', color=color, ax=ax1)
-        plot_band(fuzzer_data['time_used'], fuzzer_name, 'Time Used Comparison', 'Function Iteration', 'Time Used (s)', color=color, ax=ax2)
-    ax1.legend()
-    ax2.legend()
-    
-
-    plt.tight_layout()
-
+    baseline = data['RespFuzzer']
+    table = []
+    table.append(r"\begin{tabular}{lrr}")
+    table.append(r"\toprule")
+    table.append(r"\textbf{Configuration} & \textbf{Avg. Line Coverage} & \textbf{Avg. Time Cost (second)} \\")
+    table.append(r"\midrule")
+    for fuzzer_name, fuzzer_data in data.items():
+        coverage = fuzzer_data['coverage'][-1]['avg']
+        coverage_drop_percent = (baseline['coverage'][-1]['avg'] - coverage) / baseline['coverage'][-1]['avg'] * 100
+        coverage_drop_percent_str = rf"({coverage_drop_percent:.2f}\%$\downarrow$)"
+        total_time_used = fuzzer_data['time_used'][-1]['avg']
+        time_drop_percent = total_time_used / baseline['time_used'][-1]['avg'] -1
+        time_drop_percent_str = rf"({time_drop_percent:.2f}x$\uparrow$)"
+        table.append(f"{fuzzer_name} & {int(coverage)} {coverage_drop_percent_str} & {int(total_time_used)} {time_drop_percent_str}\\\\")
+    table.append(r"\bottomrule")
+    table.append(r"\end{tabular}")
+    return "\n".join(table)
 
 if __name__ == "__main__":
     data = {
         'DyFuzz': get_band_data('RQ3-dyfuzz'),
         'Fuzz4All': get_band_data('RQ3-fuzz4all'),
-        'RespFuzzer': get_band_data('RQ3-respfuzzer-10-10-'),
-        # 'RespFuzzer-100-100': get_band_data('RQ3-respfuzzer-100-100-'),
-        # 'RespFuzzer-LLM-Only-10': get_band_data('RQ3-respfuzzer-llm-only-10-'),
-        # 'RespFuzzer-LLM-Only-100': get_band_data('RQ3-respfuzzer-llm-only-100-'),
-        # 'RespFuzzer-Param-Only': get_band_data('RQ3-respfuzzer-parameter-only-100-')
+        'RespFuzzer': get_band_data('RQ4-20251208-1-'),
     }
 
-    plot_all(data)
-
-    pp = PdfPages("RQ3.pdf")
-    pp.savefig(dpi=300)
-    pp.close()
-
     # 汇报统计数据
-    for fuzzer_name, fuzzer_data in data.items():
-        final_coverage = fuzzer_data['coverage'][-1]['avg']
-        total_time_used = fuzzer_data['time_used'][-1]['avg']
-        print(f"{fuzzer_name}: Final Coverage = {int(final_coverage)}, Total Time Used = {int(total_time_used)} s")
+    print(gen_table_latex(data))

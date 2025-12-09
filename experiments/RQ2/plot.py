@@ -2,12 +2,6 @@
 绘制 RQ1 结果图表
 
 
-一共有4个数据库，对应四个对照组：
-- rq2_111: CSG + SCE + DCM
-- rq2_110: CSG + SCE
-- rq2_101: CSG + DCM
-- rq2_100: CSG only
-
 通过`get_data_for_view_from_postgresql`函数获取每个数据库的结果数据，Data 形式：
 {
     "library_name_1": {
@@ -126,7 +120,7 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
         f"Average Function Coverage Rate:\n"
         f"SCE+RCM: {average_111:.2f}%\n"
         f"SCE-only: {average_110:.2f}%\n"
-        f"DCM-only: {average_101:.2f}%\n"
+        f"RCM-only: {average_101:.2f}%\n"
         f"Baseline: {average_100:.2f}%\n"
     )
     print(report)
@@ -137,10 +131,10 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
     top_values_100 = [data_100[lib_name]["tf_solved_percent"] for lib_name in library_map]
 
 
-    plot_one_bar(x_data, y_data_111, top_values=top_values_111, offset=-0.3, x_ticks=library_names, ax=ax, label="CSG+SCE+DCM")
-    plot_one_bar(x_data, y_data_110, top_values=top_values_110, offset=-0.1, x_ticks=library_names, ax=ax, label="CSG+SCE")
-    plot_one_bar(x_data, y_data_101, top_values=top_values_101, offset=0.1, x_ticks=library_names, ax=ax, label="CSG+DCM")
-    plot_one_bar(x_data, y_data_100, top_values=top_values_100, offset=0.3, x_ticks=library_names, ax=ax, label="CSG only")
+    plot_one_bar(x_data, y_data_111, top_values=top_values_111, offset=-0.3, x_ticks=library_names, ax=ax, label="SCE+RCM")
+    plot_one_bar(x_data, y_data_110, top_values=top_values_110, offset=-0.1, x_ticks=library_names, ax=ax, label="SCE-only")
+    plot_one_bar(x_data, y_data_101, top_values=top_values_101, offset=0.1, x_ticks=library_names, ax=ax, label="RCM-only")
+    plot_one_bar(x_data, y_data_100, top_values=top_values_100, offset=0.3, x_ticks=library_names, ax=ax, label="Baseline")
 
     ax.set_xticks(x_data)
     ax.set_xticklabels(library_map.values(), rotation=45, ha='right')
@@ -158,7 +152,7 @@ if __name__ == "__main__":
     db_files = {
         "SCE+RCM": "rq2_111",
         "SCE-only": "rq2_110",
-        "DCM-only": "rq2_101",
+        "RCM-only": "rq2_101",
         "Baseline": "rq2_100",
     }
 
@@ -169,7 +163,7 @@ if __name__ == "__main__":
     plot_RQ2(
         data_111=data_results["SCE+RCM"],
         data_110=data_results["SCE-only"],
-        data_101=data_results["DCM-only"],
+        data_101=data_results["RCM-only"],
         data_100=data_results["Baseline"]
     )
 
