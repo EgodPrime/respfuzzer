@@ -13,6 +13,7 @@ import mutator
 import sys
 import timeout
 import dcov
+from dcov import BitmapManager
 import io
 import sys
 
@@ -145,7 +146,7 @@ def get_mulist(paramlist):
 mod = sys.argv[1]
 api = sys.argv[2]
 n = int(sys.argv[3])
-
+bm = BitmapManager(4398)
 
 # paramlist = get_paramlist(n)
 # print("seed......",paramlist)
@@ -189,8 +190,8 @@ def fake_tt():
 @timeout.set_timeout(5, fake_tt)
 def fuzzapi(mod, api, n):
     library_name = mod.split(".")[0]
-    with dcov.LoaderWrapper(library_name) as l:
-        p0 = dcov.count_bitmap_py()
+    with dcov.LoaderWrapper(bm, library_name = library_name) as l:
+        p0 = bm.count_bitmap_s()
         if n == 0:
             codeprefix = "import %s;\n" % mod
             code = codeprefix + mod + "." + api + "(" + ")"
@@ -200,6 +201,8 @@ def fuzzapi(mod, api, n):
             except:
                 pass
                 # traceback.print_exc()
+            finally:
+                bm.write()
         else:
 
             paramlist = get_paramlist(n)
@@ -236,14 +239,14 @@ def fuzzapi(mod, api, n):
             except:
                 # traceback.print_exc()
                 pass
-
+            finally:
+                bm.write()
             # paramlist = get_mulist(paramlist)
             # print("____________\n\n\n\n")
-        p1 = dcov.count_bitmap_py()
+        p1 = bm.count_bitmap_s()
         if p1 > p0:
             logger.info(f"Coverage increased {p1-p0}, now: {p1}")
 
 # logger.info(f"Fuzzing {mod}.{api} with {n} params")
 
-dcov.open_bitmap_py()
 fuzzapi(mod, api, n)

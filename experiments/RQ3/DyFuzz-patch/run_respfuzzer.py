@@ -10,6 +10,7 @@ import json
 from loguru import logger
 import time
 import dcov
+from dcov import BitmapManager
 import subprocess
 
 # print(platform.system())
@@ -172,8 +173,9 @@ ignorelist = []
 # mcount = 0
 
 
-dcov.open_bitmap_py()
-dcov.clear_bitmap_py()
+bm = BitmapManager(4398)
+bm.clear_bitmap()
+bm.write()
 from respfuzzer.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
 calc_initial_seed_coverage_dataset(moddic)
 for mod in list(moddic.keys()):
@@ -199,7 +201,7 @@ for mod in list(moddic.keys()):
                 logger.debug(f"{mod}.{api} has {n} params, run {int(1e2)} times")
                 run_limit_n(mod, api, n, int(1e2))
             logger.info(f"Fuzz {mod}.{api} {n} done")
-            logger.info(f"Current coverage after fuzzing {mod}.{api}: {dcov.count_bitmap_py()} bits")
+            logger.info(f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits")
 
     # print(mcount, mod,api,moddic[mod][api]["pn"])
     # stest(stresslist,mod,api,moddic[mod][api]["pn"][1])

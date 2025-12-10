@@ -202,7 +202,7 @@ class Fuzz4AllMutator:
             ]
             for future in futures:
                 response = future.result()
-                new_code = response.content.strip()
+                new_code = response.choices[0].text.strip()
                 mutant_code = (
                     self.prompt_used["begin"] + "\n" + self.clean_code(new_code)
                 )
