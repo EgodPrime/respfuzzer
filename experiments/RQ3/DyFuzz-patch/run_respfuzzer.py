@@ -134,7 +134,7 @@ def run_limit_n(mod, api, n, buget):
                 stderr=subprocess.PIPE,
                 start_new_session=True,
             )
-            stdout, stderr = p.communicate(timeout=6)
+            stdout, stderr = p.communicate(timeout=10)
         except subprocess.TimeoutExpired:
             logger.warning("Subprocess timed out")
             os.killpg(os.getpgid(p.pid), 9)
@@ -198,8 +198,8 @@ for mod in list(moddic.keys()):
                 gen_log(mod, api, n, s)
                 totalAPI = totalAPI + 1
             else:
-                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2)} times")
-                run_limit_n(mod, api, n, int(1e2))
+                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2/2)} times")
+                run_limit_n(mod, api, n, int(1e2/2))
             logger.info(f"Fuzz {mod}.{api} {n} done")
             logger.info(f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits")
 

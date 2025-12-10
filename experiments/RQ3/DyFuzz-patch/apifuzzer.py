@@ -190,7 +190,7 @@ def fake_tt():
 @timeout.set_timeout(5, fake_tt)
 def fuzzapi(mod, api, n):
     library_name = mod.split(".")[0]
-    with dcov.LoaderWrapper(bm, library_name = library_name) as l:
+    with dcov.LoaderWrapper(bm, library_name=library_name) as l:
         p0 = bm.count_bitmap_s()
         if n == 0:
             codeprefix = "import %s;\n" % mod
@@ -198,11 +198,10 @@ def fuzzapi(mod, api, n):
             open("./temp.py", "w").write(code)
             try:
                 exec(compile(code, "", "exec"))
+                bm.write()
             except:
                 pass
                 # traceback.print_exc()
-            finally:
-                bm.write()
         else:
 
             paramlist = get_paramlist(n)
@@ -236,11 +235,10 @@ def fuzzapi(mod, api, n):
 
             try:
                 exec(compile(code, "", "exec"))
+                bm.write()
             except:
                 # traceback.print_exc()
                 pass
-            finally:
-                bm.write()
             # paramlist = get_mulist(paramlist)
             # print("____________\n\n\n\n")
         p1 = bm.count_bitmap_s()
