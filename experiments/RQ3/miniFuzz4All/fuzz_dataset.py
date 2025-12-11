@@ -9,6 +9,7 @@ import threading
 import time
 from typing import Callable
 import dcov
+from dcov import BitmapManager
 import fire
 import psutil
 from f4a_mutator import Fuzz4AllMutator
@@ -57,12 +58,13 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     logger.debug(f"seed is :\n{seed.function_call}")
 
     send, recv = Queue(), Queue()
-    process = Process(target=continue_safe_execute, args=(send, recv), name="FuzzWorker")
+    process = Process(target=continue_safe_execute, args=(send, recv, 4398), name="FuzzWorker")
     process.start()
     th = threading.Thread(target=keep_watching_resource, args=(process,), daemon=True)
     th.start()
 
     f4a_mutator = Fuzz4AllMutator(seed)
+    bm = BitmapManager(4398)
 
     logger.info(f"Start fuzz seed {seed.id}.")
     for i in range(0, llm_fuzz_per_seed, concurrency):
@@ -85,7 +87,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
 
             t_seed = seed.model_copy()
             t_seed.function_call = mutated_call
-            c0 = dcov.count_bitmap_py()
+            c0 = bm.count_bitmap_s()
             send.put((command, t_seed))
             logger.debug(f"Sent mutated call to worker: {mutated_call}")
             try:
@@ -101,7 +103,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
                 send.close()
                 recv.close()
                 send, recv = Queue(), Queue()
-                process = Process(target=continue_safe_execute, args=(send, recv), name="FuzzWorker")
+                process = Process(target=continue_safe_execute, args=(send, recv, 4398), name="FuzzWorker")
                 process.start()
                 try:
                     th.join(0.1)
@@ -110,7 +112,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
                 th = threading.Thread(target=keep_watching_resource, args=(process,), daemon=True)
                 th.start()
             del t_seed
-            c1 = dcov.count_bitmap_py()
+            c1 = bm.count_bitmap_s()
             if c1 > c0:
                 logger.info(f"New coverage found by seed {seed.id}: {c1 - c0} new bits.")
     send.put(("exit", None))
@@ -132,7 +134,8 @@ def _fuzz_dataset(dataset: dict[str, dict[str, dict[str, list[int]]]], command: 
             if not seed:
                 continue
             fuzz_single_seed(seed, command)
-            p = dcov.count_bitmap_py()
+            bm =BitmapManager(4398)
+            p = bm.count_bitmap_s()
             logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
 
 def fuzz_dataset(dataset_path: str) -> None:
@@ -141,8 +144,9 @@ def fuzz_dataset(dataset_path: str) -> None:
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
+    bm = BitmapManager(4398)
+    bm.clear_bitmap()
+    bm.write()
 
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
 

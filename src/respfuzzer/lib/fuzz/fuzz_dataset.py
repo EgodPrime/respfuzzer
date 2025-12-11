@@ -179,8 +179,7 @@ def calc_initial_seed_coverage_dataset(
     send.put(("exit", None))
     process.join()
     bm = BitmapManager(4398)
-    bm.read()
-    p = bm.count_bitmap()
+    p = bm.count_bitmap_s()
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
 
 

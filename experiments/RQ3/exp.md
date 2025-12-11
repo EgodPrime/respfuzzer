@@ -39,7 +39,7 @@ cd ./experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run RespFuzzer
-fuzz fuzz_dataset ../respfuzzer_seeds.json
+fuzz fuzz_dataset ../respfuzzer_seeds.json > <xxxx>.log 2>&1
 ```
 
 ## Run Fuzz4All Mutation
@@ -50,7 +50,7 @@ cd {RESPFUZZER}/experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run Fuzz4All mutation
-python ../miniFuzz4All/fuzz_dataset.py normal ../respfuzzer_seeds.json
+python ../miniFuzz4All/fuzz_dataset.py normal ../respfuzzer_seeds.json > <xxxx>.log 2>&1
 ```
 
 ## Run DyFuzz
@@ -58,10 +58,10 @@ python ../miniFuzz4All/fuzz_dataset.py normal ../respfuzzer_seeds.json
 ```bash
 cd {RESPFUZZER}/experiments/RQ3/DyFuzz
 ## DyFuzz can handle its fuzzing garbage by itself
-python run_respfuzzer.py
+python run_respfuzzer.py > <xxxx>.log 2>&1
 ```
 
-## How to draw a similar table in the paper
+## How to plot a similar figure in our paper
 ```bash
-uv run reoort.py
+uv run plot.py
 ```

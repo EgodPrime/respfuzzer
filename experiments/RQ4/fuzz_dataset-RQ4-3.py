@@ -292,7 +292,13 @@ def fuzz_single_seed(
                 Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0)) 
         
     send.put(("exit", None))
-    process.join()
+    process.join(timeout=30)
+    if process.is_alive():
+        process.terminate()
+        process.join(timeout=5)
+        if process.is_alive():
+            process.kill()
+            process.join()
     bm.write()
     bm2 = BitmapManager(4398)
     bm2.merge_from(process_index)

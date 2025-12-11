@@ -296,7 +296,13 @@ def fuzz_single_seed(
     cov_after = bm.count_bitmap_s()
     logger.info(f"[{process_index}]Finished fuzzing mutant {seed.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
     send.put(("exit", None))
-    process.join()
+    process.join(timeout=30)
+    if process.is_alive():
+        process.terminate()
+        process.join(timeout=5)
+        if process.is_alive():
+            process.kill()
+            process.join()
     bm.write()
     bm2 = BitmapManager(4398)
     bm2.merge_from(process_index)
