@@ -21,6 +21,7 @@ execution_timeout = 5.0
 llm_fuzz_per_seed = 10
 data_fuzz_per_seed = 10
 max_try_per_seed = 10
+max_workers = 50
 
 [llm_mutator]
 base_url = "https://api.openai.com/v1"
