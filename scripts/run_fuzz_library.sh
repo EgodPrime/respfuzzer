@@ -7,8 +7,10 @@ timestamp=$(date +"%Y%m%d%H%M")
 # Source the library list
 source $config_file
 # Fuzz each library
+log_path="$current_dir/../experiments/RQ5/fuzz_$timestamp.log"
+touch "$log_path"
 for library in "${libraries[@]}"
 do
     echo "fuzz fuzz_library $library"
-    fuzz fuzz_library "$library" > "$current_dir/../experiments/RQ4/RQ4-$library-$timestamp.log" 2>&1
+    uv run fuzz fuzz_library "$library" >> "$log_path" 2>&1
 done

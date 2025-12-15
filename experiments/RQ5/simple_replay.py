@@ -99,13 +99,14 @@ def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str,
         _, stderr = p.communicate(timeout=5)
         stderr = stderr.decode()
         logger.info(f"Replay's stderr:\n{stderr}")
-        with open(f'/tmp/respfuzzer_replay_{random_state}_args.dump', 'rb') as f:
-            args_dump = f.read()
-        with open(f'/tmp/respfuzzer_replay_{random_state}_kwargs.dump', 'rb') as f:
-            kwargs_dump = f.read()
-        mutated_params_snapshot = f"args={args_dump}, kwargs={kwargs_dump}"
+        # with open(f'/tmp/respfuzzer_replay_{random_state}_args.dump', 'rb') as f:
+        #     args_dump = f.read()
+        # with open(f'/tmp/respfuzzer_replay_{random_state}_kwargs.dump', 'rb') as f:
+        #     kwargs_dump = f.read()
+        # mutated_params_snapshot = f"args={args_dump}, kwargs={kwargs_dump}"
             
-        logger.info(f"Params snapshot: {mutated_params_snapshot}")
+        # logger.info(f"Params snapshot: {mutated_params_snapshot}")
+        mutated_params_snapshot = "skipped"
         
     except subprocess.TimeoutExpired:
         p.kill()
@@ -263,6 +264,14 @@ def replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]:
     seed = get_mutant(seed_id)
     function_call = seed.function_call
     
+    stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
+    return {
+        'seed_id': seed_id,
+        'random_state': random_state,
+        'result': stderr,
+        'poc': function_call
+    }
+
     if random_state is None:
         logger.debug("SM")
         stderr = pure_execution(function_call)

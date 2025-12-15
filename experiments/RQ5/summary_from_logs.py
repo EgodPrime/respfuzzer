@@ -6,17 +6,18 @@ def find_all_crash(log_path: str) -> list[dict[str, int]]:
     从日志中找出所有疑似崩溃的记录，包含`Seed ID`和`random state`
 
     Example log lines:
-    Mutant 35283 execution 3 timeout after 5.0 seconds, restarting worker process. Last random state: 5925503564895958435
-    Mutant 81654 execution 1 timeout after 5.0 seconds, restarting worker process. Last random state: None
+    2025-12-11 09:10:07.698 | INFO     | respfuzzer.lib.fuzz.fuzz_dataset:fuzz_single_seed:272 - Mutant 755 execution timeout after 5.0 seconds, restarting worker process. Last random state: 2074081936842814406
+    2025-12-11 09:10:07.698 | INFO     | respfuzzer.lib.fuzz.fuzz_dataset:fuzz_single_seed:272 - Mutant 755 execution timeout after 5.0 seconds, restarting worker process. Last random state: None
     """
     crash_list = []
-    re_str = r'Mutant (\d+) execution \d+ timeout after [\d.]+ seconds, restarting worker process. Last random state: (\d+|None)'
-    with open(log_path, 'r', encoding='utf-8') as f:
+    # 因为测试用例的日志包含非法字符，所以以二进制方式读取，对应的正则表达式也要用二进制模式
+    re_str = rb'Mutant (\d+) execution timeout after [\d\.]+ seconds, restarting worker process\. Last random state: (None|\d+)'
+    with open(log_path, 'rb') as f:
         log_content = f.read()
         crash_entries = re.findall(re_str, log_content)
         for entry in crash_entries:
             seed_id = int(entry[0])
-            random_state = None if entry[1] == 'None' else int(entry[1])
+            random_state = None if entry[1] == b'None' else int(entry[1])
             crash_list.append({
                 'seed_id': seed_id,
                 'random_state': random_state
@@ -35,12 +36,13 @@ def find_all_logs(dir_path: str) -> list[str]:
                 log_files.append(os.path.join(root, file))
     return log_files
 
-if __name__ == '__main__':
-    log_files = find_all_logs('.')
+def main(dir_path: str) -> None:
+    log_files = find_all_logs(dir_path)
     crash_data: dict[str, list[dict[str, int]]] = {}
     for log_file in log_files:
         # RQ4-<library_name>-yyyymmddhhmm.log
-        library_name = log_file.split('-')[1]
+        # library_name = log_file.split('-')[1]
+        library_name="xixi"
         crashes = find_all_crash(log_file)
         if library_name not in crash_data:
             crash_data[library_name] = []
@@ -49,3 +51,7 @@ if __name__ == '__main__':
     with open('crash_summary.json', 'w', encoding='utf-8') as f:
         json.dump(crash_data, f, indent=2, ensure_ascii=False)
 
+
+if __name__ == '__main__':
+    import fire
+    fire.Fire(main)
