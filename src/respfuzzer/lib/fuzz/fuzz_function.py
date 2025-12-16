@@ -61,10 +61,6 @@ def execute_once(func: Callable, *args, **kwargs):
         raise te
     except Exception as e:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        # seed_id = rc.hget("fuzz", "seed_id")
-        # exec_cnt = rc.hget("fuzz", "exec_cnt")
-        # exec_cnt = int(exec_cnt) if exec_cnt else 0
-        # random_state = rc.hget("exec_record", exec_cnt + 1)
         # exception_type = type(e).__name__
         # logger.warning(
         #     f"{exception_type} during fuzzing seed {seed_id} with random state: {random_state} ({exec_cnt+1}'th mutation)."
@@ -103,53 +99,6 @@ def reconvert_param_list(param_list, *args, **kwargs) -> tuple[tuple, dict]:
     kwargs = {k: v for k, v in zip(kwargs.keys(), param_list[len(args) :])}
     return args, kwargs
 
-
-def fuzz_function(func: Callable, *args, **kwargs) -> None:
-    """Fuzz test a function by mutating its parameters.
-
-    Args:
-        func: Callable function to fuzz test
-        *args: Positional arguments for the function
-        **kwargs: Keyword arguments for the function
-
-    This function will execute the function with different mutated parameters.
-    If there are no arguments, it will execute the function once.
-    Otherwise, it will generate data_fuzz_per_seed different parameter mutations
-    and execute the function with each set of mutated parameters.
-    """
-    full_name = f"{func.__module__}.{func.__name__}"
-
-    exec_cnt = rc.hget("fuzz", "exec_cnt")
-
-    set_random_state(int(time.time()))
-
-    param_list = convert_to_param_list(*args, **kwargs)
-    if len(param_list) == 0:
-        logger.info(f"{full_name} has no arguments, execute only once.")
-        execute_once(func, *args, **kwargs)
-        return
-
-    logger.debug(f"Start fuzz {full_name}")
-    rc.hset("fuzz", "current_func", full_name)
-
-    for i in range(1, data_fuzz_per_seed + 1):
-        random_state = get_random_state()
-        rc.hset(f"exec_record", i, random_state)
-        mt_param_list = mutate_param_list(param_list)
-        args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-        execute_once(func, *args, **kwargs)
-        """
-        在记录变异前的随机状态时，使用了exec_cnt + 1，这是因为当前获取的exec_cnt是在本次执行之前已经执行过的次数。
-        如果执行成功，则外部获取到的exec_cnt会加1；
-        如果执行过程中出现异常或者超时，则不会增加exec_cnt，外部获取到的exec_cnt仍然是上一次成功执行的值，
-        所以在获取变异前的随机状态时，需要使用exec_cnt + 1来获取当前变异对应的随机状态。
-        即：想获取第i次变异的随机状态时，i对应的exec_cnt应该是i-1。
-        """
-        rc.hincrby("fuzz", "exec_cnt", 1)
-
-    logger.debug(f"Fuzz {full_name} done")
-
-
 def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
     param_list = convert_to_param_list(*args, **kwargs)
@@ -165,31 +114,11 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
     logger.info(f"Replay fuzz {full_name} done")
 
 
-def fuzz_function_f4a(func: Callable, *args, **kwargs) -> None:
-    full_name = f"{func.__module__}.{func.__name__}"
-
-    set_random_state(int(time.time()))
-
-    logger.debug(f"RespFuzzer start fuzz {full_name}")
-
-    param_list = convert_to_param_list(*args, **kwargs)
-    if len(param_list) == 0:
-        execute_once(func, *args, **kwargs)
-        return
-
-    for i in range(1, data_fuzz_per_seed + 1):
-        mt_param_list = mutate_param_list(param_list)
-        args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-        execute_once(func, *args, **kwargs)
-
-    logger.debug(f"RespFuzzer fuzz {full_name} done")
-
-
-def fuzz_function_feedback(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> None:
+def fuzz_function(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> None:
     full_name = f"{func.__module__}.{func.__name__}"
     pid = os.getpid()
     set_random_state(int(time.time()))
-    logger.info(f"RespFuzzer start feedback fuzz {full_name}")
+    logger.debug(f"RespFuzzer start fuzz {full_name}")
 
     param_list = convert_to_param_list(*args, **kwargs)
     if len(param_list) == 0:
@@ -201,4 +130,4 @@ def fuzz_function_feedback(func: Callable, data_fuzz_per_seed: int, *args, **kwa
         mt_param_list = mutate_param_list(param_list)
         args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
         execute_once(func, *args, **kwargs)
-    logger.info(f"RespFuzzer feedback fuzz {full_name} done")
+    logger.debug(f"RespFuzzer fuzz {full_name} done")

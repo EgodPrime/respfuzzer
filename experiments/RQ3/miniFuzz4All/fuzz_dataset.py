@@ -15,7 +15,7 @@ import psutil
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 from respfuzzer.utils.process_helper import kill_process_tree_linux, manage_process_with_timeout
-from respfuzzer.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset, continue_safe_execute
+from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset, continue_safe_execute
 from respfuzzer.models import Seed
 from respfuzzer.repos.seed_table import get_seed_by_function_name
 from respfuzzer.utils.config import get_config

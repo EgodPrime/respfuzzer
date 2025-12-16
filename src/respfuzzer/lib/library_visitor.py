@@ -11,7 +11,8 @@ from respfuzzer.lib.parsers.function_parser import (
 )
 from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files
 from respfuzzer.models import Function
-from respfuzzer.repos.function_table import create_function
+from respfuzzer.utils.paths import DATA_DIR
+import json
 
 logger.level("INFO")
 
@@ -159,7 +160,15 @@ def extract_functions_from_library(library_name: str) -> None:
     logger.info(f"Start extracting functions from library {library_name}")
     lv = LibraryVisitor(library_name)
     cnt = 0
+    functions: list[Function] = []
     for function in lv.visit():
-        create_function(function)
+        functions.append(function)
         cnt += 1
     logger.info(f"Finished extracting {cnt} functions from library {library_name}")
+    if cnt == 0:
+        return
+    json.dump(
+        [func.model_dump() for func in functions],
+        open(DATA_DIR / f"{library_name}_functions.json", "w"),
+        indent=2,
+    )

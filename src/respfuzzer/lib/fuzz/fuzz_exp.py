@@ -10,16 +10,16 @@ from loguru import logger
 from concurrent.futures import ThreadPoolExecutor
 
 from respfuzzer.lib.fuzz.instrument import (
-    instrument_function_via_path_ctx,
-    instrument_function_via_path_feedback, 
+    instrument_function_via_path_ctx, 
 )
 
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import HasCode, Seed, Mutant
-from respfuzzer.repos.seed_table import get_seed_by_function_name, get_seeds_iter
+from respfuzzer.repos import get_seed_by_function_name, get_seeds
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
+from respfuzzer.utils.paths import DATA_DIR
 
 
 def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
@@ -71,31 +71,84 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
                         send.put("done")
                 case "fuzz":
                     try:
-                        with instrument_function_via_path_ctx(seed.func_name):
-                            exec(seed.function_call)
-                    except Exception:
-                        pass
-                    finally:
-                        send.put("done")
-                case "exit":
-                    logger.info("Exiting worker process as instructed.")
-                    break
-                case "feedback_fuzz":
-                    try:
-                        with instrument_function_via_path_feedback(seed.func_name, data_fuzz_per_seed):
+                        with instrument_function_via_path_ctx(seed.func_name, data_fuzz_per_seed):
                             exec(seed.function_call)
                     except Exception:
                         pass
                     finally:
                         bm_child.write()
                         send.put("done")
+                case "exit":
+                    logger.info("Exiting worker process as instructed.")
+                    break
                 case _:
                     logger.error(f"Unknown command received: {command}")
                     exit(1)
 
+def fuzz_single_seed(
+    seed: Seed, process_index: int = 4399,
+) -> None:
+    """
+
+    """
+    config = get_config("fuzz")
+    execution_timeout = config.get("execution_timeout")
+    llm_fuzz_per_seed = config.get("llm_fuzz_per_seed")
+    data_fuzz_per_seed = config.get("data_fuzz_per_seed")
+    redis_client = get_redis_client()
+
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
+    bm = BitmapManager(process_index)
+    bm.sync_from(4398)
+    bm.write()
+    send, recv = Queue(), Queue()
+    process = Process(target=continue_safe_execute, args=(send, recv, process_index))
+    process.start()
+    child_pid = process.pid
+    Mutator = LLMMutator(seed)
+    for _ in range(llm_fuzz_per_seed):       
+        mutant, mutation_type = Mutator.random_llm_mutate()
+        with open(DATA_DIR / "mutants.data", "a+") as f:
+            f.write(f"{mutant.model_dump_json()}\n")
+        cov_before = bm.count_bitmap_s()
+        logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
+        logger.info(f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}")
+        try:
+            send.put(("fuzz", mutant))
+            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)   
+        except Exception as e:
+            logger.info(f"Exception occurred: {e}")
+            random_state = redis_client.hget("random_state", str(child_pid))
+            logger.info(
+                f"Mutant {mutant.id} execution timeout after {execution_timeout} seconds, restarting worker process. Last random state: {random_state}"
+            )
+            if process.is_alive():
+                kill_process_tree_linux(process)
+            else:
+                process.join()
+            send, recv = Queue(), Queue()
+            process = Process(target=continue_safe_execute, args=(send, recv, process_index))
+            process.start()
+            child_pid = process.pid
+            continue
+        cov_after = bm.count_bitmap_s()
+        logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}")
+        if cov_after > cov_before:
+            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
+            logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
+        else:
+            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0)) 
+        
+    send.put(("exit", None))
+    process.join()
+    bm.write()
+    bm2 = BitmapManager(4398)
+    bm2.merge_from(process_index)
+    logger.info(f"Merging coverage from process {process_index} to parent bitmap, final coverage: {bm2.count_bitmap()} bits.")
+    bm2.write()
+
 def _fuzz_dataset(
     dataset: dict[str, dict[str, dict[str, list[int]]]],
-    enable_feedback_mutation: bool = False,
 ) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
@@ -126,7 +179,6 @@ def _fuzz_dataset(
             fut = exc.submit(
                 fuzz_single_seed,
                 seed,
-                enable_feedback_mutation,
                 shm_key,
             )
             futures.append((fut, full_name))
@@ -185,7 +237,6 @@ def calc_initial_seed_coverage_dataset(
 
 def fuzz_dataset(
     dataset_path: str,
-    enable_feedback_mutation: bool = False,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file."""
     logger.remove()
@@ -199,101 +250,34 @@ def fuzz_dataset(
     calc_initial_seed_coverage_dataset(dataset)
     _fuzz_dataset(
         dataset,
-        enable_feedback_mutation=enable_feedback_mutation
     )
-
-
-def fuzz_dataset_infinite(dataset_path: str) -> None:
-    """Continuously fuzz functions specified in the dataset JSON file."""
-    logger.remove()
-    logger.add(sys.__stderr__, level="INFO")
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
-    calc_initial_seed_coverage_dataset(dataset)
-    while True:
-        try:
-            _fuzz_dataset(dataset)
-        except KeyboardInterrupt:
-            logger.info("Fuzzing interrupted by user.")
-            break
 
 def fuzz_one_library(library_name: str) -> None:
     """
     Fuzz the specified library with seeds from the database.
     """
-
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
-    dcov.open_bitmap_py()
-    dcov.clear_bitmap_py()
-
+    bm_parent = BitmapManager(4398)
+    bm_parent.clear_bitmap()
     logger.info(f"Starting fuzzing for library: {library_name}")
-
-    for seed in get_seeds_iter(library_name):
-        fuzz_single_seed(seed)
-        
-    
-def fuzz_single_seed(
-    seed: Seed, enable_feedback_mutation: bool = True, process_index: int = 4399,
-) -> None:
-    """
-
-    """
-    config = get_config("fuzz")
-    execution_timeout = config.get("execution_timeout")
-    llm_fuzz_per_seed = config.get("llm_fuzz_per_seed")
-    data_fuzz_per_seed = config.get("data_fuzz_per_seed")
-    redis_client = get_redis_client()
-
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
-    bm = BitmapManager(process_index)
-    bm.sync_from(4398)
-    bm.write()
-    send, recv = Queue(), Queue()
-    process = Process(target=continue_safe_execute, args=(send, recv, process_index))
-    process.start()
-    child_pid = process.pid
-    Mutator = LLMMutator(seed)
-    for _ in range(llm_fuzz_per_seed):       
-        mutant, mutation_type = Mutator.random_llm_mutate()
-        cov_before = bm.count_bitmap_s()
-        logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
-        logger.info(f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}")
-        try:
-            send.put(("feedback_fuzz", mutant))
-            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)   
-        except Exception as e:
-            logger.info(f"Exception occurred: {e}")
-            random_state = redis_client.hget("random_state", str(child_pid))
-            logger.info(
-                f"Mutant {mutant.id} execution timeout after {execution_timeout} seconds, restarting worker process. Last random state: {random_state}"
+    cfg = get_config("fuzz")
+    max_workers = cfg.get("max_workers")
+    with ThreadPoolExecutor(max_workers=max_workers) as exc:
+        futures = []
+        sub_key = 4399
+        for seed in get_seeds(library_name):
+            fut = exc.submit(
+                fuzz_single_seed,
+                seed,
+                sub_key,
             )
-            if process.is_alive():
-                kill_process_tree_linux(process)
-            else:
-                process.join()
-            send, recv = Queue(), Queue()
-            process = Process(target=continue_safe_execute, args=(send, recv, process_index))
-            process.start()
-            child_pid = process.pid
-            continue
-        cov_after = bm.count_bitmap_s()
-        logger.info(f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}: coverage {cov_before} -> {cov_after}")
-        if enable_feedback_mutation:
-            if cov_after > cov_before:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
-                logger.info(f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}")
-            else:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0)) 
-        
-    send.put(("exit", None))
-    process.join()
-    bm.write()
-    bm2 = BitmapManager(4398)
-    bm2.merge_from(process_index)
-    logger.info(f"Merging coverage from process {process_index} to parent bitmap, final coverage: {bm2.count_bitmap()} bits.")
-    bm2.write()
+            futures.append((fut, seed.func_name))
+            sub_key += 1
+        for fut, func_name in futures:
+            try:
+                fut.result()
+            except Exception as e:
+                logger.exception(f"Fuzz task for {func_name} raised: {e}")
+            finally:
+                logger.info(f"Current coverage after fuzzing {func_name}: {bm_parent.count_bitmap_s()} bits.")

@@ -1,8 +1,9 @@
 import fire
 
-from respfuzzer.lib.fuzz.fuzz_dataset import fuzz_dataset, fuzz_dataset_infinite
-from respfuzzer.lib.fuzz.fuzz_dataset import fuzz_one_library
+from respfuzzer.lib.fuzz.fuzz_exp import fuzz_dataset
+from respfuzzer.lib.fuzz.fuzz_exp import fuzz_one_library
 from respfuzzer.lib.fuzz.llm_mutator import random_llm_mutate
+from respfuzzer.lib.fuzz.fuzz_pure import fuzz_one_library as pure_fuzz_one_library
 
 
 def toy_batch_random_llm_mutate(
@@ -33,8 +34,8 @@ def main():
     fire.Fire(
         {
             "fuzz_dataset": fuzz_dataset,
-            "fuzz_dataset_infinite": fuzz_dataset_infinite,
             "fuzz_library": fuzz_one_library,
+            "pure_fuzz_library": pure_fuzz_one_library,
             "toy_batch_random_llm_mutate": toy_batch_random_llm_mutate,
         }
     )

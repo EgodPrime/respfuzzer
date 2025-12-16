@@ -176,7 +176,7 @@ ignorelist = []
 bm = BitmapManager(4398)
 bm.clear_bitmap()
 bm.write()
-from respfuzzer.lib.fuzz.fuzz_dataset import calc_initial_seed_coverage_dataset
+from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset
 calc_initial_seed_coverage_dataset(moddic)
 for mod in list(moddic.keys()):
     need_skip = []

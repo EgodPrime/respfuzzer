@@ -19,7 +19,6 @@ from loguru import logger
 
 from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 from respfuzzer.models import Mutant, Seed
-from respfuzzer.repos.mutant_table import create_mutant
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.llm_helper import SimpleLLMClient
 
@@ -84,8 +83,6 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
         args=seed.args,
         function_call=mutated_code,
     )
-    mutant_id = create_mutant(mutant)
-    mutant.id = mutant_id
 
     return mutant
 
@@ -187,7 +184,7 @@ class LLMMutator:
             self.alpha * reward + 
             (1 - self.alpha) * self.mu[mutation_type]
         )
-        logger.info(f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}")
+        logger.debug(f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}")
     
     def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
         """

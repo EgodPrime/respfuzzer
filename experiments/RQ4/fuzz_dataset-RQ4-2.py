@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
-    instrument_function_via_path_feedback, 
+    instrument_function_via_path_ctx, 
 )
 
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
@@ -82,7 +82,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
                     break
                 case "feedback_fuzz":
                     try:
-                        with instrument_function_via_path_feedback(seed.func_name, data_fuzz_per_seed):
+                        with instrument_function_via_path_ctx(seed.func_name, data_fuzz_per_seed):
                             exec(seed.function_call)
                     except Exception:
                         pass

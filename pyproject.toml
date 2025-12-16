@@ -5,15 +5,10 @@ description = "Reflective Seed Generation and Semantic-Guided Mutation for Pytho
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "argparse>=1.4.0",
-    "autoflake>=2.3.1",
     "fire>=0.7.1",
-    "httpx>=0.28.1",
     "loguru>=0.7.3",
-    "matplotlib>=3.10.7",
     "openai>=1.109.1",
     "psutil>=7.1.0",
-    "psycopg2-binary>=2.9.11",
     "pydantic>=2.11.9",
     "redis>=6.4.0",
 ]
@@ -56,16 +51,6 @@ select = ["F401", "F403"]
 [tool.black]
 line-length = 88
 target-version = ["py313"]
-
-
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
-
-[tool.maturin]
-module-name = "respfuzzer.lib.fuzz.mutate"
-python-packages = ["respfuzzer"]
-python-source = "src"
 
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
