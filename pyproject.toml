@@ -1,6 +1,6 @@
 [project]
 name = "respfuzzer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -18,9 +18,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "black",
-    "isort",
     "ruff",
-    "pre-commit",
 ]
 
 [tool.pytest.ini_options]
@@ -33,9 +31,6 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 # 方法名的规则，配置测试搜索的测试函数名
 python_functions = ["test_*"]
-
-[tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
 
 [[tool.uv.index]]
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
