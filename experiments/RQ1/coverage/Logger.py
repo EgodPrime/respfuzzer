@@ -1,6 +1,6 @@
 import os
-from enum import IntEnum
 from datetime import datetime
+from enum import IntEnum
 
 
 class LEVEL(IntEnum):
@@ -8,10 +8,11 @@ class LEVEL(IntEnum):
     TRACE = 2
     VERBOSE = 3  # most verbose messages (including validation messages, etc)
 
-
     # logging structure breakdown into validation, and sample generation,
     # and any potential bugs are logged always in main log.txt
     # TODO: support logging levels
+
+
 class Logger:
     def __init__(self, basedir, file_name: str, level: LEVEL = LEVEL.INFO):
         self.logfile = os.path.join(basedir, file_name)
@@ -20,7 +21,9 @@ class Logger:
 
     @staticmethod
     def format_log(msg, level: LEVEL = LEVEL.VERBOSE):
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # accurate to milliseconds
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[
+            :-3
+        ]  # accurate to milliseconds
         return f"{timestamp} | {level.name:<8} | {msg}"
 
     def log(self, msg, level: LEVEL = LEVEL.VERBOSE):
@@ -28,7 +31,6 @@ class Logger:
         formatted_msg = self.format_log(msg, level)
         with open(self.logfile, "a+", encoding="utf-8") as logfile:
             logfile.write(formatted_msg + "\n")
-        
 
     def logo(self, msg, level: LEVEL = LEVEL.VERBOSE):
         try:

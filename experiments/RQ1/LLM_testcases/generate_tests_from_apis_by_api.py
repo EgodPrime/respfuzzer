@@ -7,15 +7,16 @@ Behavior and flags mirror the original script: concurrency, model/api-base,
 per-api count, verbose, etc. Output layout: <outdir>/<lib>/<lib>__<api>_001.py
 
 """
+
 from __future__ import annotations
 
-import asyncio
-import os
-import json
 import argparse
+import asyncio
+import json
+import os
 import random
-from typing import Dict, Any
 import re
+from typing import Any, Dict
 
 try:
     import httpx
@@ -32,7 +33,14 @@ MODEL_API_KEYS: Dict[str, str] = {
 DEFAULT_MODEL = "yb"
 
 
-async def call_llm(api_key: str, prompt: str, model: str = DEFAULT_MODEL, api_base: str = OPENAI_API_URL, max_tokens: int = 512, timeout: int = 60) -> Dict[str, Any]:
+async def call_llm(
+    api_key: str,
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    api_base: str = OPENAI_API_URL,
+    max_tokens: int = 512,
+    timeout: int = 60,
+) -> Dict[str, Any]:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -73,7 +81,14 @@ def extract_code_blocks(text: str) -> str | None:
     return None
 
 
-async def call_with_retries(sema: asyncio.Semaphore, api_key: str, prompt: str, model: str, api_base: str, retries: int = 5) -> dict:
+async def call_with_retries(
+    sema: asyncio.Semaphore,
+    api_key: str,
+    prompt: str,
+    model: str,
+    api_base: str,
+    retries: int = 5,
+) -> dict:
     attempt = 0
     backoff_base = 1.5
     while attempt <= retries:
@@ -101,23 +116,51 @@ async def call_with_retries(sema: asyncio.Semaphore, api_key: str, prompt: str, 
                     code_text = extract_code_blocks(text_to_search)
                 except Exception:
                     code_text = None
-                return {"ok": True, "status": status, "content": content, "response_text": raw_text, "code": code_text, "error": None}
+                return {
+                    "ok": True,
+                    "status": status,
+                    "content": content,
+                    "response_text": raw_text,
+                    "code": code_text,
+                    "error": None,
+                }
             else:
                 if status in (429, 500, 502, 503, 504):
-                    wait = backoff_base ** attempt + random.random()
+                    wait = backoff_base**attempt + random.random()
                     await asyncio.sleep(wait)
                     continue
                 else:
-                    return {"ok": False, "status": status, "response_text": raw_text, "code": None, "error": None}
+                    return {
+                        "ok": False,
+                        "status": status,
+                        "response_text": raw_text,
+                        "code": None,
+                        "error": None,
+                    }
         except Exception as e:
             if attempt > retries:
-                return {"ok": False, "status": 0, "response_text": "", "code": None, "error": str(e)}
-            wait = backoff_base ** attempt + random.random()
+                return {
+                    "ok": False,
+                    "status": 0,
+                    "response_text": "",
+                    "code": None,
+                    "error": str(e),
+                }
+            wait = backoff_base**attempt + random.random()
             await asyncio.sleep(wait)
             continue
 
 
-async def generate_all_for_apis(input_json: str, outdir: str, api_key: str, parallel: int = 100, model: str = DEFAULT_MODEL, api_base: str = OPENAI_API_URL, count_per_api: int = 1, verbose: bool = False) -> None:
+async def generate_all_for_apis(
+    input_json: str,
+    outdir: str,
+    api_key: str,
+    parallel: int = 100,
+    model: str = DEFAULT_MODEL,
+    api_base: str = OPENAI_API_URL,
+    count_per_api: int = 1,
+    verbose: bool = False,
+) -> None:
     with open(input_json, "r", encoding="utf-8") as fh:
         data = json.load(fh)
 
@@ -146,11 +189,21 @@ async def generate_all_for_apis(input_json: str, outdir: str, api_key: str, para
             api_safe = str(api).replace("/", "_").replace("\\", "_")
             for i in range(1, count_per_api + 1):
                 prompt = f"Generate an example program demonstrating {api} from {lib}\n# Example number: {i}"
-                tasks.append((lib, lib_dir, api_safe, i, call_with_retries(sema, api_key, prompt, model, api_base)))
+                tasks.append(
+                    (
+                        lib,
+                        lib_dir,
+                        api_safe,
+                        i,
+                        call_with_retries(sema, api_key, prompt, model, api_base),
+                    )
+                )
 
     total = len(tasks)
     if verbose:
-        print(f"Scheduling {total} requests ({count_per_api} per api) with parallel={parallel}")
+        print(
+            f"Scheduling {total} requests ({count_per_api} per api) with parallel={parallel}"
+        )
     if total == 0:
         print("No requests to run.")
         return
@@ -165,10 +218,14 @@ async def generate_all_for_apis(input_json: str, outdir: str, api_key: str, para
         except Exception as e:
             return (lib, lib_dir, api_safe, idx, None, e)
 
-    running = [asyncio.create_task(_wrap(m[0], m[1], m[2], m[3], c)) for m, c in zip(metas, coros)]
+    running = [
+        asyncio.create_task(_wrap(m[0], m[1], m[2], m[3], c))
+        for m, c in zip(metas, coros)
+    ]
 
     completed = 0
     progress_lock = asyncio.Lock()
+
     def _render(comp: int, tot: int) -> str:
         try:
             pct = int(comp * 100 / tot)
@@ -223,8 +280,10 @@ async def generate_all_for_apis(input_json: str, outdir: str, api_key: str, para
                     with open(py_path, "w", encoding="utf-8") as ef:
                         ef.write(f"# failed to write extracted code: {e}\n\n")
                         ef.write('"""\n')
-                        ef.write(str(res.get("response_text") or res.get("error") or ""))
-                        ef.write('\n""\"')
+                        ef.write(
+                            str(res.get("response_text") or res.get("error") or "")
+                        )
+                        ef.write('\n"""')
                 except Exception:
                     pass
         else:
@@ -257,7 +316,9 @@ def main():
 
     api_key = MODEL_API_KEYS.get(args.model) or os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise SystemExit("No API key found. Set OPENAI_API_KEY or populate MODEL_API_KEYS for the chosen model.")
+        raise SystemExit(
+            "No API key found. Set OPENAI_API_KEY or populate MODEL_API_KEYS for the chosen model."
+        )
 
     asyncio.run(
         generate_all_for_apis(

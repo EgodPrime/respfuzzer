@@ -1,7 +1,7 @@
 import json
-import fire
 import re
 
+import fire
 
 """Bandit Report
 ...,
@@ -29,6 +29,7 @@ import re
     ...
 """
 
+
 def report_bandit(filepath: str) -> None:
     with open(filepath, "r") as f:
         data = json.load(f)
@@ -38,27 +39,28 @@ def report_bandit(filepath: str) -> None:
         issue_cwe = item.get("issue_cwe", {})
         cwe_id = issue_cwe.get("id", "N/A")
         unique_set.add(cwe_id)
-    
+
     print(unique_set)
 
     print(f"Total unique CWEs: {len(unique_set)}")
 
+
 def report_codeql(dirpath: str) -> None:
     """
-    遍历所有.csv文件，
+        遍历所有.csv文件，
 
-    "Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-611/author_1.py:14:11:14:17""]].","/CWE-611/author_1.py","15","29","15","31"
-"Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-434/pearce_1.py:11:12:11:18""]].","/CWE-434/pearce_1.py","12","15","12","54"
-"Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-641/sonar_1.py:11:17:11:23""]].","/CWE-641/sonar_1.py","13","22","13","30"
-"Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-099/sonar_1.py:11:17:11:23""]].","/CWE-099/sonar_1.py","12","22","12","30"
-    统计所有.csv文件中，包含漏洞的文件数量（去重后）
+        "Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-611/author_1.py:14:11:14:17""]].","/CWE-611/author_1.py","15","29","15","31"
+    "Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-434/pearce_1.py:11:12:11:18""]].","/CWE-434/pearce_1.py","12","15","12","54"
+    "Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-641/sonar_1.py:11:17:11:23""]].","/CWE-641/sonar_1.py","13","22","13","30"
+    "Uncontrolled data used in path expression","Accessing paths influenced by users can allow an attacker to access unexpected resources.","error","This path depends on [[""a user-provided value""|""relative:///CWE-099/sonar_1.py:11:17:11:23""]].","/CWE-099/sonar_1.py","12","22","12","30"
+        统计所有.csv文件中，包含漏洞的文件数量（去重后）
     """
     import pathlib
 
     path = pathlib.Path(dirpath)
     unique_set = set()
     # re_str = r'relative:///CWE-(\d+)/'
-    re_str = r'/CWE-(\d+)/'
+    re_str = r"/CWE-(\d+)/"
     for csv_file in path.rglob("*.csv"):
         with open(csv_file, "r") as f:
             lines = f.readlines()
@@ -71,8 +73,6 @@ def report_codeql(dirpath: str) -> None:
     print(sorted(unique_set))
     print(f"Total unique CWEs: {len(unique_set)}")
 
+
 if __name__ == "__main__":
-    fire.Fire({
-        "bandit": report_bandit,
-        "codeql": report_codeql
-    })
+    fire.Fire({"bandit": report_bandit, "codeql": report_codeql})

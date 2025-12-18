@@ -17,16 +17,13 @@ We have read the Fuzz4All paper and its github repository carefully. Then we imp
 
 ## dataset Setup
 
-Once the RQ2 experiment is done, we can use the `rq2_111` database to sample seeds for RQ3.
+Once the RQ2 experiment is done, we can use the `rq2_111_data` to sample seeds for RQ3.
 
 If you haven't run RQ2 yet, you can read the RQ2 experiment instructions in `experiments/RQ2/exp.md` to get the database file.
 
 ```bash
-# set the db to `rq2_111`
-cd {RESPFUZZER}
-vim config.toml
 cd {RESPFUZZER}/experiments/RQ3/
-export_dyfuzz  # you will get a json named respfuzzer_seeds.json
+RESPFUZZER_DATA_DIR=rq2_111_data export_dyfuzz  # you will get a json named respfuzzer_seeds.json
 ```
 
 ## Run RespFuzzer
@@ -61,7 +58,8 @@ cd {RESPFUZZER}/experiments/RQ3/DyFuzz
 python run_respfuzzer.py > <xxxx>.log 2>&1
 ```
 
-## How to plot a similar figure in our paper
+## How to get the similar table data as in our paper
 ```bash
-uv run plot.py
+# edit the script to set the correct log file paths
+uv run report.py
 ```

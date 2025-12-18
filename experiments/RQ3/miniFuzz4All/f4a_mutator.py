@@ -88,9 +88,10 @@ class Fuzz4AllMutator:
             ]
         )
         return code
-    
+
     def remove_unsed_imports(self, code: str) -> str:
         import autoflake
+
         return autoflake.fix_code(code, remove_all_unused_imports=True)
 
     def _comment_remover(self, code: str) -> str:

@@ -5,11 +5,9 @@
 > Note: we use {RESPFUZZER} to denote the root directory of the RespFuzzer repo.
 
 ### Step 1
-Modify the `{RESPFUZZER}/config.toml` as follows:
-
-```toml
-[db_config]
-db_name = "rq2_111" # without .db suffix
+Set the environment variable for RespFuzzer:
+```bash
+export RESPFUZZER_DATA_DIR=RQ2_data
 ```
 
 ### Step 2
@@ -20,9 +18,20 @@ cd {RESPFUZZER}
 bash scripts/run_extract_functions.sh
 ```
 
-functions will be extracted and stored in the database.
+functions will be extracted and stored in json files under the directory `{RESPFUZZER}/RQ2_data/`.
 
 ### Step 3
+Copy the json files for different experimental settings:
+
+```bash
+cd {RESPFUZZER}/
+cp -r RQ2_data/ rq2_111_data/   # Full Configuration(SCE+RCM)
+cp -r RQ2_data/ rq2_110_data/   # SCE-only
+cp -r RQ2_data/ rq2_101_data/   # RCM-only
+cp -r RQ2_data/ rq2_100_data/   # Baseline (no SCE, no RCM)
+
+
+### Step 4
 LLM may generate some files during the experiment, create a directory to store them:
 
 ```bash
@@ -33,7 +42,9 @@ mkdir -p {RESPFUZZER}/run_data
 
 ```bash
 cd {RESPFUZZER}
-# modify config.toml to use db `rq2_111` and enable both reasoner(RCM) and docs(SCE)
+# change data path
+export RESPFUZZER_DATA_DIR=rq2_111_data
+# modify config.toml to enable both reasoner(RCM) and docs(SCE)
 vim config.toml
 cd run_data
 # generate seeds
@@ -44,7 +55,9 @@ bash ../scripts/run_generate_seeds.sh
 
 ```bash
 cd {RESPFUZZER}
-# modify config.toml to use db `rq2_110` and enable docs(SCE) but disable reasoner(RCM)
+# change data path
+export RESPFUZZER_DATA_DIR=rq2_110_data
+# modify config.toml to enable docs(SCE) but disable reasoner(RCM)
 vim config.toml
 cd run_data
 # generate seeds
@@ -56,7 +69,9 @@ bash ../scripts/run_generate_seeds.sh
 
 ```bash
 cd {RESPFUZZER}
-# modify config.toml to use db `rq2_110` and enable reasoner(RCM) but disable docs(SCE)
+# change data path
+export RESPFUZZER_DATA_DIR=rq2_101_data
+# modify config.toml to enable reasoner(RCM) but disable docs(SCE)
 vim config.toml
 cd run_data
 # generate seeds
@@ -67,7 +82,9 @@ bash ../scripts/run_generate_seeds.sh
 
 ```bash
 cd {RESPFUZZER}
-# modify config.toml to use db `rq2_100` and disable both reasoner and docs
+# change data path
+export RESPFUZZER_DATA_DIR=rq2_100_data
+# modify config.toml to disable both reasoner and docs
 vim config.toml
 cd run_data
 # generate seeds
@@ -76,33 +93,13 @@ bash ../scripts/run_generate_seeds.sh
 
 ## View Results
 
-Connect to the database, e.g., 'rq2_111'.
-
-Run the following SQL query to view the results:
-
-```sql
-SELECT t1.library_name,
-    t1.function_cnt,
-        CASE
-            WHEN t2.seed_cnt IS NULL THEN 0::bigint
-            ELSE t2.seed_cnt
-        END AS seed_cnt,
-        CASE
-            WHEN t2.seed_cnt IS NULL THEN '0%'::text
-            ELSE concat((t2.seed_cnt::numeric(10,4) / t1.function_cnt::numeric * 100::numeric)::numeric(10,2)::text, '%')
-        END AS fcr
-   FROM ( SELECT function.library_name,
-            count(1) AS function_cnt
-           FROM function
-          GROUP BY function.library_name) t1
-     LEFT JOIN ( SELECT seed.library_name,
-            count(1) AS seed_cnt
-           FROM seed
-          GROUP BY seed.library_name) t2 ON t1.library_name = t2.library_name
+```bash
+RESPFUZZER_DATA_DIR=<data_dir_name> uv run db_tools view
+# e.g., RESPFUZZER_DATA_DIR=rq2_111_data uv run db_tools view
 ```
 
 ## How to plot a similar figure in our paper
 ```bash
 # This will generate a figure named `RQ2.pdf` in the current directory.
-uv run plot.py
+uv run plot.py # FIXME
 ```

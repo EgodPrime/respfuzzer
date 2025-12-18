@@ -24,16 +24,17 @@ Notes:
 - Keep your API key safe. The script reads it from OPENAI_API_KEY env var.
 
 """
+
 from __future__ import annotations
 
-import asyncio
-import os
-import json
 import argparse
+import asyncio
+import json
 import math
+import os
 import random
-from typing import Dict, Any
 import re
+from typing import Any, Dict
 
 try:
     import httpx
@@ -57,7 +58,14 @@ MODEL_API_KEYS: Dict[str, str] = {
 DEFAULT_MODEL = "yb"  # change as needed
 
 
-async def call_llm(api_key: str, prompt: str, model: str = DEFAULT_MODEL, api_base: str = OPENAI_API_URL, max_tokens: int = 512, timeout: int = 60) -> Dict[str, Any]:
+async def call_llm(
+    api_key: str,
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    api_base: str = OPENAI_API_URL,
+    max_tokens: int = 512,
+    timeout: int = 60,
+) -> Dict[str, Any]:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "model": model,
@@ -112,7 +120,14 @@ def extract_code_blocks(text: str) -> str | None:
     return None
 
 
-async def call_with_retries(sema: asyncio.Semaphore, api_key: str, prompt: str, model: str, api_base: str, retries: int = 5) -> dict:
+async def call_with_retries(
+    sema: asyncio.Semaphore,
+    api_key: str,
+    prompt: str,
+    model: str,
+    api_base: str,
+    retries: int = 5,
+) -> dict:
     """Call the LLM with retries and return parsed result and extracted code.
 
     Semaphore limits concurrent *active network calls* only. We acquire the
@@ -153,26 +168,55 @@ async def call_with_retries(sema: asyncio.Semaphore, api_key: str, prompt: str, 
                 except Exception:
                     code_text = None
 
-                return {"ok": True, "status": status, "content": content, "response_text": raw_text, "code": code_text, "error": None}
+                return {
+                    "ok": True,
+                    "status": status,
+                    "content": content,
+                    "response_text": raw_text,
+                    "code": code_text,
+                    "error": None,
+                }
             else:
                 # transient errors: 429, 500, 502, 503, 504
                 if status in (429, 500, 502, 503, 504):
-                    wait = backoff_base ** attempt + random.random()
+                    wait = backoff_base**attempt + random.random()
                     # don't hold semaphore while sleeping; loop will retry
                     await asyncio.sleep(wait)
                     continue
                 else:
-                    return {"ok": False, "status": status, "response_text": raw_text, "code": None, "error": None}
+                    return {
+                        "ok": False,
+                        "status": status,
+                        "response_text": raw_text,
+                        "code": None,
+                        "error": None,
+                    }
         except Exception as e:
             # network or unexpected
             if attempt > retries:
-                return {"ok": False, "status": 0, "response_text": "", "code": None, "error": str(e)}
-            wait = backoff_base ** attempt + random.random()
+                return {
+                    "ok": False,
+                    "status": 0,
+                    "response_text": "",
+                    "code": None,
+                    "error": str(e),
+                }
+            wait = backoff_base**attempt + random.random()
             await asyncio.sleep(wait)
             continue
 
 
-async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int = 100, model: str = DEFAULT_MODEL, api_base: str = OPENAI_API_URL, per_lib_count: int = 100, multiplier: int = 1, verbose: bool = False) -> None:
+async def generate_all(
+    input_json: str,
+    outdir: str,
+    api_key: str,
+    parallel: int = 100,
+    model: str = DEFAULT_MODEL,
+    api_base: str = OPENAI_API_URL,
+    per_lib_count: int = 100,
+    multiplier: int = 1,
+    verbose: bool = False,
+) -> None:
     # load input
     with open(input_json, "r", encoding="utf-8") as fh:
         data = json.load(fh)
@@ -215,7 +259,14 @@ async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int
 
         for i in range(1, count + 1):
             prompt = f"Generate an example program for {lib}\n# Example number: {i}"
-            tasks.append((lib, lib_dir, i, call_with_retries(sema, api_key, prompt, model, api_base)))
+            tasks.append(
+                (
+                    lib,
+                    lib_dir,
+                    i,
+                    call_with_retries(sema, api_key, prompt, model, api_base),
+                )
+            )
 
     # Run with progress
     total = len(tasks)
@@ -234,6 +285,7 @@ async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int
     # we can process results as they finish and write files incrementally.
     coros = [t[3] for t in tasks]
     metas = [(t[0], t[1], t[2]) for t in tasks]
+
     # Wrap coroutines so each returns its meta along with the result. This is
     # robust regardless of how asyncio yields completed tasks.
     async def _wrap_and_run(lib, lib_dir, idx, coro):
@@ -243,7 +295,10 @@ async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int
         except Exception as e:
             return (lib, lib_dir, idx, None, e)
 
-    running = [asyncio.create_task(_wrap_and_run(m[0], m[1], m[2], c)) for m, c in zip(metas, coros)]
+    running = [
+        asyncio.create_task(_wrap_and_run(m[0], m[1], m[2], c))
+        for m, c in zip(metas, coros)
+    ]
 
     completed = 0
     progress_lock = asyncio.Lock()
@@ -307,7 +362,9 @@ async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int
                     with open(py_path, "w", encoding="utf-8") as ef:
                         ef.write(f"# failed to write extracted code: {e}\n\n")
                         ef.write('"""\n')
-                        ef.write(str(res.get("response_text") or res.get("error") or ""))
+                        ef.write(
+                            str(res.get("response_text") or res.get("error") or "")
+                        )
                         ef.write('\n"""')
                 except Exception:
                     pass
@@ -328,14 +385,50 @@ async def generate_all(input_json: str, outdir: str, api_key: str, parallel: int
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", "-i", required=True, help="Input JSON file (library -> apis/count or library->list)")
-    parser.add_argument("--outdir", "-o", required=True, help="Output directory to write per-library JSON responses")
-    parser.add_argument("--parallel", "-p", type=int, default=100, help="Max parallel requests (default 100)")
-    parser.add_argument("--count-per-lib", "-c", type=int, default=100, help="Number of samples to generate per library (default 100)")
-    parser.add_argument("--multiplier", "-n", type=int, default=1, help="Multiplier to apply to the per-library API count (per-lib count = len(apis) * multiplier)")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose progress output")
-    parser.add_argument("--model", "-m", default=DEFAULT_MODEL, help="Model name to use")
-    parser.add_argument("--api-base", default=OPENAI_API_URL, help="API base URL for chat completions endpoint")
+    parser.add_argument(
+        "--input",
+        "-i",
+        required=True,
+        help="Input JSON file (library -> apis/count or library->list)",
+    )
+    parser.add_argument(
+        "--outdir",
+        "-o",
+        required=True,
+        help="Output directory to write per-library JSON responses",
+    )
+    parser.add_argument(
+        "--parallel",
+        "-p",
+        type=int,
+        default=100,
+        help="Max parallel requests (default 100)",
+    )
+    parser.add_argument(
+        "--count-per-lib",
+        "-c",
+        type=int,
+        default=100,
+        help="Number of samples to generate per library (default 100)",
+    )
+    parser.add_argument(
+        "--multiplier",
+        "-n",
+        type=int,
+        default=1,
+        help="Multiplier to apply to the per-library API count (per-lib count = len(apis) * multiplier)",
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Verbose progress output"
+    )
+    parser.add_argument(
+        "--model", "-m", default=DEFAULT_MODEL, help="Model name to use"
+    )
+    parser.add_argument(
+        "--api-base",
+        default=OPENAI_API_URL,
+        help="API base URL for chat completions endpoint",
+    )
     args = parser.parse_args()
 
     # Determine API key: prefer model-specific key from MODEL_API_KEYS if present

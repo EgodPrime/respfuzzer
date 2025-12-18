@@ -19,7 +19,6 @@ from loguru import logger
 
 from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 from respfuzzer.models import Mutant, Seed
-from respfuzzer.repos.mutant_table import create_mutant
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.llm_helper import SimpleLLMClient
 
@@ -84,8 +83,6 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
         args=seed.args,
         function_call=mutated_code,
     )
-    mutant_id = create_mutant(mutant)
-    mutant.id = mutant_id
 
     return mutant
 
@@ -106,6 +103,7 @@ def filter_syntax(mutant: Mutant) -> bool:
         return mutant
     except SyntaxError:
         return None
+
 
 def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
     """
@@ -136,6 +134,7 @@ def batch_random_llm_mutate_valid_only(
                 valid_mutants.append(mutant)
     return valid_mutants
 
+
 class LLMMutator:
     """采用语义负反馈（语法错误）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
     当LLM变异产生语法错误或语义错误时，降低对应变异算子的选择概率，奖励初始值为-1
@@ -157,7 +156,6 @@ class LLMMutator:
         self.alpha = 0.1
         self.tau = 1.0
 
-
     def select_mutation_type(self) -> int:
         """
         根据当前概率分布选择变异算子
@@ -166,29 +164,26 @@ class LLMMutator:
         exp_mu = [math.exp(m / self.tau) for m in self.mu]
         total = sum(exp_mu)
         probs = [e / total for e in exp_mu]
-        
+
         # 从概率分布中采样
-        return random.choices(
-            population=self.mutation_types,
-            weights=probs,
-            k=1
-        )[0]
-    
+        return random.choices(population=self.mutation_types, weights=probs, k=1)[0]
+
     def update_reward(self, mutation_type: int, reward: float) -> None:
         """
         更新变异算子的期望奖励
-        
+
         Arguments:
             mutation_type: 变异算子类型
             reward: 观察到的奖励值
         """
         # 使用指数加权平均更新期望奖励
         self.mu[mutation_type] = (
-            self.alpha * reward + 
-            (1 - self.alpha) * self.mu[mutation_type]
+            self.alpha * reward + (1 - self.alpha) * self.mu[mutation_type]
         )
-        logger.info(f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}")
-    
+        logger.info(
+            f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}"
+        )
+
     def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
         """
         将多种信号归一化为统一奖励值 [0,1]
@@ -203,13 +198,12 @@ class LLMMutator:
         # 基础权重分配
         w_syntax = 0.5
         w_coverage = 0.5
-        
+
         # 计算基础奖励
         base_reward = (
-            w_syntax * (1 - int(has_syntax_error)) +
-            w_coverage * coverage_gain
+            w_syntax * (1 - int(has_syntax_error)) + w_coverage * coverage_gain
         )
-        
+
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 

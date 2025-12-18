@@ -60,19 +60,22 @@ replay_results.json:
 提取参数快照来自于重放过程中loguru的输出，其代码语句为`logger.info(f"Replayed params: args={args}, kwargs={kwargs}")`,可以使用正则表达式进行提取。
 """
 
-import threading
-from loguru import logger
-import subprocess
-import re
-import openai
-from respfuzzer.repos.mutant_table import get_mutant
 import concurrent.futures
-from copy import deepcopy
-import tempfile
 import difflib
+import re
+import subprocess
+import tempfile
+import threading
+from copy import deepcopy
+
+import openai
+from loguru import logger
+
+from respfuzzer.repos import get_mutant_by_id
 
 # 前置变量：并发数量（可根据需要调整或在运行前修改此变量）
 MAX_CONCURRENCY = 4
+
 
 def call_llm_api(prompt: str) -> str:
     client = openai.OpenAI(api_key="no", base_url="http://192.168.1.44:8021")
@@ -85,6 +88,7 @@ def call_llm_api(prompt: str) -> str:
         max_tokens=1024,
     )
     return response.choices[0].message.content.strip()
+
 
 def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str, str]:
     """
@@ -104,10 +108,10 @@ def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str,
         # with open(f'/tmp/respfuzzer_replay_{random_state}_kwargs.dump', 'rb') as f:
         #     kwargs_dump = f.read()
         # mutated_params_snapshot = f"args={args_dump}, kwargs={kwargs_dump}"
-            
+
         # logger.info(f"Params snapshot: {mutated_params_snapshot}")
         mutated_params_snapshot = "skipped"
-        
+
     except subprocess.TimeoutExpired:
         p.kill()
         logger.warning(f"Replay timed out after 5 seconds")
@@ -117,8 +121,9 @@ def replay_mutation_and_execution(seed_id: int, random_state: int) -> tuple[str,
         logger.error(f"Error during replay: {e}")
         stderr = f"{e}"
         mutated_params_snapshot = ""
-    
+
     return stderr, mutated_params_snapshot
+
 
 def pure_execution(function_call: str) -> str:
     """
@@ -143,8 +148,9 @@ def pure_execution(function_call: str) -> str:
     except Exception as e:
         logger.error(f"Error during pure execution: {e}")
         stderr = f"{e}"
-    
+
     return stderr
+
 
 def llm_judge_similarity(stderr_orig: str, stderr_new: str) -> bool:
     """
@@ -194,7 +200,10 @@ ZeroDivisionError: division by zero
     response = call_llm_api(prompt)
     return response
 
-def synthesize_poc(function_call: str, mutated_params_snapshot: str, stderr: str) -> str:
+
+def synthesize_poc(
+    function_call: str, mutated_params_snapshot: str, stderr: str
+) -> str:
     """
     Synthesize a POC code snippet using LLM based on the function call, params snapshot, and stderr.
     """
@@ -228,13 +237,13 @@ vulnerable_function(user_input="malicious_payload")
 
     prompt_history = ""
 
-    prompt_data= f"""
+    prompt_data = f"""
 ## Start
 <function_call>{function_call}</function_call>
 <mutated_params_snapshot>{mutated_params_snapshot}</mutated_params_snapshot>
 <stderr>{stderr}</stderr>
 """
-    
+
     for _ in range(10):
         prompt = prompt_base + prompt_history + prompt_data
         poc_code = call_llm_api(prompt)
@@ -248,7 +257,9 @@ vulnerable_function(user_input="malicious_payload")
             if is_similar:
                 return poc_code_snippet
             else:
-                logger.info("Generated POC did not reproduce the same stderr, retrying...")
+                logger.info(
+                    "Generated POC did not reproduce the same stderr, retrying..."
+                )
                 prompt_history += f"""
 ## Failed Attempt
 <poc>{poc_code_snippet}</poc>
@@ -256,48 +267,26 @@ vulnerable_function(user_input="malicious_payload")
 """
     return ""
 
-def replay_one_record(seed_id: int, random_state: int) -> dict[str, int|str]:
-    """
-    Replay one record given seed_id and random_state, returning the result and synthesized POC.
-    """
-    logger.info(f"Replaying mutant {seed_id} with random state {random_state}")
-    seed = get_mutant(seed_id)
-    function_call = seed.function_call
-    
-    stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
+
+def replay_one_record(mutant_id: int, random_state: int) -> dict[str, int | str]:
+    logger.info(f"Replaying mutant {mutant_id} with random state {random_state}")
+    mutant = get_mutant_by_id(mutant_id)
+    function_call = mutant.function_call
+
+    stderr, mutated_params_snapshot = replay_mutation_and_execution(
+        mutant_id, random_state
+    )
     return {
-        'seed_id': seed_id,
-        'random_state': random_state,
-        'result': stderr,
-        'poc': function_call
+        "seed_id": mutant_id,
+        "random_state": random_state,
+        "result": stderr,
+        "poc": function_call,
     }
 
-    if random_state is None:
-        logger.debug("SM")
-        stderr = pure_execution(function_call)
-        # If random_state is None, the seed itself causes the crash, no need to synthesize POC
-        return {
-            'seed_id': seed_id,
-            'random_state': random_state,
-            'result': stderr,
-            'poc': function_call  # The function call itself is the POC
-        }
-    else:
-        logger.debug("PM")
-        stderr, mutated_params_snapshot = replay_mutation_and_execution(seed_id, random_state)
-        poc_code = synthesize_poc(function_call, mutated_params_snapshot, stderr)
-        return {
-            'seed_id': seed_id,
-            'random_state': random_state,
-            'result': stderr,
-            'poc': poc_code
-        }
 
-def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int = MAX_CONCURRENCY) -> dict[str, list]:
-    """
-    Replay all mutations recorded in the crash summary data using a thread pool.
-    每个 (seed_id, random_state) 对应一个并发任务，任务完成后将结果归并到对应的 library_name 列表中。
-    """
+def replay_from_summary(
+    data: dict[str, list[dict[str, int]]], max_workers: int = MAX_CONCURRENCY
+) -> dict[str, list]:
     res: dict[str, list] = {}
     future_map: dict[concurrent.futures.Future, str] = {}
 
@@ -305,17 +294,17 @@ def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int 
         # 提交所有任务
         for library_name, crash_list in data.items():
             for crash in crash_list:
-                seed_id = crash['seed_id']
-                random_state = crash['random_state']
-                future = executor.submit(replay_one_record, seed_id, random_state)
+                mutant_id = crash["mutant_id"]
+                random_state = crash["random_state"]
+                future = executor.submit(replay_one_record, mutant_id, random_state)
                 c = deepcopy(crash)
-                c['library_name'] = library_name
+                c["library_name"] = library_name
                 future_map[future] = c
 
         # 收集结果并归并
         for future in concurrent.futures.as_completed(future_map):
             crash = future_map[future]
-            library_name = crash['library_name']
+            library_name = crash["library_name"]
             try:
                 record_result = future.result()
             except Exception as e:
@@ -327,11 +316,13 @@ def replay_from_summary(data: dict[str, list[dict[str, int]]], max_workers: int 
 
     return res
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     import json
-    with open('crash_summary.json', 'r', encoding='utf-8') as f:
+
+    with open("crash_summary.json", "r", encoding="utf-8") as f:
         crash_data = json.load(f)
     res = replay_from_summary(crash_data)
 
-    with open('replay_results.json', 'w', encoding='utf-8') as f:
+    with open("replay_results.json", "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2, ensure_ascii=False)
