@@ -33,3 +33,7 @@ experiments/RQ4/SecurityEval
 experiments/RQ5/*.log
 data
 *_data
+htmlcov
+.ruff_cache
+.pytest_cache
+.python-version
