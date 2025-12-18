@@ -1,18 +1,19 @@
 import importlib
+import json
 import os
+from concurrent.futures import ProcessPoolExecutor
 from types import BuiltinFunctionType, FunctionType, ModuleType
 from typing import Dict, Iterator, Set
 
+import dill
 from loguru import logger
-
 from respfuzzer.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files
+from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files, parse_pyi_files
 from respfuzzer.models import Function
 from respfuzzer.utils.paths import DATA_DIR
-import json
 
 logger.level("INFO")
 
@@ -41,16 +42,11 @@ class LibraryVisitor:
         except ModuleNotFoundError:
             logger.error(f"Library {self.library_name} not found")
             return
-        self.find_all_pyi_functions()
-        # json.dump(
-        #     self.pyi_cache,
-        #     open(f"{self.library_name}_pyi_functions.json", "w"),
-        #     indent=2,
-        #     default=lambda x: x.model_dump(),
-        # )
 
-        mod_has_been_seen = set()
-        for function in self._visit(library, self.library_name, mod_has_been_seen):
+        self.find_all_pyi_functions()
+
+        obj_has_been_seen = set()
+        for function in self._visit(library, self.library_name, obj_has_been_seen):
             yield function
 
     def find_all_pyi_functions(self):
@@ -60,31 +56,33 @@ class LibraryVisitor:
         """
         spec = importlib.util.find_spec(self.library_name)
         if spec is None or spec.origin is None:
-            return None
+            return
         root_path = os.path.dirname(spec.origin)
         if not root_path:
             return
 
-        visited_files: Set[str] = set()
-        _find_all_pyi_files(root_path, visited_files, self.pyi_cache)
+        unique_files: Set[str] = set()
+        _find_all_pyi_files(root_path, unique_files)
+
+        cpu_count = os.cpu_count() or 1
+        cpu_count = cpu_count - 1 if cpu_count > 1 else 1
+        with ProcessPoolExecutor(cpu_count) as executor:
+            futures = []
+            for file_path in unique_files:
+                futures.append(executor.submit(parse_pyi_files, file_path))
+            for future in futures:
+                result = future.result()
+                self.pyi_cache.update(result)
 
     def _visit(
-        self, mod: ModuleType, root_mod_name: str, mod_has_been_seen: set
+        self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set
     ) -> Iterator[Function]:
-        # Skip if the module has already been seen.
-        if id(mod) in mod_has_been_seen:
-            return
-        mod_has_been_seen.add(id(mod))
         logger.debug(f"visit module {mod.__name__}")
 
         # Visit all the attributes in the module.
-        if hasattr(mod, "__all__"):
-            names = mod.__all__
-        elif hasattr(mod, "__dict__"):
-            names = mod.__dict__
-        else:
-            logger.warning(f"Module {mod.__name__} has no __all__ or __dict__")
-            return
+        names = dir(mod)
+        # Skip private attributes
+        names = [name for name in names if not name.startswith("_")]
 
         for name in names:
             # Try to get the attribute.
@@ -94,64 +92,40 @@ class LibraryVisitor:
                 logger.warning(f"getattr({mod.__name__}, {name}) failed")
                 continue
 
+            # Avoid visiting the same object multiple times.
+            if id(obj) in obj_has_been_seen:
+                continue
+            obj_has_been_seen.add(id(obj))
+
             # Only support modules, functions, and built-in functions.
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
 
-            # Skip if the attribute is a private attribute.
-            if name.startswith("_") and not hasattr(mod, "__all__"):
+            real_path = dill.source._namespace(obj)
+            if real_path[0] != root_mod_name:
+                # skip if it does not belong to the library
                 continue
+            if real_path[-1] != name:
+                logger.debug(f"{mod.__name__}.{name} has real name {real_path[-1]}")
 
             # Check submodule firstly
             if isinstance(obj, ModuleType):
-                # `ModuleType` has not attribute `__module__`,
-                # its package path is defined in `__name__`
-                try:
-                    obj_full_name = obj.__name__
-                except Exception:
-                    # Thanks for the lazy mode used by some libraries :(
-                    clone_obj = mod.__new__(type(obj))
-                    clone_obj.__dict__.update(obj.__dict__)
-                    obj_full_name = clone_obj.__name__
-
-                # make sure it belongs to the library
-                if not obj_full_name.startswith(root_mod_name):
-                    continue
-
-                # # make sure we do not visit private modules
-                # if not hasattr(mod, '__all__'):
-                #     if any(list(filter(lambda x: x.startswith("_"), obj_full_name.split(".")))):
-                #         continue
-
                 # Now we can recurse into the submodule
-                for function in self._visit(obj, root_mod_name, mod_has_been_seen):
+                for function in self._visit(obj, root_mod_name, obj_has_been_seen):
                     yield function
             else:
-                # # make sure we do not visit private modules
-                # if not hasattr(mod, '__all__'):
-                #     if any(list(filter(lambda x: x.startswith("_"), obj.__module__.split(".")))):
-                #         continue
-
-                # There are indeed some troublemakers :(
-                if obj.__module__ is None:
-                    logger.warning(f"{mod.__name__}.{name} has no __module__")
+                if any([p[0] == "_" for p in real_path[1:]]):
+                    # skip private functions
                     continue
 
-                # make sure it belongs to the library
-                if not obj.__module__.startswith(root_mod_name):
-                    continue
-
-                # We think function is one of [`FunctionType`, `BuiltinFunctionType`]
                 if isinstance(obj, FunctionType):
-                    function = from_function_type(mod, obj)
+                    function = from_function_type(obj)
                     if function is not None:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
                     if name in self.pyi_cache:
-                        function = from_builtin_function_type(
-                            self.pyi_cache[name], mod, obj
-                        )
+                        function = from_builtin_function_type(self.pyi_cache[name], obj)
                         yield function
 
 

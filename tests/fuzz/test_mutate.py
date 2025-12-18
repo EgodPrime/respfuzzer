@@ -1,4 +1,5 @@
 from respfuzzer.lib.fuzz.mutate import (
+    _choose_block_len,
     get_random_state,
     mutate_bytes,
     mutate_float,
@@ -6,7 +7,6 @@ from respfuzzer.lib.fuzz.mutate import (
     mutate_str,
     randint,
     set_random_state,
-    _choose_block_len
 )
 
 
@@ -81,6 +81,7 @@ def test_a_lot_of_mutations():
         assert isinstance(mutated_float, float)
         assert isinstance(mutated_str, str)
         assert isinstance(mutated_bytes, bytes)
+
 
 def test__choose_block_len_negative():
     a = _choose_block_len(-10)

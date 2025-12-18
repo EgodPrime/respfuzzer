@@ -2,7 +2,7 @@ import json
 import random
 
 from respfuzzer.models import Seed
-from respfuzzer.repos.seed_table import get_seeds_iter
+from respfuzzer.repos import get_seeds
 
 random.seed(4399)
 
@@ -54,7 +54,7 @@ def save_to_data(seed: Seed, data: dict):
 def sample_dyfuzz_format(n_samples: int = 200):
     """Sample `n_samples` seeds from the database and export to DyFuzz format JSON."""
     data = {}
-    for seed in get_seeds_iter():
+    for seed in get_seeds():
         if len(seed.args) == 0:
             continue
         if "download(" in seed.function_call or "main(" in seed.function_call:

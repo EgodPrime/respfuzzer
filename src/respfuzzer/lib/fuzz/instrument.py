@@ -4,13 +4,12 @@ from functools import wraps
 from types import BuiltinFunctionType, FunctionType
 
 from loguru import logger
+from respfuzzer.lib.fuzz.fuzz_function import fuzz_function, replay_fuzz
 
-from respfuzzer.lib.fuzz.fuzz_function import (
-    replay_fuzz,
-    fuzz_function
-)
 
-def instrument_function(func: FunctionType | BuiltinFunctionType, data_fuzz_per_seed: int):
+def instrument_function(
+    func: FunctionType | BuiltinFunctionType, data_fuzz_per_seed: int
+):
     """
     Return a instrumented version of `func`, which should fuzz the current call
     before return.
@@ -50,6 +49,7 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 def instrument_function_check(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -59,6 +59,7 @@ def instrument_function_check(func: FunctionType | BuiltinFunctionType):
 
     wrapper.called = False
     return wrapper
+
 
 @contextmanager
 def instrument_function_via_path_ctx(full_func_path: str, data_fuzz_per_seed: int):
@@ -86,6 +87,7 @@ def instrument_function_via_path_ctx(full_func_path: str, data_fuzz_per_seed: in
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
 
+
 @contextmanager
 def instrument_function_via_path_replay_ctx(full_func_path: str):
     mods = full_func_path.split(".")
@@ -111,6 +113,7 @@ def instrument_function_via_path_replay_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_check_ctx(full_func_path: str):

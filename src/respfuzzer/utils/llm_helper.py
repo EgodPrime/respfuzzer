@@ -4,7 +4,6 @@
 """
 
 import openai
-
 from respfuzzer.utils.config import get_config
 
 llm_cfg = get_config("llm")

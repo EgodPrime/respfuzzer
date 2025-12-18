@@ -1,5 +1,5 @@
-from enum import IntEnum
 import uuid
+from enum import IntEnum
 from typing import Protocol
 
 from pydantic import BaseModel, Field, model_validator
@@ -37,6 +37,7 @@ class Function(BaseModel):
         if self.library_name is None and "." in self.func_name:
             self.library_name = self.func_name.split(".")[0]
         return self
+
 
 class Seed(BaseModel):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)

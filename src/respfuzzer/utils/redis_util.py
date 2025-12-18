@@ -1,5 +1,4 @@
 import redis
-
 from respfuzzer.utils.config import get_config
 
 

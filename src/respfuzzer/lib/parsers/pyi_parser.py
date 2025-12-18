@@ -107,19 +107,18 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                     }
 
 
-def _find_all_pyi_files(
-    dir_path: str, visited_files: Set[str], pyi_cache: Dict[str, Dict]
-) -> None:
-    """
-    递归遍历指定目录下的所有 .pyi 文件，并将文件路径存入 visited_files 集合中
-    """
+def parse_pyi_files(file_path: str) -> dict:
+    tmp_cache = {}
+    _parse_pyi_file(file_path, tmp_cache)
+    return tmp_cache
+
+
+def _find_all_pyi_files(dir_path: str, unique_files: Set[str]) -> None:
     for root, dirs, files in os.walk(dir_path):
         for file in files:
             if file.endswith(".pyi"):
                 file_path = os.path.join(root, file)
-                if file_path in visited_files:
-                    continue
-                visited_files.add(file_path)
-                _parse_pyi_file(file_path, pyi_cache)
+                unique_files.add(file_path)
         for dir_name in dirs:
-            _find_all_pyi_files(os.path.join(root, dir_name), visited_files, pyi_cache)
+            dir_path = os.path.join(root, dir_name)
+            _find_all_pyi_files(dir_path, unique_files)

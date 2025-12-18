@@ -1,19 +1,22 @@
-import signal
 import os
+import signal
 import time
 from multiprocessing.connection import Connection
 from typing import Callable
 
+import dill
 from loguru import logger
-
 from respfuzzer.lib.fuzz.mutate import get_random_state, set_random_state
-from respfuzzer.lib.fuzz.mutator import mutate_param_list
+from respfuzzer.lib.fuzz.mutator import (
+    mutate_param_list,
+    mutate_param_list_deterministic,
+)
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.dump import dump_any_obj
 from respfuzzer.utils.redis_util import get_redis_client
 
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
+deterministic_mode = fuzz_config.get("deterministic_mode", False)
 execution_timeout = fuzz_config["execution_timeout"]
 data_fuzz_per_seed = fuzz_config["data_fuzz_per_seed"]
 rc = get_redis_client()
@@ -99,35 +102,45 @@ def reconvert_param_list(param_list, *args, **kwargs) -> tuple[tuple, dict]:
     kwargs = {k: v for k, v in zip(kwargs.keys(), param_list[len(args) :])}
     return args, kwargs
 
+
 def replay_fuzz(func: Callable, *args, **kwargs) -> None:
-    full_name = f"{func.__module__}.{func.__name__}"
+    full_name = ".".join(dill.source._namespace(func))
     param_list = convert_to_param_list(*args, **kwargs)
     seed = get_random_state()
     logger.info(f"Replay fuzz {full_name} with random state {seed}")
     mt_param_list = mutate_param_list(param_list)
     args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-    with open(f"/tmp/respfuzzer_replay_{seed}_args.dump", "wb") as f:
-        f.write(dump_any_obj(args))
-    with open(f"/tmp/respfuzzer_replay_{seed}_kwargs.dump", "wb") as f:
-        f.write(dump_any_obj(kwargs))
+    # with open(f"/tmp/respfuzzer_replay_{seed}_args.dump", "wb") as f:
+    #     f.write(dump_any_obj(args))
+    # with open(f"/tmp/respfuzzer_replay_{seed}_kwargs.dump", "wb") as f:
+    #     f.write(dump_any_obj(kwargs))
     func(*args, **kwargs)
     logger.info(f"Replay fuzz {full_name} done")
 
 
 def fuzz_function(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> None:
-    full_name = f"{func.__module__}.{func.__name__}"
+    full_name = ".".join(dill.source._namespace(func))
     pid = os.getpid()
     set_random_state(int(time.time()))
     logger.debug(f"RespFuzzer start fuzz {full_name}")
 
     param_list = convert_to_param_list(*args, **kwargs)
+
+    # If there are no parameters to fuzz, return early.
     if len(param_list) == 0:
-        execute_once(func, *args, **kwargs)
         return
 
-    for _ in range(1, data_fuzz_per_seed + 1):
+    if deterministic_mode:
         rc.hset("random_state", str(pid), get_random_state())
-        mt_param_list = mutate_param_list(param_list)
-        args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
-        execute_once(func, *args, **kwargs)
+        for mt_param_list in mutate_param_list_deterministic(param_list):
+            args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
+            execute_once(func, *args, **kwargs)
+            rc.hset("random_state", str(pid), get_random_state())
+    else:
+        for _ in range(1, data_fuzz_per_seed + 1):
+            rc.hset("random_state", str(pid), get_random_state())
+            mt_param_list = mutate_param_list(param_list)
+            args, kwargs = reconvert_param_list(mt_param_list, *args, **kwargs)
+            execute_once(func, *args, **kwargs)
+
     logger.debug(f"RespFuzzer fuzz {full_name} done")

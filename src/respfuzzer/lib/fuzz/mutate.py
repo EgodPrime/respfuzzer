@@ -2,6 +2,7 @@
 Provides a small, deterministic RNG and a set of mutation helpers
 ported from the original Rust implementation in this repository.
 """
+
 import struct
 
 # RNG state and utilities
@@ -110,7 +111,9 @@ def _swap16(x: int) -> int:
 
 
 def _swap32(x: int) -> int:
-    return (((x << 24) | (x >> 24)) | ((x << 8) & 0x00FF0000) | ((x >> 8) & 0x0000FF00)) & 0xFFFFFFFF
+    return (
+        ((x << 24) | (x >> 24)) | ((x << 8) & 0x00FF0000) | ((x >> 8) & 0x0000FF00)
+    ) & 0xFFFFFFFF
 
 
 def _choose_block_len(limit: int) -> int:

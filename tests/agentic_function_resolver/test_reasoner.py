@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from respfuzzer.lib.agentic_function_resolver import Reasoner
 
 
@@ -42,6 +41,3 @@ def test_explain_raises_on_api_errors():
     ):
         with pytest.raises(Exception):
             Reasoner().explain("code", {"stderr": "err"})
-
-
-from unittest import mock

@@ -1,12 +1,10 @@
-
-
 import os
-import sys
 import time
-import redis
 
+import redis
 from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_ctx
 from respfuzzer.utils.config import get_config
+
 
 def continue_safe_execute() -> None:
     """
@@ -19,7 +17,7 @@ def continue_safe_execute() -> None:
     pid = os.getpid()
     recv_key = f"fuzz_key_{pid}"
     send_key = f"fuzz2_key_{pid}"
-    
+
     config = get_config("fuzz")
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
 
@@ -29,7 +27,6 @@ def continue_safe_execute() -> None:
             time.sleep(0.1)
             continue
         command, func_name, function_call = msg.decode().split(",", 2)
-        
 
         match command:
             case "execute":
@@ -41,7 +38,9 @@ def continue_safe_execute() -> None:
                     rc.rpush(send_key, "done")
             case "fuzz":
                 try:
-                    with instrument_function_via_path_ctx(func_name, data_fuzz_per_seed):
+                    with instrument_function_via_path_ctx(
+                        func_name, data_fuzz_per_seed
+                    ):
                         exec(function_call)
                 except Exception:
                     pass
@@ -52,6 +51,8 @@ def continue_safe_execute() -> None:
             case _:
                 exit(1)
 
+
 if __name__ == "__main__":
     import fire
+
     fire.Fire(continue_safe_execute)

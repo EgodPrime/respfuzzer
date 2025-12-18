@@ -1,17 +1,16 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import subprocess
 import tempfile
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
 
 import openai
 from loguru import logger
-
 from respfuzzer.models import ExecutionResultType, Function, Seed
-from respfuzzer.utils.config import get_config
 from respfuzzer.repos import get_functions
+from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import DATA_DIR
 
 cfg = get_config("reflective_seeder")
@@ -197,7 +196,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
-            command = ["python", f.name]
+            command = ["python3", f.name]
             try:
                 # 启动子进程
                 proc = subprocess.Popen(
@@ -449,7 +448,7 @@ def solve_function(function: Function) -> Optional[Seed]:
             args=function.args,
             function_call=code,
         )
-        logger.info(f"Seed found for {function.func_name}:\n{code}")
+        logger.success(f"Seed found for {function.func_name}:\n{code}")
         return seed
     except Exception as e:
         logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
@@ -462,14 +461,11 @@ def solve_library_functions(library_name: str) -> None:
 
     seeds: List[Seed] = []
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = [
-            executor.submit(solve_function, function) for function in functions
-        ]
+        futures = [executor.submit(solve_function, function) for function in functions]
         for future in as_completed(futures):
             seed = future.result()
             if seed is not None:
                 seeds.append(seed)
-                
 
     # Save all seeds to a JSON file
     if len(seeds) == 0:

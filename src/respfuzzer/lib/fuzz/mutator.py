@@ -1,5 +1,5 @@
 import copy
-from typing import Dict, FrozenSet, List, Set, Tuple
+from typing import Any, Dict, FrozenSet, Iterator, List, Set, Tuple
 
 from respfuzzer.lib.fuzz.mutate import (
     mutate_bytes,
@@ -25,26 +25,23 @@ VALUE_TYPES = [
 ]
 
 
-def get_type(old_val) -> str:
+def get_type(val: Any) -> str:
     """
     Get the type string for a given value.
 
     Args:
-        old_val: The value to check type for.
+        val: The value to check type for.
 
     Returns:
         str: The type string.
-
-    Raises:
-        ValueError: If the value type is unknown.
     """
-    for type_, val in VALUE_TYPES:
-        if isinstance(old_val, type_):  # type: ignore
+    for t, val in VALUE_TYPES:
+        if isinstance(val, t):  # type: ignore
             return val
-    raise ValueError(f"Unknown value type {old_val}")
+    return "other"
 
 
-def mutate_auto(old_val):
+def mutate_auto(old_val: Any) -> Any:
     """
     Automatically mutate a value based on its type.
     Args:
@@ -52,15 +49,40 @@ def mutate_auto(old_val):
     Returns:
         Mutated value of the same type.
     """
-    if old_val is None:
-        return None
-    if isinstance(old_val, object) and type(old_val) is type(object):
-        return old_val
-    type_ = get_type(old_val)
-    func_name = f"mutate_{type_}"
-    func = globals()[func_name]
-    new_val = func(old_val)
-    return new_val
+    _type = get_type(old_val)
+    match _type:
+        case "bool":
+            return mutate_bool(old_val)
+        case "int":
+            return mutate_int(old_val)
+        case "float":
+            return mutate_float(old_val)
+        case "complex":
+            return mutate_complex(old_val)
+        case "str":
+            return mutate_str(old_val)
+        case "bytes":
+            return mutate_bytes(old_val)
+        case "list":
+            return mutate_list(old_val)
+        case "tuple":
+            return mutate_tuple(old_val)
+        case "bytearray":
+            return mutate_bytearray(old_val)
+        case "set":
+            return mutate_set(old_val)
+        case "frozenset":
+            return mutate_frozenset(old_val)
+        case "dict":
+            return mutate_dict(old_val)
+        case "instance":
+            return mutate_instance(old_val)
+        case _:
+            return old_val
+
+
+def mutate_bool(old_val: bool) -> bool:
+    return not old_val
 
 
 def mutate_complex(old_val: complex) -> complex:
@@ -68,10 +90,6 @@ def mutate_complex(old_val: complex) -> complex:
     new_imag = mutate_float(old_val.imag)
     new_val = complex(new_real, new_imag)
     return new_val
-
-
-def mutate_bool(old_val: bool) -> bool:
-    return not old_val
 
 
 def mutate_list_clip(old_val: list) -> list:
@@ -105,9 +123,8 @@ def mutate_list_expand(old_val: list) -> list:
     index = randint(len(old_val) - 1)
     t = old_val[index]
     new_t = mutate_auto(t)
-    new_val = copy.deepcopy(old_val)
-    new_val.append(new_t)
-    return new_val
+    old_val.append(new_t)
+    return old_val
 
 
 def mutate_list_random_one(old_val: list) -> list:
@@ -150,30 +167,28 @@ def mutate_frozenset(old_val: frozenset) -> frozenset:
 
 
 def mutate_dict(old_val: dict) -> dict:
-    new_val = copy.deepcopy(old_val)
-    keys = list(new_val.keys())
+    keys = list(old_val.keys())
     if len(keys) == 0:
         return old_val
     a = randint(len(keys))
     mt_key = keys[a]
-    new_val[mt_key] = mutate_auto(new_val[mt_key])
-    return new_val
+    old_val[mt_key] = mutate_auto(old_val[mt_key])
+    return old_val
 
 
 def mutate_instance(old_val: object) -> object:
     try:
-        new_val = copy.deepcopy(old_val)
-        members = dir(new_val)
+        members = dir(old_val)
         members = [x for x in members if not x.startswith("__")]
         if len(members) == 0:
             return old_val
         a = randint(len(members))
         mt_member = members[a]
-        new_member = mutate_auto(getattr(new_val, mt_member))
-        setattr(new_val, mt_member, new_member)
+        new_member = mutate_auto(getattr(old_val, mt_member))
+        setattr(old_val, mt_member, new_member)
     except Exception:
         pass
-    return new_val
+    return old_val
 
 
 def mutate_param_list(old_val: List[object]) -> List:
@@ -193,20 +208,23 @@ def mutate_param_list(old_val: List[object]) -> List:
     return new_val
 
 
-__all__ = [
-    "mutate_auto",
-    "mutate_bool",
-    "mutate_int",
-    "mutate_float",
-    "mutate_complex",
-    "mutate_str",
-    "mutate_bytes",
-    "mutate_list",
-    "mutate_tuple",
-    "mutate_bytearray",
-    "mutate_set",
-    "mutate_frozenset",
-    "mutate_dict",
-    "mutate_instance",
-    "mutate_param_list",
-]
+def mutate_param_list_deterministic(old_pl: List[object]) -> Iterator[List[object]]:
+    """
+    This version generates all possible single mutations for each parameter in the list.
+    """
+    a = len(old_pl)
+    if a == 0:
+        yield old_pl
+        return
+    for i in range(a):
+        original_value = old_pl[i]
+        try:
+            new_value = copy.deepcopy(original_value)
+            for _ in range(10):
+                mutated_value = mutate_auto(new_value)
+                new_pl = copy.deepcopy(old_pl)
+                new_pl[i] = mutated_value
+                yield new_pl
+                new_value = mutated_value
+        except Exception:
+            continue

@@ -1,15 +1,16 @@
 import inspect
-from types import BuiltinFunctionType, FunctionType, ModuleType
+from types import BuiltinFunctionType, FunctionType
 from typing import Optional
 
+import dill
 from respfuzzer.models import Argument, Function
 
 
-def from_function_type(mod: ModuleType, obj: FunctionType) -> Optional[Function]:
+def from_function_type(obj: FunctionType) -> Optional[Function]:
     """
     convert a `FunctionType` to an `function` object
     """
-    name = f"{mod.__name__}.{obj.__name__}"
+    name = ".".join(dill.source._namespace(obj))
     try:
         sig = inspect.signature(obj)
     except ValueError:
@@ -40,11 +41,8 @@ def from_function_type(mod: ModuleType, obj: FunctionType) -> Optional[Function]
     return Function(func_name=name, source=source, args=arg_list, ret_type=ret_type_str)
 
 
-def from_builtin_function_type(
-    pyi_dict: dict, mod: ModuleType, obj: BuiltinFunctionType
-) -> Function:
-    # name = f"{obj.__module__}.{obj.__name__}"
-    name = f"{mod.__name__}.{obj.__name__}"
+def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType) -> Function:
+    name = ".".join(dill.source._namespace(obj))
     return Function(
         func_name=name,
         source=pyi_dict["source"],
