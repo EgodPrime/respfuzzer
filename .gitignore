@@ -32,3 +32,4 @@ experiments/RQ4/codeql*
 experiments/RQ4/SecurityEval
 experiments/RQ5/*.log
 data
+*_data
