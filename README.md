@@ -1,6 +1,6 @@
 # RespFuzzer
 
-> This repository contains the implementation and all necessary scripts to reproduce the results of our paper "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
+> This repository contains the implementation and all necessary scripts to reproduce the results of our paper "Reflective Seed Generation and Semantic-Driven Mutation for Python Library Fuzzing"， currently submitted to IEEE TSE.
 
 
 ## Architecture
@@ -96,16 +96,15 @@ reflective_seeder extract_functions numpy
 
 There will be a new SQLite database file (`<db_name>.db` where `<db_name>` is set in `config.toml`) created in the `run_data` folder containing the extracted functions.
 
-## Generate Function Calls
+### Generate Function Calls
 ```bash
 reflective_seeder generate_seeds numpy
 ```
 
-## View the Database
-
-This project use PostgreSQL as the database to store extracted functions and generated seeds.
-Navicat is recommended for viewing the database, you are also free to use any other database viewer tools.
-
+### Start Fuzzing
+```bash
+fuzz fuzz_library numpy
+```
 
 ## Libraries Under Test
 
