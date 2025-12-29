@@ -28,8 +28,8 @@ experiments/**/RQ*.jpg
 experiments/**/RQ*.pdf
 experiments/RQ4/*.json
 experiments/**/*.db
-experiments/RQ4/codeql*
-experiments/RQ4/SecurityEval
+experiments/RQ5/codeql*
+experiments/RQ5/SecurityEval
 experiments/RQ5/*.log
 data
 *_data

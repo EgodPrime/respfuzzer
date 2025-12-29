@@ -1,6 +1,5 @@
 import fire
 from respfuzzer.lib.fuzz.fuzz_exp import fuzz_dataset, fuzz_one_library
-from respfuzzer.lib.fuzz.fuzz_pure import fuzz_one_library as pure_fuzz_one_library
 from respfuzzer.lib.fuzz.llm_mutator import random_llm_mutate
 
 
@@ -33,7 +32,6 @@ def main():
         {
             "fuzz_dataset": fuzz_dataset,
             "fuzz_library": fuzz_one_library,
-            "pure_fuzz_library": pure_fuzz_one_library,
             "toy_batch_random_llm_mutate": toy_batch_random_llm_mutate,
         }
     )
