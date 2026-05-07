@@ -136,7 +136,10 @@ res = c(x, y)
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=500,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
                 code = response.choices[0].message.content.strip()
                 # tolerate some common variations: try to extract code between <code> tags
@@ -273,7 +276,10 @@ class Reasoner:
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=500,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
                 explanation = response.choices[0].message.content.strip()
                 if "<explain>" in explanation and "</explain>" in explanation:
@@ -321,7 +327,10 @@ class Judger:
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=200,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
 
                 text = response.choices[0].message.content.strip()

@@ -7,7 +7,7 @@ from respfuzzer.repos import get_seeds
 random.seed(4399)
 
 
-def sample_apis(json_data: dict, total_samples: int = 100):
+def sample_apis(json_data: dict, total_samples: int = 200, min_n = 1):
     # 统计每个库的API数量
     api_counts = {lib: len(apis) for lib, apis in json_data.items()}
 
@@ -19,11 +19,11 @@ def sample_apis(json_data: dict, total_samples: int = 100):
     remaining_samples = total_samples
     for lib, count in api_counts.items():
         # 按比例计算采样数量，至少采样1个
-        samples = max(1, int((count / total_apis) * total_samples))
+        samples = max(min_n, int((count / total_apis) * total_samples))
         sample_counts[lib] = samples
         remaining_samples -= samples
 
-    # 确保总采样数量为100，调整采样数量
+    # 确保总采样数量为200，调整采样数量
     while remaining_samples > 0:
         for lib in api_counts:
             if remaining_samples > 0 and sample_counts[lib] < api_counts[lib]:
@@ -51,7 +51,7 @@ def save_to_data(seed: Seed, data: dict):
     data[library_name][api_name] = v
 
 
-def sample_dyfuzz_format(n_samples: int = 200):
+def sample_dyfuzz_format(n_samples: int = 200, min_n: int = 1):
     """Sample `n_samples` seeds from the database and export to DyFuzz format JSON."""
     data = {}
     for seed in get_seeds():
@@ -61,5 +61,5 @@ def sample_dyfuzz_format(n_samples: int = 200):
             continue
         save_to_data(seed, data)
     output_file_name = "respfuzzer_seeds.json"
-    sampled_data = sample_apis(data, total_samples=n_samples)
+    sampled_data = sample_apis(data, total_samples=n_samples, min_n=min_n)
     json.dump(sampled_data, open(output_file_name, "w"), indent=2)

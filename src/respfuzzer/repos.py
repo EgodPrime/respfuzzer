@@ -47,23 +47,32 @@ def get_function_by_name(function_name: str) -> Optional[Function]:
     return functions_cache[library_name].get(function_name, None)
 
 
-def get_seeds(library_name: str) -> list[Seed]:
+def get_seeds(library_name: str| None) -> list[Seed]:
     """
-    Retrieve all seeds for the specified library.
+    Retrieve all seeds for the data directory.
+    seed files must be names as xxx_seeds.json
 
     Args:
-        library_name (str): The name of the library.
+        library_name (str | None): The name of the library to filter seeds. If None, retrieves seeds for all libraries.
+
     Returns:
         list[Seed]: A list of Seed objects.
     """
-    seeds_file = DATA_DIR / f"{library_name}_seeds.json"
-    if not seeds_file.exists():
-        return []
-
-    with open(seeds_file, "r") as f:
-        seeds_data = json.load(f)
-
-    seeds = [Seed.model_validate(seed) for seed in seeds_data]
+    if library_name:
+        seed_file = DATA_DIR / f"{library_name}_seeds.json"
+        if not seed_file.exists():
+            return []
+        with open(seed_file, "r") as f:
+            seeds_data = json.load(f)
+            return [Seed.model_validate(seed) for seed in seeds_data]
+    import os
+    seeds = []
+    for x in os.listdir(DATA_DIR):
+        if x.endswith('_seeds.json'):
+            seed_file = DATA_DIR.joinpath(x)
+            with open(seed_file, "r") as f:
+                seeds_data = json.load(f)
+                seeds += [Seed.model_validate(seed) for seed in seeds_data]
     return seeds
 
 

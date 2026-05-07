@@ -208,10 +208,10 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
 if __name__ == "__main__":
     db_names = {
-        "SCE+RCM": "rq2_111_data",
-        "SCE-only": "rq2_110_data",
-        "RCM-only": "rq2_101_data",
-        "Baseline": "rq2_100_data",
+        "SCE+RCM": "RQ2_data_new_111",
+        "SCE-only": "RQ2_data_new_110",
+        "RCM-only": "RQ2_data_new_101",
+        "Baseline": "RQ2_data_new_100",
     }
 
     data_results = {}
