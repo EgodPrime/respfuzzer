@@ -12500,3 +12500,21 @@
 2026-05-07 10:29:02.790 | INFO     | respfuzzer.lib.fuzz.fuzz_exp:fuzz_single_seed:115 - Start fuzzing mutant 5154340757334740657 of seed 3091243176199668568: yaml.add_implicit_resolver
 2026-05-07 10:29:03.268 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
 2026-05-07 10:29:05.049 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:08.778 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:08.797 | INFO     | respfuzzer.lib.fuzz.fuzz_exp:fuzz_single_seed:122 - Exception occurred: 
+2026-05-07 10:29:08.799 | INFO     | respfuzzer.lib.fuzz.fuzz_exp:fuzz_single_seed:124 - Mutant 5154340757334740657 execution timeout after 5.0 seconds, restarting worker process. Last random state: None
+2026-05-07 10:29:09.684 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:11.531 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0055
+2026-05-07 10:29:12.544 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:14.455 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:15.565 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:16.977 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:17.730 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:19.965 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:20.493 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:22.440 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:22.890 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:24.263 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:27.183 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
+2026-05-07 10:29:27.558 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0049
+2026-05-07 10:29:29.513 | DEBUG    | respfuzzer.lib.fuzz.llm_mutator:update_reward:179 - Updated reward for mutation type 0: 0.0000
