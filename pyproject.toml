@@ -5,6 +5,7 @@ description = "Reflective Seed Generation and Semantic-Guided Mutation for Pytho
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "coverage>=7.11.0",
     "fire>=0.7.1",
     "loguru>=0.7.3",
     "openai>=1.109.1",
