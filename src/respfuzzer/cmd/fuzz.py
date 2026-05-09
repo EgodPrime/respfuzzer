@@ -1,5 +1,5 @@
 import fire
-from respfuzzer.lib.fuzz.fuzz_exp import fuzz_dataset, fuzz_one_library
+from respfuzzer.lib.fuzz.fuzz_exp_new import fuzz_dataset, fuzz_one_library
 from respfuzzer.lib.fuzz.llm_mutator import random_llm_mutate
 
 
