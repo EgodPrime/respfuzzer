@@ -222,7 +222,7 @@ class LLMMutator:
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 
-    def random_llm_mutate(self) -> tuple[Mutant, int]:
+    def random_llm_mutate(self, no_check_semantic: bool=False) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
         """
@@ -230,6 +230,8 @@ class LLMMutator:
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
         while True:
             res = llm_mutate(self.seed, mutation_type)
+            if no_check_semantic:
+                break
             res = filter_syntax(res)
             has_syntax_error = res is None
             if has_syntax_error:
