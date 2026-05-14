@@ -10,17 +10,20 @@
 import ast
 import math
 import random
+import signal
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
 from loguru import logger
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.llm_helper import SimpleLLMClient
+from respfuzzer.utils.llm_helper import get_sys_llm
+
+from pydantic import BaseModel, Field
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
 
 llm_cfg = get_config("llm_mutator")
-client = SimpleLLMClient(**llm_cfg)
-
 
 PROMPT_MUTATE = (
     '"""Please create a program that mutates the input parameters of the target function call"""',
@@ -29,30 +32,33 @@ PROMPT_MUTATE = (
     '"""Please create a simplified version of the previous generation"""',
 )
 
+class PureCodeOutput(BaseModel):
+    code: str = Field(description="A pure code snippet without any explanations or code fences.")
 
-def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
-    """
-    构造对话历史记录，以便在调用LLM时提供上下文。
-    """
-    history = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful programming assistant."
-                "You ouput only Python code snippets without any explanations."
-                "You never generate `print` statements."
-                "You always ensure the target function is called in your code."
-            ),
-        },
-        {
-            "role": "user",
-            "content": f"Target function is {seed.func_name}. Please generate a program that calls it.",
-        },
-        {"role": "assistant", "content": seed.function_call},
-        {"role": "user", "content": prompt},
-    ]
-    return history
+PureCodeParser = PydanticOutputParser(pydantic_object=PureCodeOutput)
 
+MUTATE_PROMPT = PromptTemplate(
+    template="""You are a professional programmer. Your task is to generate a mutated version of the given code
+snippet according to the mutation instruction.
+    
+Code snippet:
+{func_call}
+
+Mutation instruction:
+{mutation_instruction}
+
+Target function name:
+{func_name}
+
+The mutated code should call the target function and meet the mutation instruction. Do not include any explanations or comments or print statements. The mutated code should be short and concise. 
+
+{format_instructions}
+    """,
+    input_variables=["func_name", "func_call", "mutation_instruction"],
+    partial_variables={"format_instructions": PureCodeParser.get_format_instructions()}
+)
+
+mutate_chain = MUTATE_PROMPT | get_sys_llm() | PureCodeParser
 
 def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     """
@@ -66,9 +72,22 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     if mutation_type < 0 or mutation_type >= len(PROMPT_MUTATE):
         raise ValueError("Invalid mutation type")
 
+    mutated_code = seed.function_call  # 默认变异结果为原始代码，以防LLM调用失败
     prompt = PROMPT_MUTATE[mutation_type]
-    messages = make_fake_history(seed, prompt)
-    mutated_code = client.chat(messages, temperature=1.5)
+    for attempt in range(3):
+        try:
+            res = mutate_chain.invoke(
+                input={
+                    "func_name": seed.func_name,
+                    "func_call": seed.function_call,
+                    "mutation_instruction": prompt,
+                },
+                config={"temperature": 1.0}
+            )
+            mutated_code = res.code
+        except Exception as e:
+            logger.warning(f"Mutation {attempt+1}/3 failed with : {e}")
+            continue
 
     # Save the mutant to the database
     mutant = Mutant(

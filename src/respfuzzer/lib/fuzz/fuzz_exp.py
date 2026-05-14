@@ -159,7 +159,7 @@ def fuzz_single_seed(
 
 
 def _fuzz_dataset(
-    dataset: dict[str, dict[str, dict[str, list[int]]]],
+    dataset: list[Seed],
 ) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
@@ -167,18 +167,9 @@ def _fuzz_dataset(
     # 收集所有待 fuzz 的 seed
     seeds: list[tuple[str, Seed]] = []
     shm_key_start = 4399
-    for library_name in dataset:
-        for func_name in dataset[library_name]:
-            full_func_name = f"{library_name}.{func_name}"
-            seed = get_seed_by_function_name(full_func_name)
-            if not seed:
-                continue
-            seeds.append((shm_key_start, full_func_name, seed))
-            shm_key_start += 1
-
-    if not seeds:
-        logger.info("No seeds found in dataset to fuzz.")
-        return
+    for seed in dataset:
+        seeds.append((shm_key_start, seed.func_name, seed))
+        shm_key_start += 1
 
     # 并行执行 fuzz_single_seed（使用线程池以避免多进程嵌套的 pickling 问题）
     cfg = get_config("fuzz")
@@ -208,7 +199,7 @@ def _fuzz_dataset(
 
 
 def calc_initial_seed_coverage_dataset(
-    dataset: dict[str, dict[str, dict[str, list[int]]]],
+    seeds: list[Seed],
 ) -> int:
     logger.info("Calculating initial seed coverage for the dataset....")
     send, recv = Queue(), Queue()
@@ -217,30 +208,22 @@ def calc_initial_seed_coverage_dataset(
     bm.write()
     process = Process(target=continue_safe_execute, args=(send, recv, 4398))
     process.start()
-    for library_name in dataset:
-        for func_name in dataset[library_name]:
-            full_func_name = f"{library_name}.{func_name}"
-            seed = get_seed_by_function_name(full_func_name)
-            if not seed:
-                logger.error(
-                    f"Seed for function {full_func_name} not found, take care!"
-                )
-                exit(1)
-            try:
-                send.put(("execute", seed))
-                recv.get(timeout=10)
-            except Exception:
-                logger.warning(
-                    f"Seed {seed.id} execution timeout, restarting worker process."
-                )
-                if process.is_alive():
-                    kill_process_tree_linux(process)
-                else:
-                    process.join()
-                send, recv = Queue(), Queue()
-                process = Process(target=continue_safe_execute, args=(send, recv, 4398))
-                process.start()
-                continue
+    for seed in seeds:
+        try:
+            send.put(("execute", seed))
+            recv.get(timeout=10)
+        except Exception:
+            logger.warning(
+                f"Seed {seed.id} execution timeout, restarting worker process."
+            )
+            if process.is_alive():
+                kill_process_tree_linux(process)
+            else:
+                process.join()
+            send, recv = Queue(), Queue()
+            process = Process(target=continue_safe_execute, args=(send, recv, 4398))
+            process.start()
+            continue
     send.put(("exit", None))
     process.join()
     bm = BitmapManager(4398)
@@ -257,13 +240,15 @@ def fuzz_dataset(
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
-    calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(
-        dataset,
-    )
+    # dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
+    #     open(dataset_path, "r")
+    # )
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        seeds: list[dict] = json.load(f)
+    
+    seeds = [Seed.model_validate(s) for s in seeds]
+    calc_initial_seed_coverage_dataset(seeds)
+    _fuzz_dataset(seeds)
 
 
 def fuzz_one_library(library_name: str) -> None:

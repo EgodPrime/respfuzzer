@@ -12,7 +12,6 @@ import psutil
 from dcov import BitmapManager
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
-from respfuzzer.repos import get_seed_by_function_name
 
 from respfuzzer.lib.fuzz.fuzz_exp import (
     calc_initial_seed_coverage_dataset,
@@ -149,22 +148,15 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     logger.info(f"Fuzz seed {seed.id} done ")
 
 
-def _fuzz_dataset(
-    dataset: dict[str, dict[str, dict[str, list[int]]]], command: str
-) -> None:
+def _fuzz_dataset(seeds: list[Seed], command: str) -> None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
-    for library_name in dataset:
-        for func_name in dataset[library_name]:
-            full_func_name = f"{library_name}.{func_name}"
-            seed = get_seed_by_function_name(full_func_name)
-            if not seed:
-                continue
-            fuzz_single_seed(seed, command)
-            bm = BitmapManager(4398)
-            p = bm.count_bitmap_s()
-            logger.info(f"Current coverage after fuzzing {full_func_name}: {p} bits.")
+    for seed in seeds:
+        fuzz_single_seed(seed, command)
+        bm = BitmapManager(4398)
+        p = bm.count_bitmap_s()
+        logger.info(f"Current coverage after fuzzing {seed.func_name}: {p} bits.")
 
 
 def fuzz_dataset(dataset_path: str) -> None:
@@ -179,11 +171,12 @@ def fuzz_dataset(dataset_path: str) -> None:
 
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
 
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
-    calc_initial_seed_coverage_dataset(dataset)
-    _fuzz_dataset(dataset, "execute")
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        seeds: list[dict] = json.load(f)
+    
+    seeds = [Seed.model_validate(s) for s in seeds]
+    calc_initial_seed_coverage_dataset(seeds)
+    _fuzz_dataset(seeds, "execute")
 
 
 def fuzz_dataset_infinite(dataset_path: str) -> None:

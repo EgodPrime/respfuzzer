@@ -18,13 +18,51 @@ def kill_process_tree_linux(process: multiprocessing.Process, timeout: float = 1
     try:
         pgid = os.getpgid(process.pid)
     except OSError:
+        # 进程已经不存在
+        try:
+            process.join(timeout=0.1)
+        except:
+            pass
         return
 
-    os.killpg(pgid, signal.SIGKILL)
+    # First SIGKILL to the whole process group
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except OSError:
+        pass
+
+    # Wait up to `timeout` for graceful exit
     try:
         process.join(timeout)
     except:
         pass
+
+    # If still alive, the process is in an uninterruptible state (D-state).
+    # Try to kill it directly as a last resort — zombies from wait4() will
+    # then be reaped by joining the Process object.
+    if process.is_alive():
+        try:
+            os.kill(process.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            process.join(timeout=0.5)
+        except:
+            pass
+
+    # If still a zombie (wait4 not called), force-reap via waitpid(-1).
+    # This is safe even if the process already exited — ESRCH means no such process.
+    if process.is_alive():
+        try:
+            os.waitpid(process.pid, os.WNOHANG)
+        except ChildProcessError:
+            pass  # Not our child
+        except OSError:
+            pass
+        try:
+            process.join(timeout=0.1)
+        except:
+            pass
 
 
 def manage_process_with_timeout(

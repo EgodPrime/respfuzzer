@@ -163,8 +163,10 @@ open("log.txt", "a").write("\n")
 
 # run(mod,api,n)
 
-# moddic = json.load(open( './sklearn_export.json','r'))
-moddic = json.load(open("../respfuzzer_seeds.json", "r"))
+import sys
+assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
+data_path = sys.argv[1]
+moddic = json.load(open(data_path, "r"))
 # ignorelist = ["sigwait","crypt","binhex",'kill','killpg','tcflow','askokcancel',"askquestion"]
 ignorelist = []
 

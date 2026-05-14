@@ -39,3 +39,4 @@ htmlcov
 .python-version
 
 RQ*_data*
+**/*.log
