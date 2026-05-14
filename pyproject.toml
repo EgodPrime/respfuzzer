@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "coverage>=7.11.0",
+    "dill>=0.4.1",
     "fire>=0.7.1",
     "langchain>=1.2.18",
     "langchain-openai>=1.2.1",

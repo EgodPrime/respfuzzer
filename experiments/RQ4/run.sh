@@ -29,7 +29,7 @@ for library in "${libraries[@]}"; do
         continue
     fi
 
-    log_file="$cur_file_dir/RQ3-fuzz4all-${library^}-${timestamp}-mode-${mode}.log"
+    log_file="$cur_file_dir/RQ4-respfuzzer-${library^}-${timestamp}-mode-${mode}.log"
     if [ "$mode" = "Full" ]; then
         cmd="uv run $exp_script_path $input_file > $log_file 2>&1"
     else
