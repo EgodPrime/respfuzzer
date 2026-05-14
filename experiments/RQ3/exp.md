@@ -22,8 +22,13 @@ Once the RQ2 experiment is done, we can use the `rq2_111_data` to sample seeds f
 If you haven't run RQ2 yet, you can read the RQ2 experiment instructions in `experiments/RQ2/exp.md` to get the database file.
 
 ```bash
-cd {RESPFUZZER}/experiments/RQ3/
-RESPFUZZER_DATA_DIR=rq2_111_data export_dyfuzz  # you will get a json named respfuzzer_seeds.json
+cd {RESPFUZZER}
+# Sample seeds for RQ3 from RQ2 data, 
+# the results will be stored in `$RESPFUZZER_DATA_DIR/<library>_seeds_sampled.json` 
+RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash scripts/sample_seeds.sh
+# Convert the sampled seeds to DyFuzz format, 
+# the results will be stored in `$RESPFUZZER_DATA_DIR/<library>_seeds_dyfuzz.json`
+RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash scripts/convert_to_dyfuzz_format.sh
 ```
 
 ## Run RespFuzzer
@@ -36,7 +41,7 @@ cd ./experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run RespFuzzer
-fuzz fuzz_dataset ../respfuzzer_seeds.json > <xxxx>.log 2>&1
+RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash ../run_respfuzzer.sh
 ```
 
 ## Run Fuzz4All Mutation
@@ -47,15 +52,18 @@ cd {RESPFUZZER}/experiments/RQ3/
 mkdir -p run_data
 cd run_data
 # run Fuzz4All mutation
-python ../miniFuzz4All/fuzz_dataset.py normal ../respfuzzer_seeds.json > <xxxx>.log 2>&1
+RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash ../run_fuzz4all.sh
 ```
 
 ## Run DyFuzz
 
 ```bash
-cd {RESPFUZZER}/experiments/RQ3/DyFuzz
+cd {RESPFUZZER}/experiments/RQ3/
 ## DyFuzz can handle its fuzzing garbage by itself
-python run_respfuzzer.py > <xxxx>.log 2>&1
+mkdir -p run_data
+cd run_data
+# run DyFuzz
+RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash ../run_dyfuzz.sh
 ```
 
 ## How to get the similar table data as in our paper
