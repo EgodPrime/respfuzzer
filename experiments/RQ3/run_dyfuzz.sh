@@ -14,18 +14,19 @@ exp_script_path="$cur_file_dir/DyFuzz/run_respfuzzer.py"
 
 source "$config_file"
 
+cd "$cur_file_dir/DyFuzz" || exit 1
+
 timestamp=$(date +"%Y%m%d%H%M")
 
-
 for library in "${libraries[@]}"; do
-    input_file="$DATA_DIR/${library}_seeds_dyfuzz.json"
+    input_file="$DATA_DIR/${library}_seeds_sampled.json"
     if [ ! -f "$input_file" ]; then
         echo "WARNING: $input_file not found, skipping."
         continue
     fi
 
     log_file="$cur_file_dir/RQ3-DyFuzz-${library^}-${timestamp}.log"
-    cmd="uv run $exp_script_path normal $input_file > $log_file 2>&1"
-    echo "cmd: $cmd"
+    cmd="uv run $exp_script_path $input_file > $log_file 2>&1"
+    echo "$cmd"
     eval "$cmd"
 done

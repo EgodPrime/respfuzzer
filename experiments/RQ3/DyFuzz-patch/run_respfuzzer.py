@@ -4,6 +4,7 @@ import io
 import os
 import platform
 import signal, functools
+import sysconfig
 import sys
 import timeout
 import json
@@ -163,10 +164,28 @@ open("log.txt", "a").write("\n")
 
 # run(mod,api,n)
 
-import sys
+
 assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
 data_path = sys.argv[1]
-moddic = json.load(open(data_path, "r"))
+logger.info(f"Loading seeds from {data_path}...", flush=True)
+data = json.load(open(data_path, "r"))
+from respfuzzer.models import Seed
+seeds = [Seed.model_validate(seed_dict) for seed_dict in data]
+logger.info("num of seeds: %s" % len(seeds), flush=True)
+from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset
+bm = BitmapManager(4398)
+bm.clear_bitmap()
+bm.write()
+calc_initial_seed_coverage_dataset(seeds)
+moddic = {}
+for seed in seeds:
+    library_name = seed.library_name
+    func_name = seed.func_name.replace(library_name + ".", "")
+    np = len(seed.args)
+    if library_name not in moddic:
+        moddic[library_name] = {}
+    if func_name not in moddic[library_name]:
+        moddic[library_name][func_name] = {"pn": [np, np]}
 # ignorelist = ["sigwait","crypt","binhex",'kill','killpg','tcflow','askokcancel',"askquestion"]
 ignorelist = []
 
@@ -174,12 +193,6 @@ ignorelist = []
 
 # mcount = 0
 
-
-bm = BitmapManager(4398)
-bm.clear_bitmap()
-bm.write()
-from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset
-calc_initial_seed_coverage_dataset(moddic)
 for mod in list(moddic.keys()):
     need_skip = []
     logger.info(f"DyFuzz test {mod}")
