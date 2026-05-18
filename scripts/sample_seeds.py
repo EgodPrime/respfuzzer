@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """
-Sample seeds from a JSON file with configurable ratio and count bounds.
+Sample seeds from a JSON file with a configurable target count.
 
 Usage:
     python scripts/sample_seeds.py -i <input.json> [options]
 
 Options:
-    -i, --input      Path to input xx_seeds.json file (required)
-    -o, --output     Output directory (default: same directory as input)
-    -r, --ratio      Sampling ratio in [0, 1.0] (default: 1.0)
-    -m, --min        Minimum number of samples (default: 0)
-    -M, --max        Maximum number of samples (default: no limit)
+    -i, --input    Path to input xx_seeds.json file (required)
+    -o, --output   Output directory (default: same directory as input)
+    -n, --num      Target sample count. If >= total, take all. (default: 50)
+    -s, --seed     Random seed for reproducibility (default: 4399)
 
-Final sample count = min(M, max(m, floor(total * r)))
+Final sample count = min(n, len(data))
 """
 
 import argparse
 import json
-import math
 import os
 import random
 import sys
@@ -27,12 +25,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Sample seeds from a JSON file.")
     parser.add_argument("-i", "--input", required=True, help="Path to input xx_seeds.json")
     parser.add_argument("-o", "--output", help="Output directory (default: same as input)")
-    parser.add_argument("-r", "--ratio", type=float, default=1.0,
-                        help="Sampling ratio in [0, 1.0] (default: 1.0)")
-    parser.add_argument("-m", "--min", type=int, default=0,
-                        help="Minimum number of samples (default: 0)")
-    parser.add_argument("-M", "--max", type=int, default=None,
-                        help="Maximum number of samples (default: no limit)")
+    parser.add_argument("-n", "--num", type=int, default=50,
+                        help="Target sample count. If >= total, take all. (default: 50)")
     parser.add_argument("-s", "--seed", type=int, default=4399,
                         help="Random seed for reproducibility (default: 4399)")
     return parser.parse_args()
@@ -41,9 +35,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # Validate ratio
-    if not (0.0 <= args.ratio <= 1.0):
-        print(f"ERROR: ratio must be in [0, 1.0], got {args.ratio}", file=sys.stderr)
+    # Validate num
+    if args.num < 0:
+        print(f"ERROR: num must be non-negative, got {args.num}", file=sys.stderr)
         sys.exit(1)
 
     # Load input data
@@ -59,23 +53,8 @@ def main():
     print(f"Total records: {total_count}")
 
     # Compute sampled count
-    raw_count = total_count * args.ratio
-    sampled_count_raw = math.floor(raw_count)
-    print(f"Raw sampled count (floor of total * ratio): {sampled_count_raw}")
-
-    # Apply min constraint
-    sampled_count = max(args.min, sampled_count_raw)
-    print(f"After applying min({args.min}): {sampled_count}")
-
-    # Apply max constraint (if specified)
-    if args.max is not None:
-        if args.max < 0:
-            print(f"ERROR: max must be non-negative, got {args.max}", file=sys.stderr)
-            sys.exit(1)
-        sampled_count = min(args.max, sampled_count)
-        print(f"After applying max({args.max}): {sampled_count}")
-
-    print(f"Final sample count: {sampled_count}")
+    sampled_count = min(args.num, total_count)
+    print(f"Target (-n): {args.num}, Final sample count: {sampled_count}")
 
     random.seed(args.seed)
     print(f"Random seed: {args.seed}")
