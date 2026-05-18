@@ -11,6 +11,7 @@ import ast
 import math
 import random
 import signal
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
@@ -102,17 +103,27 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     return mutant
 
 
-def random_llm_mutate(seed: Seed) -> Optional[Mutant]:
+def random_llm_mutate(seed: Seed, max_retries: int = 3, retry_delay: float = 5.0) -> Optional[Mutant]:
     """
     随机选择一种变异类型并对种子进行变异。
+    最多重试 max_retries 次，每次失败等待 retry_delay 秒。
     """
     mutation_type = random.randint(0, len(PROMPT_MUTATE) - 1)
     logger.trace(f"Randomly selected mutation type: {mutation_type}")
-    return llm_mutate(seed, mutation_type)
+    for attempt in range(max_retries):
+        try:
+            return llm_mutate(seed, mutation_type)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"random_llm_mutate attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"random_llm_mutate failed after {max_retries} attempts: {e}")
+                return None
 
 
-def filter_syntax(mutant: Mutant) -> bool:
-    "使用AST检查变异代码的语法有效性。"
+def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
+    """使用AST检查变异代码的语法有效性。"""
     try:
         ast.parse(mutant.function_call)
         return mutant
@@ -222,21 +233,35 @@ class LLMMutator:
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 
-    def random_llm_mutate(self, no_check_semantic: bool=False) -> tuple[Mutant, int]:
+    def random_llm_mutate(self, no_check_semantic: bool=False, max_retries: int = 3, retry_delay: float = 5.0) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
+        最多重试 max_retries 次，每次失败等待 retry_delay 秒。
         """
         mutation_type = self.select_mutation_type()
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
-        while True:
-            res = llm_mutate(self.seed, mutation_type)
-            if no_check_semantic:
-                break
-            res = filter_syntax(res)
-            has_syntax_error = res is None
-            if has_syntax_error:
-                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                continue
-            break
-        # 成功变异后返回变异结果，覆盖率奖励由外部执行后再计算并更新
-        return res, mutation_type
+        for attempt in range(max_retries):
+            try:
+                res = llm_mutate(self.seed, mutation_type)
+                if no_check_semantic:
+                    return res, mutation_type
+                res = filter_syntax(res)
+                has_syntax_error = res is None
+                if has_syntax_error:
+                    self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Syntax error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
+                        time.sleep(retry_delay)
+                    else:
+                        logger.error(f"All {max_retries} attempts failed with syntax errors for mutation type {mutation_type}")
+                    continue
+                return res, mutation_type
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"All {max_retries} attempts failed for mutation type {mutation_type}: {e}")
+                    raise
+        # Should not reach here, but fallback to be safe
+        return llm_mutate(self.seed, mutation_type), mutation_type  # type: ignore[return-value]

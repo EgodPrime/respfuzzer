@@ -8,11 +8,8 @@ import dcov
 from dcov import BitmapManager
 from loguru import logger
 from respfuzzer.lib.fuzz.fuzz_exp import continue_safe_execute
-from respfuzzer.lib.fuzz.instrument import (
-    instrument_function_via_path_ctx,
-)
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
-from respfuzzer.models import HasCode, Seed
+from respfuzzer.models import Seed
 from respfuzzer.repos import get_seeds
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import DATA_DIR
@@ -173,7 +170,18 @@ def fuzz_single_seed(
                 )
 
     send.put(("exit", None))
-    process.join()
+    try:
+        process.join(timeout=execution_timeout)
+    except Exception:
+        pass
+    if process.is_alive():
+        logger.warning(
+            f"Worker process {child_pid} (process_index={process_index}) did not exit "
+            f"within {execution_timeout}s, force killing."
+        )
+        kill_process_tree_linux(process)
+        if process.is_alive():
+            logger.warning(f"Process {process.pid} becomes undead zombie!!!")
     bm.write()
     bm2 = BitmapManager(4398)
     bm2.merge_from(process_index)
