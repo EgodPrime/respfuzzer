@@ -52,7 +52,7 @@ bash job_respfuzzer.sh
 # second step: count unique vulnerabilities
 uv run report.py codeql ./SecurityEval/Result/testcases_copilot
 uv run report.py codeql ./SecurityEval/Result/testcases_incoder
-uv run report.py codeql ./SecurityEval/Result/testcases_respFuzzer
+uv run report.py codeql ./SecurityEval/Result/testcases_respfuzzer
 ```
 
 > Note: SecurityEval does not an official script to count unique vulnerabilities. After reading and analyzing the output CSV files and json files, we write our own script `report.py` to count unique vulnerabilities based on the output results of Bandit and CodeQL.
