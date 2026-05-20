@@ -1,4 +1,5 @@
 export PATH="./codeql:$PATH"
+mkdir -p ./SecurityEval/Result/testcases_respfuzzer/
 codeql database analyze "./SecurityEval/Databases/Testcases_RespFuzzer_DB" ./codeql/qlpacks/codeql/python-queries/1.6.8/Security/CWE-020-ExternalAPIs --format=csv --output="./SecurityEval/Result/testcases_respfuzzer/results_cwe_020_externalAPIS.csv"
 codeql database analyze "./SecurityEval/Databases/Testcases_RespFuzzer_DB" ./codeql/qlpacks/codeql/python-queries/1.6.8/Security/CWE-020 --format=csv --output="./SecurityEval/Result/testcases_respfuzzer/results_cwe_020.csv"
 codeql database analyze "./SecurityEval/Databases/Testcases_RespFuzzer_DB" ./codeql/qlpacks/codeql/python-queries/1.6.8/Security/CWE-022 --format=csv --output="./SecurityEval/Result/testcases_respfuzzer/results_cwe_022.csv"

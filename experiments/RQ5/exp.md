@@ -34,8 +34,10 @@ The test cases will be generated in the `experiments/RQ5/SecurityEval/Testcases_
 
 ```bash
 # first step: analyze test cases with bandit
-bandit -r ./SecurityEval/Testcases_RespFuzzer -f json -o ./SecurityEval/Result/testcases_respfuzzer.json
+uv run bandit -r ./SecurityEval/Testcases_RespFuzzer -f json -o ./SecurityEval/Result/testcases_respfuzzer.json
 # second step: count unique vulnerabilities
+uv run report.py bandit SecurityEval/Result/testcases_copilot.json
+uv run report.py bandit SecurityEval/Result/testcases_incoder.json
 uv run report.py bandit SecurityEval/Result/testcases_respfuzzer.json
 ```
 
@@ -48,7 +50,9 @@ codeql database create --language=python ../Databases/Testcases_RespFuzzer_DB
 cd ../..
 bash job_respfuzzer.sh
 # second step: count unique vulnerabilities
-uv run report.py codeql ./SecurityEval/Result/testcases_respfuzzer
+uv run report.py codeql ./SecurityEval/Result/testcases_copilot
+uv run report.py codeql ./SecurityEval/Result/testcases_incoder
+uv run report.py codeql ./SecurityEval/Result/testcases_respFuzzer
 ```
 
 > Note: SecurityEval does not an official script to count unique vulnerabilities. After reading and analyzing the output CSV files and json files, we write our own script `report.py` to count unique vulnerabilities based on the output results of Bandit and CodeQL.
