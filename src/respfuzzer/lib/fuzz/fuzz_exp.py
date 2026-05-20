@@ -148,7 +148,18 @@ def fuzz_single_seed(
             Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0))
 
     send.put(("exit", None))
-    process.join()
+    try:
+        process.join(timeout=execution_timeout)
+    except Exception:
+        pass
+    if process.is_alive():
+        logger.warning(
+            f"Worker process {child_pid} (process_index={process_index}) did not exit "
+            f"within {execution_timeout}s, force killing."
+        )
+        kill_process_tree_linux(process)
+        if process.is_alive():
+            logger.warning(f"Process {process.pid} becomes undead zombie!!!")
     bm.write()
     bm2 = BitmapManager(4398)
     bm2.merge_from(process_index)

@@ -39,3 +39,4 @@ htmlcov
 
 RQ*_data*
 **/*.log
+.hermes

@@ -14,6 +14,7 @@ import signal
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
+import threading
 
 from loguru import logger
 from respfuzzer.models import Mutant, Seed
@@ -51,7 +52,7 @@ Mutation instruction:
 Target function name:
 {func_name}
 
-The mutated code should call the target function and meet the mutation instruction. Do not include any explanations or comments or print statements. The mutated code should be short and concise. 
+The mutated code should call the target function and meet the mutation instruction. Do not include any explanations or comments or print statements. The mutated code should be short and concise. Do not wrap the code with fences like \`\`\`.
 
 {format_instructions}
     """,
@@ -60,6 +61,30 @@ The mutated code should call the target function and meet the mutation instructi
 )
 
 mutate_chain = MUTATE_PROMPT | get_sys_llm() | PureCodeParser
+
+LLM_TIMEOUT = 60  # seconds
+
+def _invoke_with_timeout(chain, input_dict, config, timeout):
+    """Call mutate_chain.invoke in a thread with timeout."""
+    result_holder: list[object] = [None]
+    exception: list[object] = [None]
+
+    def target():
+        try:
+            result_holder[0] = chain.invoke(input_dict, config=config)
+            exception[0] = "success"
+        except Exception as e:
+            exception[0] = e
+
+    t = threading.Thread(target=target)
+    t.start()
+    t.join(timeout=timeout)
+    if t.is_alive():
+        # Thread is still running => timed out
+        raise TimeoutError(f"mutate_chain.invoke timed out after {timeout}s")
+    if isinstance(exception[0], Exception):
+        raise exception[0]
+    return result_holder[0]
 
 def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     """
@@ -77,15 +102,20 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     prompt = PROMPT_MUTATE[mutation_type]
     for attempt in range(3):
         try:
-            res = mutate_chain.invoke(
-                input={
+            res = _invoke_with_timeout(
+                mutate_chain,
+                input_dict={
                     "func_name": seed.func_name,
                     "func_call": seed.function_call,
                     "mutation_instruction": prompt,
                 },
-                config={"temperature": 1.0}
+                config={"temperature": 1.0},
+                timeout=LLM_TIMEOUT,
             )
             mutated_code = res.code
+        except TimeoutError as e:
+            logger.warning(f"Mutation {attempt+1}/3 timed out after {LLM_TIMEOUT}s: {e}")
+            continue
         except Exception as e:
             logger.warning(f"Mutation {attempt+1}/3 failed with : {e}")
             continue
@@ -103,25 +133,6 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     return mutant
 
 
-def random_llm_mutate(seed: Seed, max_retries: int = 3, retry_delay: float = 5.0) -> Optional[Mutant]:
-    """
-    随机选择一种变异类型并对种子进行变异。
-    最多重试 max_retries 次，每次失败等待 retry_delay 秒。
-    """
-    mutation_type = random.randint(0, len(PROMPT_MUTATE) - 1)
-    logger.trace(f"Randomly selected mutation type: {mutation_type}")
-    for attempt in range(max_retries):
-        try:
-            return llm_mutate(seed, mutation_type)
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"random_llm_mutate attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
-                time.sleep(retry_delay)
-            else:
-                logger.error(f"random_llm_mutate failed after {max_retries} attempts: {e}")
-                return None
-
-
 def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
     """使用AST检查变异代码的语法有效性。"""
     try:
@@ -129,36 +140,6 @@ def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
         return mutant
     except SyntaxError:
         return None
-
-
-def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
-    """
-    使用多线程批量对种子进行随机变异。
-    """
-    mutants = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(random_llm_mutate, seed) for _ in range(n)]
-        for future in as_completed(futures):
-            mutants.append(future.result())
-    return mutants
-
-
-def batch_random_llm_mutate_valid_only(
-    seed: Seed, n: int, max_workers: int = 4
-) -> list[Mutant]:
-    """
-    使用多线程批量对种子进行随机变异，并仅返回语法和语义有效的变异代码。
-    """
-    mutants = batch_random_llm_mutate(seed, n, max_workers)
-    valid_mutants = []
-    # 先检查语法
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(filter_syntax, mutant): mutant for mutant in mutants}
-        for future in as_completed(futures):
-            mutant = futures[future]
-            if future.result():
-                valid_mutants.append(mutant)
-    return valid_mutants
 
 
 class LLMMutator:
