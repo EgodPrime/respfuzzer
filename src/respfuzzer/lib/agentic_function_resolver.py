@@ -135,13 +135,16 @@ res = c(x, y)
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=500,
+                    max_tokens=8000,
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
                     },
                 )
-                code = response.choices[0].message.content.strip()
+                code = response.choices[0].message.content
+                if code is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                code = code.strip()
                 # tolerate some common variations: try to extract code between <code> tags
                 if "<code>" in code and "</code>" in code:
                     return code.split("<code>")[1].split("</code>")[0]
@@ -275,13 +278,16 @@ class Reasoner:
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=500,
+                    max_tokens=8000,
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
                     },
                 )
-                explanation = response.choices[0].message.content.strip()
+                explanation = response.choices[0].message.content
+                if explanation is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                explanation = explanation.strip()
                 if "<explain>" in explanation and "</explain>" in explanation:
                     return explanation.split("<explain>")[1].split("</explain>")[0]
                 # fallback: return whole text if no tags but non-empty
@@ -326,14 +332,17 @@ class Judger:
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=200,
+                    max_tokens=8000,
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
                     },
                 )
 
-                text = response.choices[0].message.content.strip()
+                text = response.choices[0].message.content
+                if text is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                text = text.strip()
                 # try to extract json blob
                 try:
                     # find first '{' and last '}' to extract JSON
