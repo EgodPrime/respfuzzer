@@ -8,6 +8,7 @@ from respfuzzer.utils.paths import DATA_DIR, PROJECT_DIR
 def get_data_for_view(
     data_dir_name: Optional[str] = None,
 ) -> dict[str, dict[str, int | float | str]]:
+    import json
     function_table: dict[str, dict[str, Function]] = {}
     seed_table: dict[str, dict[str, Seed]] = {}
 
@@ -21,13 +22,35 @@ def get_data_for_view(
         library_names.append(library_name)
 
     for library_name in library_names:
-        if not library_name in function_table:
-            function_table[library_name] = {}
-            seed_table[library_name] = {}
-        for function in get_functions(library_name):
-            function_table[library_name][function.func_name] = function
-            seed = get_seed_by_function_name(function.func_name)
-            seed_table[library_name][function.func_name] = seed
+        function_data_file = data_dir / f'{library_name}_functions.json'
+        function_table[library_name] = {}
+        seed_data_file = data_dir / f'{library_name}_seeds.json'
+        seed_table[library_name] = {}
+
+        function_data = []
+        with open(function_data_file, 'r') as f:
+            function_data = json.load(f)
+        function_data = [Function.model_validate(fd) for fd in function_data]
+        seed_data = []
+        with open(seed_data_file, 'r') as f:
+            seed_data = json.load(f)
+        seed_data = [Seed.model_validate(sd) for sd in seed_data]
+        seed_data = {sd.func_name:sd for sd in seed_data}
+
+        for function in function_data:
+            func_name = function.func_name
+            function_table[library_name][func_name] = function
+            seed_table[library_name][func_name] = seed_data.get(func_name, None)
+
+
+    # for library_name in library_names:
+    #     if not library_name in function_table:
+    #         function_table[library_name] = {}
+    #         seed_table[library_name] = {}
+    #     for function in get_functions(library_name):
+    #         function_table[library_name][function.func_name] = function
+    #         seed = get_seed_by_function_name(function.func_name)
+    #         seed_table[library_name][function.func_name] = seed
 
     # UDF: User-Defined Function
     # BF: Built-in Function
