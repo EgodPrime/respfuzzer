@@ -78,6 +78,10 @@ class LibraryVisitor:
         self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set
     ) -> Iterator[Function]:
         logger.debug(f"visit module {mod.__name__}")
+        # Avoid visiting the same object multiple times.
+        if id(mod) in obj_has_been_seen:
+            return
+        obj_has_been_seen.add(id(mod))
 
         # Visit all the attributes in the module.
         names = dir(mod)
@@ -92,11 +96,6 @@ class LibraryVisitor:
                 logger.warning(f"getattr({mod.__name__}, {name}) failed")
                 continue
 
-            # Avoid visiting the same object multiple times.
-            if id(obj) in obj_has_been_seen:
-                continue
-            obj_has_been_seen.add(id(obj))
-
             # Only support modules, functions, and built-in functions.
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
@@ -108,25 +107,57 @@ class LibraryVisitor:
             if real_path[-1] != name:
                 logger.debug(f"{mod.__name__}.{name} has real name {real_path[-1]}")
 
+            # The public-facing dotted name (how users actually call it)
+            public_name = f"{mod.__name__}.{name}"
+
             # Check submodule firstly
             if isinstance(obj, ModuleType):
                 # Now we can recurse into the submodule
                 for function in self._visit(obj, root_mod_name, obj_has_been_seen):
                     yield function
             else:
-                if any([p[0] == "_" for p in real_path[1:]]):
-                    # skip private functions
-                    continue
 
                 if isinstance(obj, FunctionType):
-                    function = from_function_type(obj)
+                    function = from_function_type(obj, public_name=public_name)
                     if function is not None:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
                     if name in self.pyi_cache:
-                        function = from_builtin_function_type(self.pyi_cache[name], obj)
+                        function = from_builtin_function_type(
+                            self.pyi_cache[name], obj, public_name=public_name
+                        )
                         yield function
+
+
+def _deduplicate_functions(functions: list[Function]) -> list[Function]:
+    """
+    基于 real_path 去重：同一 real_path 只保留 func_name 最短的条目。
+    分段数相同时保留先出现的（不做替换）。
+
+    分段数计算：func_name 中 '.' 的数量 + 1。
+    例如 "scipy.integrate.solve_ivp" -> 3 段，
+         "scipy.integrate.odepack.odeint" -> 4 段。
+    """
+    best: dict[str, tuple[Function, int]] = {}
+
+    for func in functions:
+        rp = func.real_path
+        if not rp:
+            # 没有 real_path 的条目直接跳过（旧数据兼容，不会被保留）
+            continue
+
+        seg_count = func.func_name.count(".") + 1
+
+        if rp not in best:
+            best[rp] = (func, seg_count)
+        else:
+            _, existing_count = best[rp]
+            # 只在新条目更短时替换，相等时保留先出现的
+            if seg_count < existing_count:
+                best[rp] = (func, seg_count)
+
+    return [item[0] for item in best.values()]
 
 
 def extract_functions_from_library(library_name: str) -> None:
@@ -139,7 +170,18 @@ def extract_functions_from_library(library_name: str) -> None:
         functions.append(function)
         cnt += 1
     logger.info(f"Finished extracting {cnt} functions from library {library_name}")
-    if cnt == 0:
+
+    # Deduplicate by real_path: keep shortest func_name per real_path
+    before = len(functions)
+    functions = _deduplicate_functions(functions)
+    after = len(functions)
+    if before != after:
+        logger.info(
+            f"Deduplicated {before} -> {after} functions "
+            f"(removed {before - after} duplicates)"
+        )
+
+    if after == 0:
         return
     json.dump(
         [func.model_dump() for func in functions],
