@@ -15,6 +15,7 @@ class Function(BaseModel):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str | None = None
     func_name: str
+    real_path: str = ""
     source: str
     args: list[Argument]
     ret_type: str = "unknown"
