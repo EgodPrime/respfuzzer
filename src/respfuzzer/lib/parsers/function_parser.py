@@ -6,11 +6,17 @@ import dill
 from respfuzzer.models import Argument, Function
 
 
-def from_function_type(obj: FunctionType) -> Optional[Function]:
+def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Optional[Function]:
     """
     convert a `FunctionType` to an `function` object
+
+    Args:
+        obj: The function object.
+        public_name: The public-facing dotted name (e.g. "scipy.integrate.solve_ivp").
+                     If not given, falls back to dill physical path.
     """
-    name = ".".join(dill.source._namespace(obj))
+    real_path = ".".join(dill.source._namespace(obj))
+    name = public_name or real_path
     try:
         sig = inspect.signature(obj)
     except ValueError:
@@ -38,13 +44,15 @@ def from_function_type(obj: FunctionType) -> Optional[Function]:
     else:
         ret_type_str = "unknown"
 
-    return Function(func_name=name, source=source, args=arg_list, ret_type=ret_type_str)
+    return Function(func_name=name, real_path=real_path, source=source, args=arg_list, ret_type=ret_type_str)
 
 
-def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType) -> Function:
-    name = ".".join(dill.source._namespace(obj))
+def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType, *, public_name: str | None = None) -> Function:
+    real_path = ".".join(dill.source._namespace(obj))
+    name = public_name or real_path
     return Function(
         func_name=name,
+        real_path=real_path,
         source=pyi_dict["source"],
         args=pyi_dict["args"],
         ret_type=pyi_dict["ret_type_str"],
