@@ -11,8 +11,11 @@ For each library in libraries.conf:
 Requires: uv, coverage (for line counting via coverage.py)
 """
 
-import configparser
+import coverage
+import importlib
 import json
+import os
+import tempfile
 import re
 import subprocess
 from pathlib import Path
@@ -72,8 +75,53 @@ def get_version(lib_name: str) -> str:
     return "N/A"
 
 
+def get_library_num_statements(lib_name: str) -> int | None:
+    """
+    Use coverage.py to statically determine the theoretical executable line
+    count (num_statements) for the given library.
+    Returns None if the library cannot be imported.
+    """
+    import sys
+    import io
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cov_file = os.path.join(tmpdir, f"{lib_name}.coverage")
+
+        try:
+            fake_stderr = io.StringIO()
+            old_stderr = sys.stderr
+            sys.stderr = fake_stderr
+            try:
+                importlib.import_module(lib_name)
+            finally:
+                sys.stderr = old_stderr
+
+            cov = coverage.Coverage(source_pkgs=[lib_name], data_file=cov_file)
+            cov.start()
+            cov.stop()
+            cov.save()
+        except Exception as e:
+            print(f"[{lib_name}] Failed to analyse: {e}", file=sys.stderr)
+            return None
+
+        try:
+            cov = coverage.Coverage(data_file=cov_file)
+            cov.load()
+            with tempfile.NamedTemporaryFile(suffix=".json", delete=True, mode="w") as tf:
+                tmp_path = tf.name
+            cov.json_report(outfile=tmp_path)
+            with open(tmp_path) as f:
+                data = json.load(f)
+            return data.get("totals", {}).get("num_statements", 0)
+        except Exception as e:
+            print(f"[{lib_name}] Failed to generate report: {e}", file=sys.stderr)
+            return None
+
+
 def get_stats(lib_name: str) -> tuple[int, int]:
-    """Return (#func, #line) by reading RQ2_data_common/{lib}_functions.json."""
+    """Return (#func, #line) by reading RQ2_data_common/{lib}_functions.json
+    and using coverage.py to count executable statements for #Line.
+    """
     json_path = DATA_DIR / f"{lib_name}_functions.json"
     if not json_path.exists():
         return 0, 0
@@ -84,8 +132,13 @@ def get_stats(lib_name: str) -> tuple[int, int]:
         return 0, 0
 
     num_funcs = len(data)
-    total_lines = sum(len(entry.get("source", "").splitlines()) for entry in data)
-    return num_funcs, total_lines
+
+    # Use coverage.py to get num_statements for the library.
+    num_statements = get_library_num_statements(lib_name)
+    if num_statements is None:
+        num_statements = 0
+
+    return num_funcs, num_statements
 
 
 def print_markdown_table(libraries: list[str], rows: list[dict]) -> None:
@@ -127,7 +180,7 @@ def main() -> None:
         num_funcs, num_lines = get_stats(lib_name)
         rows.append(
             {
-                "lib_name": lib_name,
+                "lib_name": PAPER_NAME_MAP.get(lib_name, lib_name),
                 "version": version,
                 "num_funcs": num_funcs,
                 "num_lines": num_lines,
