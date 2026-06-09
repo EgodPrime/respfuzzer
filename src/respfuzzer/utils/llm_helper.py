@@ -72,7 +72,7 @@ def get_sys_llm() -> ChatOpenAI:
         _sys_llm = ChatOpenAI(
             model_name=MODEL_NAME,
             temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
+            max_tokens=MAX_TOKENS/2,
             openai_api_key=API_KEY,
             base_url=BASE_URL,
             timeout=TIMEOUT,
