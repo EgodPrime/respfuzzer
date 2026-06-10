@@ -136,10 +136,10 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
     report = (
         f"Average Function Coverage Rate:\n"
-        f"SCE+RCM: {average_111:.2f}%\n"
-        f"SCE-only: {average_110:.2f}%\n"
-        f"RCM-only: {average_101:.2f}%\n"
-        f"Baseline: {average_100:.2f}%\n"
+        f"Full: {average_111:.2f}%\n"
+        f"W/O RCM: {average_110:.2f}%\n"
+        f"W/O SCE: {average_101:.2f}%\n"
+        f"W/O All: {average_100:.2f}%\n"
     )
     print(report)
 
@@ -163,7 +163,7 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
         offset=-0.3,
         x_ticks=library_names,
         ax=ax,
-        label="SCE+RCM",
+        label="Full",
     )
     plot_one_bar(
         x_data,
@@ -172,7 +172,7 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
         offset=-0.1,
         x_ticks=library_names,
         ax=ax,
-        label="SCE-only",
+        label="W/O RCM",
     )
     plot_one_bar(
         x_data,
@@ -181,7 +181,7 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
         offset=0.1,
         x_ticks=library_names,
         ax=ax,
-        label="RCM-only",
+        label="W/O SCE",
     )
     plot_one_bar(
         x_data,
@@ -190,7 +190,7 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
         offset=0.3,
         x_ticks=library_names,
         ax=ax,
-        label="Baseline",
+        label="W/O All",
     )
 
     ax.set_xticks(x_data)
@@ -207,11 +207,18 @@ def plot_RQ2(data_111: dict, data_110: dict, data_101: dict, data_100: dict):
 
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: uv run plot.py <folder_prefix>")
+        print("Example: uv run plot.py RQ2_data_llama")
+        sys.exit(1)
+
+    prefix = sys.argv[1]
     db_names = {
-        "SCE+RCM": "RQ2_data_new_111",
-        "SCE-only": "RQ2_data_new_110",
-        "RCM-only": "RQ2_data_new_101",
-        "Baseline": "RQ2_data_new_100",
+        "Full": f"{prefix}_111",
+        "W/O RCM": f"{prefix}_110",
+        "W/O SCE": f"{prefix}_101",
+        "W/O All": f"{prefix}_100",
     }
 
     data_results = {}
@@ -219,10 +226,10 @@ if __name__ == "__main__":
         data_results[label] = get_data_for_view(db_file)
 
     plot_RQ2(
-        data_111=data_results["SCE+RCM"],
-        data_110=data_results["SCE-only"],
-        data_101=data_results["RCM-only"],
-        data_100=data_results["Baseline"],
+        data_111=data_results["Full"],
+        data_110=data_results["W/O RCM"],
+        data_101=data_results["W/O SCE"],
+        data_100=data_results["W/O All"],
     )
 
     plt.savefig("RQ2.pdf", dpi=300)
