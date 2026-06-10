@@ -98,12 +98,15 @@ def parse_log_file(log_path: str) -> dict | None:
             time_values.append((func_iter, time_used))
             func_iter += 1
 
+    crash_count = sum(1 for line in log_lines if "restarting worker process" in line)
+
     if not coverage_values:
         return None
 
     return {
         "coverage": coverage_values,
         "time_used": time_values,
+        "crash_count": crash_count,
     }
 
 
@@ -194,6 +197,7 @@ def get_final_stats(mode_data: dict) -> dict:
         stats[mode] = {
             "coverage": cov,
             "time_used": t,
+            "crash_count": values.get("crash_count", 0),
         }
     return stats
 
@@ -340,13 +344,15 @@ def _row_avg(values: list[str], is_percent: bool = False) -> str:
 
 
 def gen_markdown_cov_table(data: dict[str, dict[str, dict]]) -> str:
-    """Coverage table: rows = NL/NP/NSF/NCF/FC, cols = 12 libraries + Average."""
-    # 动态获取所有 mode，按固定顺序 + FC 排在最后
+    """Coverage table: rows = NL/NP/NSF/NCF/FC, cols = 12 libraries + Average + #Crash."""
     all_modes: list[str] = ["NL", "NP", "NSF", "NCF"]
     lines = []
 
-    # Build COV-keyed lookup: cov_key -> {mode: value_str}
+    # lib_values[cov_key][mode] = coverage_percent_str
     lib_values: dict[str, dict[str, str]] = {v: {} for v in COV_KEYS}
+    # lib_crash[cov_key][mode] = crash_count_int (or -1 if missing)
+    lib_crash: dict[str, dict[str, int]] = {v: {} for v in COV_KEYS}
+
     for library, library_modes in data.items():
         cov_key = LIB_TO_COV_KEY.get(library, library)
         if cov_key not in COV_KEYS:
@@ -359,22 +365,29 @@ def gen_markdown_cov_table(data: dict[str, dict[str, dict]]) -> str:
                 stats = get_final_stats({m: library_modes[m]})
                 cov = int(stats[m]["coverage"])
                 lib_values[cov_key][m] = cov_percent(cov, cov_key)
+                lib_crash[cov_key][m] = stats[m].get("crash_count", 0)
             else:
                 lib_values[cov_key][m] = "--"
+                lib_crash[cov_key][m] = -1
 
-    header = "| " + " | ".join(["Configuration"] + DISPLAY_ORDER + ["Average"]) + " |"
+    header = "| " + " | ".join(["Configuration"] + DISPLAY_ORDER + ["Average", "#Crash"]) + " |"
     lines.append(header)
-    lines.append("| " + " | ".join(["---"] * (len(DISPLAY_ORDER) + 2)) + " |")
+    lines.append("| " + " | ".join(["---"] * (len(DISPLAY_ORDER) + 3)) + " |")
 
     for m in all_modes:
         row = [m]
         col_vals = []
+        crash_sum = 0
         for disp in DISPLAY_ORDER:
             cov_key = DISPLAY_TO_COV[disp]
             val = lib_values[cov_key].get(m, "--")
             row.append(val)
             col_vals.append(val)
+            crash = lib_crash[cov_key].get(m, -1)
+            if crash >= 0:
+                crash_sum += crash
         row.append(_row_avg(col_vals, is_percent=True))
+        row.append(str(crash_sum))
         lines.append("| " + " | ".join(row) + " |")
 
     return "\n".join(lines)
