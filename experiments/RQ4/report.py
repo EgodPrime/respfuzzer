@@ -125,13 +125,14 @@ def discover_logs(log_dir: str, rq3_dir: str | None = None) -> dict[str, dict[st
         {library: {mode: log_path, ...}, ...}
     """
     pattern_rq4 = re.compile(
-        r"RQ4-respfuzzer-(\w+)-\d+-mode-(NL|NP|NSF|NCF)\.log"
+        r"RQ4-respfuzzer-(\w+)-(\d+)-mode-(NL|NP|NSF|NCF)\.log"
     )
     pattern_rq3 = re.compile(
-        r"RQ3-respfuzzer-(\w+)-\d+\.log"
+        r"RQ3-respfuzzer-(\w+)-(\d+)\.log"
     )
 
-    result = defaultdict(dict)
+    # result[library][mode] = list of (timestamp_str, log_path) for sorting
+    raw: dict[str, dict[str, list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
 
     # 扫描 RQ4 目录 (NL, NP, NSF, NCF)
     log_files = glob.glob(os.path.join(log_dir, "*.log"))
@@ -140,8 +141,19 @@ def discover_logs(log_dir: str, rq3_dir: str | None = None) -> dict[str, dict[st
         match = pattern_rq4.match(basename)
         if match:
             library = match.group(1)
-            mode = match.group(2)
-            result[library][mode] = log_file
+            timestamp = match.group(2)
+            mode = match.group(3)
+            raw[library][mode].append((timestamp, log_file))
+
+    # 每个 (library, mode) 只保留 timestamp 最新的一份
+    result: dict[str, dict[str, str]] = defaultdict(dict)
+    for library in raw:
+        for mode in raw[library]:
+            candidates = raw[library][mode]
+            if len(candidates) > 1:
+                candidates.sort(key=lambda x: x[0])  # 按 timestamp 升序
+                print(f"WARNING: multiple logs for {library}/{mode}, using latest: {candidates[-1][1]}")
+            result[library][mode] = candidates[-1][1]
 
     # 扫描 RQ3 目录 (Full 模式)
     if rq3_dir and os.path.isdir(rq3_dir):
