@@ -25,6 +25,8 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 
+random.seed(4399)
+
 llm_cfg = get_config("llm_mutator")
 
 PROMPT_MUTATE = (
@@ -86,7 +88,7 @@ def _invoke_with_timeout(chain, input_dict, config, timeout):
         raise exception[0]
     return result_holder[0]
 
-def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
+def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
     """
     使用LLM对给定的种子进行变异。
     mutation_type:
@@ -107,9 +109,9 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
                 input_dict={
                     "func_name": seed.func_name,
                     "func_call": seed.function_call,
-                    "mutation_instruction": prompt,
+                    "mutation_instruction": str(rng)+prompt,
                 },
-                config={"temperature": 1.0},
+                config={"temperature": 0.0},
                 timeout=LLM_TIMEOUT,
             )
             mutated_code = res.code
@@ -162,6 +164,7 @@ class LLMMutator:
         self.mu = [0.5] * len(self.mutation_types)  # 初始期望奖励 (0.5表示中等期望)
         self.alpha = 0.1
         self.tau = 1.0
+        self.rng = 0
 
     def select_mutation_type(self) -> int:
         """
@@ -223,7 +226,8 @@ class LLMMutator:
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
         for attempt in range(max_retries):
             try:
-                res = llm_mutate(self.seed, mutation_type)
+                self.rng += 1
+                res = llm_mutate(self.seed, mutation_type, self.rng)
                 if no_check_semantic:
                     return res, mutation_type
                 res = filter_syntax(res)

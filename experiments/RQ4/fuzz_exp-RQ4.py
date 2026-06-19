@@ -105,6 +105,10 @@ def fuzz_single_seed(
             child_pid = process.pid
 
         cov_after = bm.count_bitmap_s()
+        if not no_cov_feedback:
+            logger.info(
+                f"Parameter Mutant increased coverage: {cov_before} -> {cov_after}"
+            )
         logger.info(f"[{process_index}]Finished fuzzing seed {seed.id}")
     else:
         # Full / NP: run LLM mutation loop
@@ -145,29 +149,20 @@ def fuzz_single_seed(
                 f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
             )
             if no_semantic_filter:
-                # NSF: fixed reward, no semantic filter used in mutation
-                if no_cov_feedback:
-                    Mutator.update_reward(mutation_type, 0.5)
-                elif cov_after > cov_before:
+                if cov_after > cov_before:
                     Mutator.update_reward(mutation_type, 0.5)
                     logger.info(
                         f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
                     )
-                else:
-                    Mutator.update_reward(mutation_type, 0.0)
-            elif no_cov_feedback:
-                Mutator.update_reward(mutation_type, 0.5)
-            elif cov_after > cov_before:
-                Mutator.update_reward(
-                    mutation_type, Mutator.calculate_reward(False, 1.0)
-                )
-                logger.info(
-                    f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
-                )
             else:
-                Mutator.update_reward(
-                    mutation_type, Mutator.calculate_reward(False, 0.0)
-                )
+                if no_cov_feedback:
+                    Mutator.update_reward(mutation_type, 0.5)
+                else:
+                    if cov_after > cov_before:
+                        Mutator.update_reward(mutation_type,1.0)
+                        logger.info(
+                            f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
+                        )
 
     send.put(("exit", None))
     try:
