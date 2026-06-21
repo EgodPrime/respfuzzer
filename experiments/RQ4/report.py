@@ -4,7 +4,7 @@ report_new.py — 新格式日志的 RQ4 汇报脚本
 新格式下每个 (library, mode) 各有一个独立日志文件:
   RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
 
-按库分组，每库一行，展示 NL/NP/NSF/NCF 四个 mode 的最终 coverage 和 time。
+按库分组，每库一行，展示 NL/NP/NSF/NCF/Full 5个 mode 的最终 coverage 和 time。
 """
 
 import re
@@ -110,25 +110,20 @@ def parse_log_file(log_path: str) -> dict | None:
     }
 
 
-def discover_logs(log_dir: str, rq3_dir: str | None = None) -> dict[str, dict[str, str]]:
+def discover_logs(log_dir: str) -> dict[str, dict[str, str]]:
     """扫描日志目录，按 library -> mode 分组发现日志文件。
 
     支持两种格式的日志:
-    - RQ4 新格式: RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
-    - RQ3 旧格式: RQ3-respfuzzer-{Library}-{timestamp}.log (视为 Full 模式)
+    - RQ4 格式: RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
 
     Args:
         log_dir: RQ4 日志目录
-        rq3_dir: RQ3 日志目录 (可选，用于获取 Full 模式数据)
 
     Returns:
         {library: {mode: log_path, ...}, ...}
     """
     pattern_rq4 = re.compile(
-        r"RQ4-respfuzzer-(\w+)-(\d+)-mode-(NL|NP|NSF|NCF)\.log"
-    )
-    pattern_rq3 = re.compile(
-        r"RQ3-respfuzzer-(\w+)-(\d+)\.log"
+        r"RQ4-respfuzzer-(\w+)-(\d+)-mode-(NL|NP|NSF|NCF|Full)\.log"
     )
 
     # result[library][mode] = list of (timestamp_str, log_path) for sorting
@@ -155,28 +150,16 @@ def discover_logs(log_dir: str, rq3_dir: str | None = None) -> dict[str, dict[st
                 print(f"WARNING: multiple logs for {library}/{mode}, using latest: {candidates[-1][1]}")
             result[library][mode] = candidates[-1][1]
 
-    # 扫描 RQ3 目录 (Full 模式)
-    if rq3_dir and os.path.isdir(rq3_dir):
-        log_files = glob.glob(os.path.join(rq3_dir, "*.log"))
-        for log_file in log_files:
-            basename = os.path.basename(log_file)
-            match = pattern_rq3.match(basename)
-            if match:
-                library = match.group(1)
-                # 如果该库还没有 Full 模式数据，才添加
-                if "Full" not in result.get(library, {}):
-                    result[library]["Full"] = log_file
-
     return dict(result)
 
 
-def build_data(log_dir: str, rq3_dir: str | None = None) -> dict[str, dict[str, dict]]:
+def build_data(log_dir: str) -> dict[str, dict[str, dict]]:
     """构建按库分组的数据结构。
 
     Returns:
         {library: {mode: {"coverage": [...], "time_used": [...]}, ...}, ...}
     """
-    discovered = discover_logs(log_dir, rq3_dir)
+    discovered = discover_logs(log_dir)
     data = {}
 
     for library in sorted(discovered.keys()):
@@ -214,12 +197,11 @@ def get_final_stats(mode_data: dict) -> dict:
     return stats
 
 
-def gen_table_latex(data: dict[str, dict[str, dict]], show_full: bool = False) -> str:
+def gen_table_latex(data: dict[str, dict[str, dict]]) -> str:
     """生成 LaTeX 表格，每库一行，展示 4 个 mode 的 coverage。
 
     Args:
         data: 按库分组的数据
-        show_full: 是否显示 Full 模式作为 baseline
 
     \\begin{tabular}{lrrrrrrrr}
         \\toprule
@@ -231,9 +213,7 @@ def gen_table_latex(data: dict[str, dict[str, dict]], show_full: bool = False) -
         \\bottomrule
     \\end{tabular}
     """
-    modes = ["NL", "NP", "NSF", "NCF"]
-    if show_full:
-        modes.insert(0, "Full")
+    modes = ["NL", "NP", "NSF", "NCF", "Full"]
 
     table = []
     table.append(r"\begin{table}[htbp]")
@@ -444,13 +424,13 @@ def gen_markdown_time_table(data: dict[str, dict[str, dict]]) -> str:
     return "\n".join(lines)
 
 
-def print_summary(data: dict[str, dict[str, dict]], show_full: bool = False) -> None:
+def print_summary(data: dict[str, dict[str, dict]]) -> None:
     """打印摘要信息到终端。"""
     print("=" * 70)
     print("RQ4 Report (New Format) — Per-Library Summary")
     print("=" * 70)
 
-    modes = ["Full", "NL", "NP", "NSF", "NCF"] if show_full else ["NL", "NP", "NSF", "NCF"]
+    modes = ["Full", "NL", "NP", "NSF", "NCF"]
 
     for library in sorted(data.keys()):
         print(f"\n--- {library} ---")
@@ -480,15 +460,11 @@ if __name__ == "__main__":
 
     # 默认扫描当前目录（脚本所在目录）
     log_dir = os.path.dirname(os.path.abspath(__file__))
-    # 自动探测 RQ3 目录
-    rq3_dir = os.path.join(os.path.dirname(log_dir), "RQ3")
 
     parser = argparse.ArgumentParser(description="RQ4 Report - New Format")
-    parser.add_argument("--show-full", action="store_true", help="Show Full mode as baseline")
-    parser.add_argument("--rq3-dir", type=str, default=rq3_dir, help="RQ3 log directory (default: auto-detect)")
     args = parser.parse_args()
 
-    data = build_data(log_dir, rq3_dir=args.rq3_dir)
+    data = build_data(log_dir)
 
     print("--- Coverage Table ---\n")
     print(gen_markdown_cov_table(data))
