@@ -1,10 +1,12 @@
 """
-report_new.py — 新格式日志的 RQ4 汇报脚本
+report.py — RQ4 汇报脚本（新格式日志）
 
 新格式下每个 (library, mode) 各有一个独立日志文件:
   RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
 
-按库分组，每库一行，展示 NL/NP/NSF/NCF/Full 5个 mode 的最终 coverage 和 time。
+同一库同一模式允许多份日志，自动取最终值的平均。
+
+最终只打印一个表格：行=模式(NL/NP/NSF/NCF/Full)，列=12个库(覆盖率%) + Average + #Time。
 """
 
 import re
@@ -29,12 +31,12 @@ COV_TOTAL_MAP = {
 }
 
 
-def cov_percent(coverage: int, lib: str) -> str:
+def cov_percent(coverage: float, lib: str) -> str:
     """Convert coverage to percentage of total lines, formatted as XX.XX%."""
     key = LIB_TO_COV_KEY.get(lib, lib).lower()
     total = COV_TOTAL_MAP.get(key)
     if total is None:
-        return str(coverage)
+        return f"{coverage}"
     return f"{coverage / total * 100:.2f}%"
 
 
@@ -45,12 +47,10 @@ def convert_logtime_to_timestamp(log_time_str: str) -> float:
 
 
 def parse_log_file(log_path: str) -> dict | None:
-    """解析单个日志文件，返回按 mode 组织的数据。
+    """解析单个日志文件，返回最终 iteration 的 coverage 和 time。
 
     Returns:
-        {mode: {"coverage": [(func_iter, coverage, time_used), ...],
-                "time_used": [(func_iter, time_used), ...]}, ...}
-        如果解析失败返回 None。
+        {"coverage": int, "time_used": float} 或 None（解析失败）。
     """
     with open(log_path, "r") as f:
         log_lines = f.readlines()
@@ -65,17 +65,6 @@ def parse_log_file(log_path: str) -> dict | None:
         return None
     time_start = convert_logtime_to_timestamp(match_start.group(1))
 
-    # 提取 initial coverage
-    initial_coverage_pattern = (
-        r".*Initial coverage after executing all seeds: (\d+) bits"
-    )
-    coverage_start = 0
-    for i in range(min(10, len(log_lines))):
-        match_cov = re.search(initial_coverage_pattern, log_lines[i])
-        if match_cov:
-            coverage_start = int(match_cov.group(1))
-            break
-
     # 提取每个 iteration 的 coverage
     coverage_pattern = (
         r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) "
@@ -83,8 +72,8 @@ def parse_log_file(log_path: str) -> dict | None:
     )
 
     func_iter = 0
-    coverage_values = []
-    time_values = []
+    last_coverage = None
+    last_time = None
 
     for line in log_lines:
         match = re.search(coverage_pattern, line)
@@ -93,43 +82,31 @@ def parse_log_file(log_path: str) -> dict | None:
             coverage_str = match.group(2)
             log_time = convert_logtime_to_timestamp(log_time_str)
             time_used = log_time - time_start
-            coverage = int(coverage_str)
-            coverage_values.append((func_iter, coverage, time_used))
-            time_values.append((func_iter, time_used))
+            last_coverage = int(coverage_str)
+            last_time = time_used
             func_iter += 1
 
-    crash_count = sum(1 for line in log_lines if "restarting worker process" in line)
-
-    if not coverage_values:
+    if last_coverage is None:
         return None
 
     return {
-        "coverage": coverage_values,
-        "time_used": time_values,
-        "crash_count": crash_count,
+        "coverage": last_coverage,
+        "time_used": last_time,
     }
 
 
-def discover_logs(log_dir: str) -> dict[str, dict[str, str]]:
+def discover_logs(log_dir: str) -> dict[str, dict[str, list[str]]]:
     """扫描日志目录，按 library -> mode 分组发现日志文件。
 
-    支持两种格式的日志:
-    - RQ4 格式: RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
-
-    Args:
-        log_dir: RQ4 日志目录
-
     Returns:
-        {library: {mode: log_path, ...}, ...}
+        {library: {mode: [log_path1, log_path2, ...], ...}, ...}
     """
     pattern_rq4 = re.compile(
         r"RQ4-respfuzzer-(\w+)-(\d+)-mode-(NL|NP|NSF|NCF|Full)\.log"
     )
 
-    # result[library][mode] = list of (timestamp_str, log_path) for sorting
     raw: dict[str, dict[str, list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
 
-    # 扫描 RQ4 目录 (NL, NP, NSF, NCF)
     log_files = glob.glob(os.path.join(log_dir, "*.log"))
     for log_file in log_files:
         basename = os.path.basename(log_file)
@@ -140,15 +117,15 @@ def discover_logs(log_dir: str) -> dict[str, dict[str, str]]:
             mode = match.group(3)
             raw[library][mode].append((timestamp, log_file))
 
-    # 每个 (library, mode) 只保留 timestamp 最新的一份
-    result: dict[str, dict[str, str]] = defaultdict(dict)
+    # 返回文件列表（不再只取最新一份）
+    result: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for library in raw:
         for mode in raw[library]:
             candidates = raw[library][mode]
             if len(candidates) > 1:
-                candidates.sort(key=lambda x: x[0])  # 按 timestamp 升序
-                print(f"WARNING: multiple logs for {library}/{mode}, using latest: {candidates[-1][1]}")
-            result[library][mode] = candidates[-1][1]
+                candidates.sort(key=lambda x: x[0])
+                print(f"Multiple logs for {library}/{mode} ({len(candidates)} files), averaging all.")
+            result[library][mode] = [p for _, p in candidates]
 
     return dict(result)
 
@@ -156,8 +133,10 @@ def discover_logs(log_dir: str) -> dict[str, dict[str, str]]:
 def build_data(log_dir: str) -> dict[str, dict[str, dict]]:
     """构建按库分组的数据结构。
 
+    同一 (library, mode) 的多份日志，对最终 coverage 和 time 取平均。
+
     Returns:
-        {library: {mode: {"coverage": [...], "time_used": [...]}, ...}, ...}
+        {library: {mode: {"coverage": float, "time_used": float}, ...}, ...}
     """
     discovered = discover_logs(log_dir)
     data = {}
@@ -165,110 +144,49 @@ def build_data(log_dir: str) -> dict[str, dict[str, dict]]:
     for library in sorted(discovered.keys()):
         data[library] = {}
         for mode in sorted(discovered[library].keys()):
-            log_path = discovered[library][mode]
-            parsed = parse_log_file(log_path)
-            if parsed is not None:
-                data[library][mode] = parsed
-            else:
-                print(f"WARNING: Failed to parse {log_path}, skipping.")
+            log_paths = discovered[library][mode]
+            cov_sum = 0.0
+            time_sum = 0.0
+            count = 0
+            for log_path in log_paths:
+                parsed = parse_log_file(log_path)
+                if parsed is not None:
+                    cov_sum += parsed["coverage"]
+                    time_sum += parsed["time_used"]
+                    count += 1
+                else:
+                    print(f"WARNING: Failed to parse {log_path}, skipping.")
+            if count > 0:
+                data[library][mode] = {
+                    "coverage": cov_sum / count,
+                    "time_used": time_sum / count,
+                }
 
     return data
 
 
 def get_final_stats(mode_data: dict) -> dict:
-    """提取每个 mode 的最终统计值（最后一个 iteration）。
+    """提取每个 mode 的最终统计值。
 
     Returns:
         {mode: {"coverage": float, "time_used": float}, ...}
     """
     stats = {}
     for mode, values in mode_data.items():
-        cov_list = values.get("coverage", [])
-        if not cov_list:
-            continue
-        # 最后一个 iteration: (func_iter, coverage, time_used)
-        cov = cov_list[-1][1]
-        t = cov_list[-1][2]
         stats[mode] = {
-            "coverage": cov,
-            "time_used": t,
-            "crash_count": values.get("crash_count", 0),
+            "coverage": values["coverage"],
+            "time_used": values["time_used"],
         }
     return stats
 
 
-def gen_table_latex(data: dict[str, dict[str, dict]]) -> str:
-    """生成 LaTeX 表格，每库一行，展示 4 个 mode 的 coverage。
+# ── Markdown Table Constants ───────────────────────────────────────────────────
 
-    Args:
-        data: 按库分组的数据
+COV_KEYS = list(COV_TOTAL_MAP.keys())
 
-    \\begin{tabular}{lrrrrrrrr}
-        \\toprule
-        \\textbf{Library} & \\textbf{NL_cov} & \\textbf{NP_cov} & \\textbf{NSF_cov} & \\textbf{NCF_cov}
-                     & \\textbf{NL_time} & \\textbf{NP_time} & \\textbf{NSF_time} & \\textbf{NCF_time} \\\\
-        \\midrule
-        Sklearn & 120 & 115 & 130 & 100 & 30 & 28 & 32 & 35 \\\\
-        ...
-        \\bottomrule
-    \\end{tabular}
-    """
-    modes = ["NL", "NP", "NSF", "NCF", "Full"]
-
-    table = []
-    table.append(r"\begin{table}[htbp]")
-    table.append(r"\centering")
-    table.append(r"\caption{RQ4: Per-library coverage across ablation modes}")
-    table.append(r"\begin{tabular}{l" + "r" * len(modes) * 2 + "}")
-    table.append(r"\toprule")
-
-    # 表头
-    parts = [r"\textbf{Library}"]
-    for m in modes:
-        parts.append(rf"\textbf{{{m}_cov}}")
-    for m in modes:
-        parts.append(rf"\textbf{{{m}_time}}")
-    table.append(" & ".join(parts) + r"\\")
-    table.append(r"\midrule")
-
-    # 数据行
-    for library in sorted(data.keys()):
-        library_modes = data[library]
-        row = [library]
-        # 先添加所有 mode 的 coverage
-        for m in modes:
-            if m in library_modes:
-                stats = get_final_stats({m: library_modes[m]})
-                cov = int(stats[m]["coverage"])
-                row.append(str(cov))
-            else:
-                row.append("-")
-        # 再添加所有 mode 的 time
-        for m in modes:
-            if m in library_modes:
-                stats = get_final_stats({m: library_modes[m]})
-                t = int(stats[m]["time_used"])
-                row.append(str(t))
-            else:
-                row.append("-")
-        table.append(" & ".join(row) + r"\\")
-
-    table.append(r"\bottomrule")
-    table.append(r"\end{tabular}")
-    table.append(r"\end{table}")
-
-    return "\n".join(table)
-
-
-# ── Dual Markdown Table Constants ──────────────────────────────────────────────
-
-COV_KEYS = list(COV_TOTAL_MAP.keys()) # 12 COV keys: nltk, dask, pyyaml, ...
-
-# 表格列显示顺序（表头名称）
 DISPLAY_ORDER = ["NLTK", "Dask", "PyYAML", "Prophet", "Numpy", "Pandas",
                  "Scikit-learn", "Scipy", "Requests", "spaCy", "PyTorch", "Paddle"]
 
-# 显示名 -> COV key（用于查 lib_values）
 DISPLAY_TO_COV = {
     "NLTK": "nltk", "Dask": "dask", "PyYAML": "pyyaml", "Prophet": "prophet",
     "Numpy": "numpy", "Pandas": "pandas", "Scikit-learn": "sklearn",
@@ -276,46 +194,21 @@ DISPLAY_TO_COV = {
     "PyTorch": "torch", "Paddle": "paddle",
 }
 
-# 表头固定顺序（使用日志文件名中的实际名称）
-LIB_ORDER = ["Nltk", "Dask", "Yaml", "Prophet", "Numpy", "Pandas",
-             "Sklearn", "Scipy", "Requests", "Spacy", "Torch", "Paddle"]
-
-# 所有名称变体 -> COV_TOTAL_MAP key（用于 cov_percent 和表格数据构建）
 LIB_TO_COV_KEY = {
-    # 标准显示名 / COV key -> COV key
     "nltk": "nltk", "dask": "dask", "pyyaml": "pyyaml", "prophet": "prophet",
     "numpy": "numpy", "pandas": "pandas", "sklearn": "sklearn",
     "scipy": "scipy", "requests": "requests", "spacy": "spacy",
     "torch": "torch", "pytorch": "torch", "paddle": "paddle",
-    # 日志文件名中的大小写变体 -> COV key
     "NLTK": "nltk", "Dask": "dask", "Yaml": "pyyaml", "PyYAML": "pyyaml",
     "Prophet": "prophet", "Numpy": "numpy", "Pandas": "pandas",
     "Sklearn": "sklearn", "Scikit-learn": "sklearn",
     "Scipy": "scipy", "Requests": "requests", "spaCy": "spacy",
     "SpaCy": "spacy", "Torch": "torch", "PyTorch": "torch",
     "Paddle": "paddle",
-    # 日志文件名实际 key（与 COV key 大小写不完全一致）-> COV key
     "Nltk": "nltk", "Yaml": "pyyaml", "Sklearn": "sklearn",
     "Spacy": "spacy", "Torch": "torch",
-    # 各种混写变体
     "yaml": "pyyaml", "sklearn": "sklearn",
 }
-
-
-def _lib_key(lib: str) -> str:
-    """Normalize library display name from internal key."""
-    # 数据 key -> 表格显示名
-    DISPLAY_MAP = {
-        "nltk": "NLTK", "dask": "Dask", "pyyaml": "PyYAML", "prophet": "Prophet",
-        "numpy": "Numpy", "pandas": "Pandas", "sklearn": "Scikit-learn",
-        "scipy": "Scipy", "requests": "Requests", "spacy": "spaCy",
-        "torch": "PyTorch", "paddle": "Paddle",
-        # 日志文件名实际 key -> 显示名
-        "Nltk": "NLTK", "Yaml": "PyYAML", "Sklearn": "Scikit-learn",
-        "Spacy": "spaCy", "Torch": "PyTorch",
-    }
-    cov_key = LIB_TO_COV_KEY.get(lib, lib)
-    return DISPLAY_MAP.get(cov_key, cov_key)
 
 
 def _row_avg(values: list[str], is_percent: bool = False) -> str:
@@ -335,91 +228,106 @@ def _row_avg(values: list[str], is_percent: bool = False) -> str:
     return f"{avg:.2f}"
 
 
-def gen_markdown_cov_table(data: dict[str, dict[str, dict]]) -> str:
-    """Coverage table: rows = NL/NP/NSF/NCF/FC, cols = 12 libraries + Average + #Crash."""
-    all_modes: list[str] = ["NL", "NP", "NSF", "NCF"]
-    lines = []
+def gen_markdown_table(data: dict[str, dict[str, dict]]) -> str:
+    """单一 Markdown 表格：行=模式(NL/NP/NSF/NCF/Full)，列=12库(覆盖率%) + Average + #Time。
 
-    # lib_values[cov_key][mode] = coverage_percent_str
-    lib_values: dict[str, dict[str, str]] = {v: {} for v in COV_KEYS}
-    # lib_crash[cov_key][mode] = crash_count_int (or -1 if missing)
-    lib_crash: dict[str, dict[str, int]] = {v: {} for v in COV_KEYS}
+    同一库同一模式的多个日志自动取平均。时间四舍五入到整数秒。
+    """
+    mode_order = ["NL", "NP", "NSF", "NCF", "Full"]
+    all_modes: list[str] = []
+    lib_cov: dict[str, dict[str, str]] = {v: {} for v in COV_KEYS}
+    lib_time: dict[str, dict[str, int]] = {v: {} for v in COV_KEYS}
 
     for library, library_modes in data.items():
         cov_key = LIB_TO_COV_KEY.get(library, library)
         if cov_key not in COV_KEYS:
             continue
-        for m, values in library_modes.items():
+        for m in library_modes:
             if m not in all_modes:
                 all_modes.append(m)
         for m in all_modes:
             if m in library_modes:
                 stats = get_final_stats({m: library_modes[m]})
-                cov = int(stats[m]["coverage"])
-                lib_values[cov_key][m] = cov_percent(cov, cov_key)
-                lib_crash[cov_key][m] = stats[m].get("crash_count", 0)
+                cov = float(stats[m]["coverage"])
+                lib_cov[cov_key][m] = cov_percent(cov, cov_key)
+                lib_time[cov_key][m] = round(float(stats[m]["time_used"]))
             else:
-                lib_values[cov_key][m] = "--"
-                lib_crash[cov_key][m] = -1
+                lib_cov[cov_key][m] = "--"
+                lib_time[cov_key][m] = -1
 
-    header = "| " + " | ".join(["Configuration"] + DISPLAY_ORDER + ["Average", "#Crash"]) + " |"
-    lines.append(header)
-    lines.append("| " + " | ".join(["---"] * (len(DISPLAY_ORDER) + 3)) + " |")
+    # 按固定顺序排列模式
+    display_modes = [m for m in mode_order if m in all_modes]
 
-    for m in all_modes:
+    # 计算列宽
+    col_widths = [len("Configuration")]
+    for disp in DISPLAY_ORDER:
+        max_w = len(disp)
+        for m in display_modes:
+            v = lib_cov[DISPLAY_TO_COV[disp]].get(m, "--")
+            if len(v) > max_w:
+                max_w = len(v)
+        col_widths.append(max_w)
+
+    avg_vals = [lib_cov[k][m] for k in COV_KEYS for m in display_modes if lib_cov[k].get(m) != "--"]
+    col_widths.append(len("Average"))
+    if "--" not in [lib_cov[k][m] for k in COV_KEYS for m in display_modes]:
+        col_widths[-1] = max(col_widths[-1], len(_row_avg([lib_cov[k][m] for k in COV_KEYS for m in display_modes if lib_cov[k].get(m) != "--"], is_percent=True)))
+
+    # 计算每行总时间
+    time_vals_sum: dict[str, int] = {}
+    any_missing = False
+    for m in display_modes:
+        t_sum = 0
+        missing = False
+        for k in COV_KEYS:
+            if lib_cov[k].get(m) == "--":
+                missing = True
+                break
+            t = lib_time[k].get(m, -1)
+            if t < 0:
+                missing = True
+                break
+            t_sum += t
+        if missing:
+            any_missing = True
+            break
+        time_vals_sum[m] = t_sum
+
+    col_widths.append(len("#Time"))
+    if not any_missing and time_vals_sum:
+        max_t = max(time_vals_sum.values())
+        col_widths[-1] = max(col_widths[-1], len(str(max_t)))
+
+    # 打印表头
+    header_line = "| " + " | ".join(
+        ["Configuration"] + DISPLAY_ORDER + ["Average", "#Time"]
+    ) + " |"
+    lines = [header_line]
+
+    sep_cells = " | ".join("-" * w for w in col_widths)
+    lines.append("|" + sep_cells + "|")
+
+    # 打印数据行
+    for m in display_modes:
         row = [m]
         col_vals = []
-        crash_sum = 0
         for disp in DISPLAY_ORDER:
             cov_key = DISPLAY_TO_COV[disp]
-            val = lib_values[cov_key].get(m, "--")
+            val = lib_cov[cov_key].get(m, "--")
             row.append(val)
             col_vals.append(val)
-            crash = lib_crash[cov_key].get(m, -1)
-            if crash >= 0:
-                crash_sum += crash
         row.append(_row_avg(col_vals, is_percent=True))
-        row.append(str(crash_sum))
-        lines.append("| " + " | ".join(row) + " |")
 
-    return "\n".join(lines)
+        if any_missing:
+            row.append("--")
+        else:
+            row.append(str(time_vals_sum[m]))
 
-
-def gen_markdown_time_table(data: dict[str, dict[str, dict]]) -> str:
-    """Time table: rows = NL/NP/NSF/NCF/FC, cols = 12 libraries + Average."""
-    all_modes: list[str] = ["NL", "NP", "NSF", "NCF"]
-    lines = []
-
-    lib_values: dict[str, dict[str, str]] = {v: {} for v in COV_KEYS}
-    for library, library_modes in data.items():
-        cov_key = LIB_TO_COV_KEY.get(library, library)
-        if cov_key not in COV_KEYS:
-            continue
-        for m, values in library_modes.items():
-            if m not in all_modes:
-                all_modes.append(m)
-        for m in all_modes:
-            if m in library_modes:
-                stats = get_final_stats({m: library_modes[m]})
-                t = int(stats[m]["time_used"])
-                lib_values[cov_key][m] = str(t)
-            else:
-                lib_values[cov_key][m] = "--"
-
-    header = "| " + " | ".join(["Configuration"] + DISPLAY_ORDER + ["Average"]) + " |"
-    lines.append(header)
-    lines.append("| " + " | ".join(["---"] * (len(DISPLAY_ORDER) + 2)) + " |")
-
-    for m in all_modes:
-        row = [m]
-        col_vals = []
-        for disp in DISPLAY_ORDER:
-            cov_key = DISPLAY_TO_COV[disp]
-            val = lib_values[cov_key].get(m, "--")
-            row.append(val)
-            col_vals.append(val)
-        row.append(_row_avg(col_vals))
-        lines.append("| " + " | ".join(row) + " |")
+        cells = row
+        line = "| " + " | ".join(
+            cells[i].rjust(col_widths[i]) for i in range(len(cells))
+        ) + " |"
+        lines.append(line)
 
     return "\n".join(lines)
 
@@ -430,7 +338,7 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
     print("RQ4 Report (New Format) — Per-Library Summary")
     print("=" * 70)
 
-    modes = ["Full", "NL", "NP", "NSF", "NCF"]
+    modes = ["NL", "NP", "NSF", "NCF", "Full"]
 
     for library in sorted(data.keys()):
         print(f"\n--- {library} ---")
@@ -439,9 +347,9 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
         for m in modes:
             if m in data[library]:
                 stats = get_final_stats({m: data[library][m]})
-                cov = int(stats[m]["coverage"])
-                t = int(stats[m]["time_used"])
-                print(f"  {m:<6} {cov:>15} {t:>10}")
+                cov = float(stats[m]["coverage"])
+                t = float(stats[m]["time_used"])
+                print(f"  {m:<6} {cov:>15.1f} {t:>10.1f}")
             else:
                 print(f"  {m:<6} {'N/A':>15} {'N/A':>10}")
 
@@ -456,17 +364,10 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
 
 
 if __name__ == "__main__":
-    import argparse
-
-    # 默认扫描当前目录（脚本所在目录）
     log_dir = os.path.dirname(os.path.abspath(__file__))
-
-    parser = argparse.ArgumentParser(description="RQ4 Report - New Format")
-    args = parser.parse_args()
 
     data = build_data(log_dir)
 
-    print("--- Coverage Table ---\n")
-    print(gen_markdown_cov_table(data))
-    print("\n--- Time Table ---\n")
-    print(gen_markdown_time_table(data))
+    print_summary(data)
+    print("\n--- Unified Coverage + Time Table ---\n")
+    print(gen_markdown_table(data))
