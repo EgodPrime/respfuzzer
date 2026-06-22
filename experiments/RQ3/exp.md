@@ -69,5 +69,5 @@ RESPFUZZER_DATA_DIR=${RESPFUZZER}/rq2_111_data bash ../run_dyfuzz.sh
 ## How to get the similar table data as in our paper
 ```bash
 # edit the script to set the correct log file paths
-uv run report.py -T
+uv run report.py
 ```

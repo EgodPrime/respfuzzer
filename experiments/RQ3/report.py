@@ -1,37 +1,17 @@
 """
-Parse RQ3 experiment logs and generate a LaTeX comparison table.
+Parse RQ3 experiment logs and generate a Markdown + LaTeX comparison table.
 
-Table columns: Library | DyFuzz | Fuzz4All | RespFuzzer
-Each cell: final line coverage (bits) for that library-fuzzer pair.
+Rows: 3 fuzzers (DyFuzz / Fuzz4All / RespFuzzer)
+Cols: 12 libraries (coverage %) + Average + #Time
 
-Usage:
-    uv run experiments/RQ3/report_new.py
+Multiple log files per (fuzzer, library) are automatically averaged.
 """
 
 import glob
 import re
 import os
-import argparse
 import datetime
 from collections import defaultdict
-
-"""
-| Library         | Version              |    #Func |      #Line |
-| ---             | ---                  |      --- |        --- |
-| nltk            | 3.9.2                |      479 |      52257 |
-| dask            | 2025.12.0            |      200 |      83910 |
-| yaml            | 6.0.3                |       26 |       3614 |
-| prophet         | 1.2.1                |       34 |       2672 |
-| numpy           | 2.3.4                |      720 |      65714 |
-| pandas          | 2.3.3                |      654 |     256586 |
-| sklearn         | 1.8.0                |      373 |     120346 |
-| scipy           | 1.16.3               |     1001 |     216789 |
-| requests        | 2.33.1               |       62 |       2192 |
-| spacy           | 3.8.11               |      330 |      39770 |
-| torch           | 2.9.1+cpu            |     2005 |     352793 |
-| paddle          | 3.2.2                |     6248 |     179161 |
-| Total           | -                    |    12132 |    1375804 |
-"""
 
 COV_TOTAL_MAP = {
     'nltk': 52257,
@@ -65,7 +45,6 @@ def extract_final_coverage_and_time(log_path: str):
 
     with open(log_path, "r") as f:
         for line in f:
-            # Parse timestamp from line start
             m = TIME_PATTERN.match(line)
             if m:
                 try:
@@ -88,16 +67,19 @@ def extract_final_coverage_and_time(log_path: str):
     return last_coverage, elapsed
 
 
-def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
+def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
     """
     Scan all RQ3-*.log files, extract fuzzer + library + final coverage + elapsed time.
 
+    Multiple log files per (fuzzer, library) are automatically averaged.
+
     Returns (coverage_data, time_data):
-      coverage_data: {fuzzer: {library: coverage}}
-      time_data:      {fuzzer: {library: elapsed_seconds}}
+      coverage_data: {fuzzer: {library: avg_coverage}}  (float for averaging)
+      time_data:      {fuzzer: {library: avg_elapsed_seconds}}  (int)
     """
-    coverage_results: dict[str, dict[str, int]] = defaultdict(dict)
-    time_results: dict[str, dict[str, int]] = defaultdict(dict)
+    # Collect raw values per (fuzzer, library) for averaging
+    cov_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+    time_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
 
     log_files = sorted(glob.glob(os.path.join(log_dir, "RQ3-*.log")))
 
@@ -128,187 +110,150 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, int]], dict[str, 
             print(f"  WARN: no coverage found in {filename}")
             continue
 
-        coverage_results[fuzzer_name][library] = coverage
+        cov_accum[fuzzer_name][library].append(coverage)
         if elapsed is not None:
-            time_results[fuzzer_name][library] = elapsed
+            time_accum[fuzzer_name][library].append(elapsed)
         print(f"  {fuzzer_name:12s} | {library:12s} -> cov={coverage:>6d}  time={elapsed}s")
 
-    return dict(coverage_results), dict(time_results)
+    # Average across multiple logs per (fuzzer, library)
+    coverage_results: dict[str, dict[str, float]] = {}
+    time_results: dict[str, dict[str, int]] = {}
+
+    for fuzzer in cov_accum:
+        coverage_results[fuzzer] = {}
+        time_results[fuzzer] = {}
+        for lib, covs in cov_accum[fuzzer].items():
+            avg_cov = sum(covs) / len(covs)
+            coverage_results[fuzzer][lib] = avg_cov
+            if fuzzer in time_accum and lib in time_accum[fuzzer]:
+                times = time_accum[fuzzer][lib]
+                time_results[fuzzer][lib] = round(sum(times) / len(times))
+            else:
+                time_results[fuzzer][lib] = 0
+
+    # Print summary of averaged values
+    for fuzzer in coverage_results:
+        for lib, cov in coverage_results[fuzzer].items():
+            t = time_results[fuzzer].get(lib, 0)
+            print(f"  [AVG] {fuzzer:12s} | {lib:12s} -> cov={cov:>8.1f}  time={t}s")
+
+    return coverage_results, time_results
 
 
-def cov_percent(coverage: int, lib: str) -> str:
+def cov_percent(coverage: float, lib: str) -> str:
     """Convert coverage to percentage of total lines, formatted as XX.XX%."""
     key = lib.lower()
     total = COV_TOTAL_MAP.get(key)
     if total is None:
-        return str(coverage)
-    return f"{coverage / total * 100:.2f}\%"
+        return f"{coverage:.1f}"
+    return f"{coverage / total * 100:.2f}%"
 
 
-def gen_latex_table(data: dict[str, dict[str, int]], transpose: bool = False,
-                     time_data: dict[str, dict[str, int]] | None = None) -> str:
+def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
+                        time_data: dict[str, dict[str, int]]) -> str:
     """
-    Generate a LaTeX table:
-        columns: Library | DyFuzz | Fuzz4All | RespFuzzer
-        rows: one per library, sorted alphabetically.
-
-    If transpose=True, swap rows/columns:
-        columns: 12 library row coverage counts
+    Generate a Markdown pipe table:
         rows: DyFuzz | Fuzz4All | RespFuzzer
-        Also adds Average column and #Time column (total elapsed seconds per row).
+        cols: 12 library names + Average + #Time
     """
     fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
 
     # Collect all libraries across all fuzzers
     all_libs = set()
-    for fuzzer_data in data.values():
+    for fuzzer_data in coverage_data.values():
         all_libs.update(fuzzer_data.keys())
     libs = sorted(all_libs)
 
     lines = []
-    if not transpose:
-        lines.append(r"\begin{tabular}{lccc}")
-        lines.append(r"\toprule")
-        header = r"\textbf{Library} & \textbf{DyFuzz} & \textbf{Fuzz4All} & \textbf{RespFuzzer} \\"
-        lines.append(header)
-        lines.append(r"\midrule")
+    header = "| " + " | ".join([""] + libs + ["Average", "#Time"]) + " |"
+    lines.append(header)
+    lines.append("| " + " | ".join(["---"] * (len(libs) + 2)) + " |")
 
+    for fuzzer in fuzzers:
+        cells = [fuzzer]
+        row_vals = []
         for lib in libs:
-            cells = [lib]
-            for fuzzer in fuzzers:
-                cov = data.get(fuzzer, {}).get(lib, None)
-                if cov is not None:
-                    cells.append(cov_percent(cov, lib))
-                else:
-                    cells.append("--")
-            lines.append(" & ".join(cells) + r" \\")
-
-        lines.append(r"\bottomrule")
-        lines.append(r"\end{tabular}")
-    else:
-        # Transposed: one column per library, one row per fuzzer
-        # + Average (mean of 12 library values per fuzzer)
-        # + #Time (total elapsed seconds across all 12 libraries for that fuzzer)
-        num_cols = len(libs) + 2  # libs + Average + #Time
-        lines.append(r"\begin{tabular}{l" + "c" * num_cols + r"}")
-        lines.append(r"\toprule")
-        header = (r"\textbf{} & " + " & ".join([r"\textbf{" + lib + r"}" for lib in libs])
-                  + r" & \textbf{Average} & \textbf{#Time} \\")
-        lines.append(header)
-        lines.append(r"\midrule")
-
-        for fuzzer in fuzzers:
-            cells = [fuzzer]
-            row_vals = []
-            for lib in libs:
-                cov = data.get(fuzzer, {}).get(lib, None)
-                if cov is not None:
-                    pct = cov_percent(cov, lib)
-                    cells.append(pct)
-                    # Extract numeric value for averaging
-                    try:
-                        row_vals.append(float(pct.rstrip("%").rstrip("\\")))
-                    except ValueError:
-                        pass
-                else:
-                    cells.append("--")
-            # Average column
-            if row_vals:
-                avg = sum(row_vals) / len(row_vals)
-                cells.append(f"{avg:.2f}\\%")
+            cov = coverage_data.get(fuzzer, {}).get(lib, None)
+            if cov is not None:
+                pct = cov_percent(cov, lib)
+                cells.append(pct)
+                try:
+                    row_vals.append(float(pct.rstrip("%")))
+                except ValueError:
+                    pass
             else:
                 cells.append("--")
-            # #Time column: sum of elapsed seconds across all 12 libraries
-            if time_data:
-                td = time_data.get(fuzzer, {})
-                total_time = sum(td.get(lib, 0) for lib in libs)
-                cells.append(str(total_time))
-            else:
-                cells.append("--")
-            lines.append(" & ".join(cells) + r" \\")
-
-        lines.append(r"\bottomrule")
-        lines.append(r"\end{tabular}")
+        # Average column
+        if row_vals:
+            avg = sum(row_vals) / len(row_vals)
+            cells.append(f"{avg:.2f}%")
+        else:
+            cells.append("--")
+        # #Time column
+        td = time_data.get(fuzzer, {})
+        total_time = sum(td.get(lib, 0) for lib in libs)
+        cells.append(str(total_time))
+        lines.append("| " + " | ".join(cells) + " |")
 
     return "\n".join(lines)
 
 
-def gen_markdown_table(data: dict[str, dict[str, int]], transpose: bool = False,
-                        time_data: dict[str, dict[str, int]] | None = None) -> str:
+def gen_latex_table(coverage_data: dict[str, dict[str, float]],
+                     time_data: dict[str, dict[str, int]]) -> str:
     """
-    Generate a Markdown pipe table, mirroring the structure of gen_latex_table().
-
-    If transpose=False:
-        columns: Library | DyFuzz | Fuzz4All | RespFuzzer
-        rows: one per library, sorted alphabetically.
-    If transpose=True:
-        columns: 12 library names + Average + #Time
+    Generate a LaTeX table mirroring the Markdown structure:
         rows: DyFuzz | Fuzz4All | RespFuzzer
+        cols: 12 library names + Average + #Time
     """
     fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
 
     all_libs = set()
-    for fuzzer_data in data.values():
+    for fuzzer_data in coverage_data.values():
         all_libs.update(fuzzer_data.keys())
     libs = sorted(all_libs)
 
+    num_cols = len(libs) + 2  # libs + Average + #Time
     lines = []
-    if not transpose:
-        header = "| " + " | ".join(["Library", "DyFuzz", "Fuzz4All", "RespFuzzer"]) + " |"
-        lines.append(header)
-        lines.append("| " + " | ".join(["---"] * 4) + " |")
+    lines.append(r"\begin{tabular}{l" + "c" * num_cols + r"}")
+    lines.append(r"\toprule")
+    header = (r"\textbf{} & " + " & ".join([r"\textbf{" + lib + r"}" for lib in libs])
+              + r" & \textbf{Average} & \textbf{\#Time}\\")
+    lines.append(header)
+    lines.append(r"\midrule")
 
+    for fuzzer in fuzzers:
+        cells = [fuzzer]
+        row_vals = []
         for lib in libs:
-            cells = [lib]
-            for fuzzer in fuzzers:
-                cov = data.get(fuzzer, {}).get(lib, None)
-                if cov is not None:
-                    cells.append(cov_percent(cov, lib))
-                else:
-                    cells.append("--")
-            lines.append("| " + " | ".join(cells) + " |")
-    else:
-        header = "| " + " | ".join([""] + libs + ["Average", "#Time"]) + " |"
-        lines.append(header)
-        lines.append("| " + " | ".join(["---"] * (len(libs) + 2)) + " |")
+            cov = coverage_data.get(fuzzer, {}).get(lib, None)
+            if cov is not None:
+                pct = cov_percent(cov, lib)
+                cells.append(pct)
+                try:
+                    row_vals.append(float(pct.rstrip("%")))
+                except ValueError:
+                    pass
+            else:
+                cells.append("--")
+        # Average column
+        if row_vals:
+            avg = sum(row_vals) / len(row_vals)
+            cells.append(f"{avg:.2f}\\%")
+        else:
+            cells.append("--")
+        # #Time column
+        td = time_data.get(fuzzer, {})
+        total_time = sum(td.get(lib, 0) for lib in libs)
+        cells.append(str(total_time))
+        lines.append(" & ".join(cells) + r"\\")
 
-        for fuzzer in fuzzers:
-            cells = [fuzzer]
-            row_vals = []
-            for lib in libs:
-                cov = data.get(fuzzer, {}).get(lib, None)
-                if cov is not None:
-                    pct = cov_percent(cov, lib)
-                    cells.append(pct)
-                    try:
-                        row_vals.append(float(pct.rstrip("%").rstrip("\\")))
-                    except ValueError:
-                        pass
-                else:
-                    cells.append("--")
-            # Average column
-            if row_vals:
-                avg = sum(row_vals) / len(row_vals)
-                cells.append(f"{avg:.2f}%")
-            else:
-                cells.append("--")
-            # #Time column
-            if time_data:
-                td = time_data.get(fuzzer, {})
-                total_time = sum(td.get(lib, 0) for lib in libs)
-                cells.append(str(total_time))
-            else:
-                cells.append("--")
-            lines.append("| " + " | ".join(cells) + " |")
+    lines.append(r"\bottomrule")
+    lines.append(r"\end{tabular}")
 
     return "\n".join(lines)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Parse RQ3 logs and generate LaTeX table.")
-    parser.add_argument("-T", action="store_true", help="Transpose the table: rows become 3对照组, columns become 12个库")
-    args = parser.parse_args()
-
     print(f"Scanning logs in: {LOG_DIR}\n")
     data, time_data = parse_log_files(LOG_DIR)
 
@@ -316,11 +261,10 @@ def main():
     for fuzzer, lib_data in data.items():
         print(f"  {fuzzer}: {len(lib_data)} libraries")
 
-    latex = gen_latex_table(data, transpose=args.T, time_data=time_data if args.T else None)
     print(f"\n--- Markdown Table ---")
-    print(gen_markdown_table(data, transpose=args.T, time_data=time_data if args.T else None))
+    print(gen_markdown_table(data, time_data))
     print(f"\n--- LaTeX Table ---")
-    print(latex)
+    print(gen_latex_table(data, time_data))
 
 
 if __name__ == "__main__":
