@@ -1,5 +1,5 @@
 """
-Parse RQ3 experiment logs and generate a Markdown + LaTeX comparison table.
+Parse RQ3 experiment logs and generate a Markdown comparison table.
 
 Rows: 3 fuzzers (DyFuzz / Fuzz4All / RespFuzzer)
 Cols: 12 libraries (coverage %) + Average + #Time
@@ -26,6 +26,39 @@ COV_TOTAL_MAP = {
     'spacy': 39770,
     'torch': 352793,
     'paddle': 179161,
+}
+
+DISPLAY_ORDER = ["NLTK", "Dask", "PyYAML", "Prophet", "Numpy", "Pandas",
+                 "Scikit-learn", "Scipy", "Requests", "spaCy", "PyTorch", "Paddle"]
+
+DISPLAY_TO_COV = {
+    "NLTK": "nltk", "Dask": "dask", "PyYAML": "pyyaml", "Prophet": "prophet",
+    "Numpy": "numpy", "Pandas": "pandas", "Scikit-learn": "sklearn",
+    "Scipy": "scipy", "Requests": "requests", "spaCy": "spacy",
+    "PyTorch": "torch", "Paddle": "paddle",
+}
+
+LIB_TO_COV_KEY = {
+    "nltk": "NLTK", "dask": "Dask", "pyyaml": "PyYAML", "prophet": "Prophet",
+    "numpy": "Numpy", "pandas": "Pandas", "sklearn": "Scikit-learn",
+    "scipy": "Scipy", "requests": "Requests", "spacy": "spaCy",
+    "torch": "PyTorch", "pytorch": "PyTorch", "paddle": "Paddle",
+    "NLTK": "NLTK", "Dask": "Dask", "Yaml": "PyYAML", "PyYAML": "PyYAML",
+    "Prophet": "Prophet", "Numpy": "Numpy", "Pandas": "Pandas",
+    "Sklearn": "Scikit-learn", "Scikit-learn": "Scikit-learn",
+    "Scipy": "Scipy", "Requests": "Requests", "spaCy": "spaCy",
+    "SpaCy": "spaCy", "Torch": "PyTorch", "PyTorch": "PyTorch",
+    "Paddle": "Paddle",
+    "Nltk": "NLTK", "Spacy": "spaCy",
+    "yaml": "PyYAML",
+}
+
+# Display name → COV_TOTAL_MAP key (for percentage calculation)
+DISPLAY_TO_COV_KEY = {
+    "NLTK": "nltk", "Dask": "dask", "PyYAML": "pyyaml", "Prophet": "prophet",
+    "Numpy": "numpy", "Pandas": "pandas", "Scikit-learn": "sklearn",
+    "Scipy": "scipy", "Requests": "requests", "spaCy": "spacy",
+    "PyTorch": "torch", "Paddle": "paddle",
 }
 
 LOG_DIR = os.path.join(os.path.dirname(__file__))
@@ -101,9 +134,8 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str
         }
         fuzzer_name = fuzzer_map.get(fuzzer_raw, fuzzer_raw)
 
-        # Normalize library name: treat PyYAML and Yaml as the same
-        if library in ("PyYAML", "Yaml", "PyYaml", "pyyaml"):
-            library = "PyYAML"
+        # Normalize library name to canonical display form
+        library = LIB_TO_COV_KEY.get(library, library)
 
         coverage, elapsed = extract_final_coverage_and_time(log_path)
         if coverage is None:
@@ -142,7 +174,7 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str
 
 def cov_percent(coverage: float, lib: str) -> str:
     """Convert coverage to percentage of total lines, formatted as XX.XX%."""
-    key = lib.lower()
+    key = DISPLAY_TO_COV_KEY.get(lib, lib).lower()
     total = COV_TOTAL_MAP.get(key)
     if total is None:
         return f"{coverage:.1f}"
@@ -158,11 +190,7 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
     """
     fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
 
-    # Collect all libraries across all fuzzers
-    all_libs = set()
-    for fuzzer_data in coverage_data.values():
-        all_libs.update(fuzzer_data.keys())
-    libs = sorted(all_libs)
+    libs = DISPLAY_ORDER
 
     lines = []
     header = "| " + " | ".join([""] + libs + ["Average", "#Time"]) + " |"
@@ -198,61 +226,6 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
     return "\n".join(lines)
 
 
-def gen_latex_table(coverage_data: dict[str, dict[str, float]],
-                     time_data: dict[str, dict[str, int]]) -> str:
-    """
-    Generate a LaTeX table mirroring the Markdown structure:
-        rows: DyFuzz | Fuzz4All | RespFuzzer
-        cols: 12 library names + Average + #Time
-    """
-    fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
-
-    all_libs = set()
-    for fuzzer_data in coverage_data.values():
-        all_libs.update(fuzzer_data.keys())
-    libs = sorted(all_libs)
-
-    num_cols = len(libs) + 2  # libs + Average + #Time
-    lines = []
-    lines.append(r"\begin{tabular}{l" + "c" * num_cols + r"}")
-    lines.append(r"\toprule")
-    header = (r"\textbf{} & " + " & ".join([r"\textbf{" + lib + r"}" for lib in libs])
-              + r" & \textbf{Average} & \textbf{\#Time}\\")
-    lines.append(header)
-    lines.append(r"\midrule")
-
-    for fuzzer in fuzzers:
-        cells = [fuzzer]
-        row_vals = []
-        for lib in libs:
-            cov = coverage_data.get(fuzzer, {}).get(lib, None)
-            if cov is not None:
-                pct = cov_percent(cov, lib)
-                cells.append(pct)
-                try:
-                    row_vals.append(float(pct.rstrip("%")))
-                except ValueError:
-                    pass
-            else:
-                cells.append("--")
-        # Average column
-        if row_vals:
-            avg = sum(row_vals) / len(row_vals)
-            cells.append(f"{avg:.2f}\\%")
-        else:
-            cells.append("--")
-        # #Time column
-        td = time_data.get(fuzzer, {})
-        total_time = sum(td.get(lib, 0) for lib in libs)
-        cells.append(str(total_time))
-        lines.append(" & ".join(cells) + r"\\")
-
-    lines.append(r"\bottomrule")
-    lines.append(r"\end{tabular}")
-
-    return "\n".join(lines)
-
-
 def main():
     print(f"Scanning logs in: {LOG_DIR}\n")
     data, time_data = parse_log_files(LOG_DIR)
@@ -263,8 +236,6 @@ def main():
 
     print(f"\n--- Markdown Table ---")
     print(gen_markdown_table(data, time_data))
-    print(f"\n--- LaTeX Table ---")
-    print(gen_latex_table(data, time_data))
 
 
 if __name__ == "__main__":
