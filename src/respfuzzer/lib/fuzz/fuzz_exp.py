@@ -60,24 +60,26 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
 
             match command:
                 case "execute":
+                    runtime_exception = False
                     try:
                         exec(seed.function_call)
                     except Exception:
-                        pass
+                        runtime_exception = True
                     finally:
                         bm_child.write()
-                        send.put("done")
+                        send.put(("done", runtime_exception))
                 case "fuzz":
+                    runtime_exception = False
                     try:
                         with instrument_function_via_path_ctx(
                             seed.func_name, data_fuzz_per_seed
                         ):
                             exec(seed.function_call)
                     except Exception:
-                        pass
+                        runtime_exception = True
                     finally:
                         bm_child.write()
-                        send.put("done")
+                        send.put(("done", runtime_exception))
                 case "exit":
                     logger.info("Exiting worker process as instructed.")
                     break
@@ -117,7 +119,7 @@ def fuzz_single_seed(
         )
         try:
             send.put(("fuzz", mutant))
-            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
+            reply = recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
         except Exception as e:
             logger.info(f"Exception occurred: {e}")
             random_state = redis_client.hget("random_state", str(child_pid))
@@ -139,13 +141,13 @@ def fuzz_single_seed(
         logger.info(
             f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
         )
+        runtime_exception = bool(reply[1]) if isinstance(reply, tuple) and len(reply) == 2 else False
+        gain = 1.0 if cov_after > cov_before else 0.0
+        Mutator.update_reward(mutation_type, Mutator.calculate_reward(runtime_exception, gain))
         if cov_after > cov_before:
-            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
             logger.info(
                 f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
             )
-        else:
-            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0))
 
     send.put(("exit", None))
     try:

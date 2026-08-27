@@ -8,6 +8,7 @@ from respfuzzer.lib.fuzz.fuzz_function import (
     reconvert_param_list,
 )
 from respfuzzer.utils.redis_util import get_redis_client
+import math
 
 
 @pytest.fixture(autouse=True)
@@ -46,23 +47,19 @@ def test_reconvert_param_list():
 def test_fuzz_function_no_args(
     mock_logger,
 ):
-    mock_function = MagicMock()
-    mock_function.__module__ = "test_module"
-    mock_function.__name__ = "test_function"
-    fuzz_function(mock_function)
-    mock_logger.info.assert_any_call(
-        "test_module.test_function has no arguments, execute only once."
-    )
+    # No user args -> param_list empty -> early return AFTER the start log,
+    # and WITHOUT the "done" log (impl returns before logging done).
+    fuzz_function(math.ceil, data_fuzz_per_seed=3)
+    mock_logger.debug.assert_any_call("RespFuzzer start fuzz math.ceil")
 
 
 @patch("respfuzzer.lib.fuzz.fuzz_function.logger")
 def test_fuzz_function_with_args(
     mock_logger,
 ):
-    mock_function = MagicMock()
-    mock_function.__module__ = "test_module"
-    mock_function.__name__ = "test_function"
     args = (1, 2, 3)
     kwargs = {"a": 4, "b": 5}
-    fuzz_function(mock_function, *args, **kwargs)
-    mock_logger.debug.assert_any_call("Start fuzz test_module.test_function")
+    # data_fuzz_per_seed is the 2nd positional arg; user args follow.
+    fuzz_function(math.ceil, 3, *args, **kwargs)
+    mock_logger.debug.assert_any_call("RespFuzzer start fuzz math.ceil")
+    mock_logger.debug.assert_any_call("RespFuzzer fuzz math.ceil done")

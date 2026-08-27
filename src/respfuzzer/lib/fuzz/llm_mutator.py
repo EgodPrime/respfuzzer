@@ -175,8 +175,8 @@ def _contains_target_call(target_short: str, tree: ast.AST) -> bool:
 
 
 class LLMMutator:
-    """采用语义负反馈（语法错误）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
-    当LLM变异产生语法错误或语义错误时，降低对应变异算子的选择概率，奖励初始值为-1
+    """采用语义负反馈（静态语义无效或运行时异常）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
+    当LLM变异产生语义错误（静态 IsValidSemantic 无效或执行时抛运行时异常）时，降低对应变异算子的选择概率，奖励初始值为-1
     当传统变异产生覆盖率增长时，提高对应变异算子的选择概率，奖励初始值为+1
     变异算子选择是从所有变异算子构成的概率分布中采样得到的
     负反馈和正反馈都影响每一个变异算子的被选择概率
@@ -224,26 +224,23 @@ class LLMMutator:
             f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}"
         )
 
-    def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
+    def calculate_reward(self, has_semantic_error: bool, coverage_gain: float) -> float:
         """
         将多种信号归一化为统一奖励值 [0,1]
-        不存在语法错误是基础要求，达不到有惩罚，达到了没有奖励，此时应该保持奖励为0.5，从而使得0.5*0.1+0.9*0.5=0.5保持不变
-        当存在语法错误时，不会进行传统变异，覆盖率奖励一定为0
-        仅当不存在语法错误时，才会进行传统变异，从而有覆盖率奖励，此时奖励会变成1，从而使得1*0.1+0.9*0.5=0.55略有提升
-
+        不满足语义要求（静态 IsValidSemantic 无效或动态运行时异常）是基础要求，达不到有惩罚，达到了没有奖励，此时应该保持奖励为0.5，从而使得0.5*0.1+0.9*0.5=0.5保持不变
+        当存在语义错误时，不会进行传统变异，覆盖率奖励一定为0
+        仅当不存在语义错误时，才会进行传统变异，从而有覆盖率奖励，此时奖励会变成1，从而使得1*0.1+0.9*0.5=0.55略有提升
         Arguments:
-            has_syntax_error: 是否有语法错误
+            has_semantic_error: 是否存在语义错误（含静态 IsValidSemantic 无效与动态运行时异常）
             coverage_gain: 覆盖率增益 (0~1)
         """
         # 基础权重分配
         w_syntax = 0.5
         w_coverage = 0.5
-
         # 计算基础奖励
         base_reward = (
-            w_syntax * (1 - int(has_syntax_error)) + w_coverage * coverage_gain
+            w_syntax * (1 - int(has_semantic_error)) + w_coverage * coverage_gain
         )
-
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 

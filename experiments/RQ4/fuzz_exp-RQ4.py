@@ -86,7 +86,7 @@ def fuzz_single_seed(
         logger.info(f"Start fuzzing seed {seed.id}: {seed.func_name}")
         try:
             send.put(("fuzz" if not no_data_fuzz else "execute", seed))
-            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
+            reply = recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
         except Exception as e:
             logger.info(f"Exception occurred: {e}")
             random_state = redis_client.hget("random_state", str(child_pid))
@@ -126,7 +126,7 @@ def fuzz_single_seed(
             )
             try:
                 send.put(("fuzz" if not no_data_fuzz else "execute", mutant))
-                recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
+                reply = recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
             except Exception as e:
                 logger.info(f"Exception occurred: {e}")
                 random_state = redis_client.hget("random_state", str(child_pid))
@@ -148,21 +148,30 @@ def fuzz_single_seed(
             logger.info(
                 f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
             )
+            runtime_exception = bool(reply[1]) if isinstance(reply, tuple) and len(reply) == 2 else False
+            gain = 1.0 if cov_after > cov_before else 0.0
             if no_semantic_filter:
+                # NSF ON: semantic term disabled (coverage-only ablation) -- runtime_exception must NOT be
+                # passed as has_semantic_error here, or the NSF ablation would still penalize via the term.
+                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, gain))
                 if cov_after > cov_before:
-                    Mutator.update_reward(mutation_type, 0.5)
                     logger.info(
                         f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
                     )
+            elif no_cov_feedback:
+                # NCF ON (NSF OFF): coverage cue disabled; runtime-exception semantic penalty still applies.
+                Mutator.update_reward(
+                    mutation_type, Mutator.calculate_reward(runtime_exception, 0.0)
+                )
             else:
-                if no_cov_feedback:
-                    Mutator.update_reward(mutation_type, 0.5)
-                else:
-                    if cov_after > cov_before:
-                        Mutator.update_reward(mutation_type,1.0)
-                        logger.info(
-                            f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
-                        )
+                # NCF OFF (NSF OFF): full reward = runtime-exception semantic term + coverage gain.
+                Mutator.update_reward(
+                    mutation_type, Mutator.calculate_reward(runtime_exception, gain)
+                )
+                if cov_after > cov_before:
+                    logger.info(
+                        f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
+                    )
 
     send.put(("exit", None))
     try:
