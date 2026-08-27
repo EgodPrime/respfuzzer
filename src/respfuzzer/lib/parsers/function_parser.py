@@ -6,6 +6,22 @@ import dill
 from respfuzzer.models import Argument, Function
 
 
+def _default_to_str(v_default) -> str:
+    """把 inspect.Parameter.default 转为字符串表示（C-9 定案语义）。
+
+    定案规则：
+    - v_default 为 inspect.Parameter.empty（参数无默认值）→ 返回空串 "";
+    - 否则取 repr(v_default)（Python 字面量字符串，如 repr(1)="1"、repr("a")="'a'"）；
+    - 外层 try/except 兜底返回 "unknown"——防止个别不可 repr 的诡异默认对象
+      （如文件句柄、损坏的 __repr__ 等）让整条提取崩溃。
+    """
+    if v_default is inspect.Parameter.empty:
+        return ""
+    try:
+        return repr(v_default)
+    except Exception:
+        return "unknown"
+
 def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Optional[Function]:
     """
     convert a `FunctionType` to an `function` object
@@ -37,7 +53,15 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
 
         arg_pos = v.kind.name
 
-        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=arg_pos))
+        default_value = _default_to_str(v.default)
+        arg_list.append(
+            Argument(
+                arg_name=arg_name,
+                type=arg_type,
+                pos_type=arg_pos,
+                default_value=default_value,  # C-9：默认参数值（repr 字符串，无默认则为空串）
+            )
+        )
 
     if sig.return_annotation != inspect.Signature.empty:
         ret_type_str = str(sig.return_annotation)[8:-2]  # "<class 'int'>" -> "int"

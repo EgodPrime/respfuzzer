@@ -45,7 +45,7 @@ def test_func(a: int, b: str, c: List[int] = [1,2,3]) -> bool:
     mod.__name__ = "test_module"
 
     # Test the function
-    result = from_function_type(mod, mock_func)
+    result = from_function_type(mock_func, public_name="test_module.test_func")
     assert result.func_name == "test_module.test_func"
     assert len(result.args) == 3
     assert result.args[0].arg_name == "a"
@@ -86,7 +86,7 @@ def test_from_function_type_no_source(mock_signature, mock_getsource):
     mod.__name__ = "test_module"
 
     # Test the function
-    result = from_function_type(mod, mock_func)
+    result = from_function_type(mock_func, public_name="test_module.test_func")
     assert result.func_name == "test_module.test_func"
     assert len(result.args) == 2
     assert result.args[0].arg_name == "a"
@@ -122,7 +122,7 @@ def test_from_builtin_function_type():
     mock_obj.__module__ = "test_module"
     mock_obj.__name__ = "test_func"
 
-    result = from_builtin_function_type(pyi_dict, mock_mod, mock_obj)
+    result = from_builtin_function_type(pyi_dict, mock_obj, public_name="test_module.test_func")
     assert result.func_name == "test_module.test_func"
     assert len(result.args) == 2
     assert result.args[0].arg_name == "a"
@@ -145,5 +145,5 @@ def test_from_function_type_signature_value_error(mock_signature):
     mod = Mock()
     mod.__name__ = "test_module"
 
-    result = from_function_type(mod, mock_func)
+    result = from_function_type(mock_func)
     assert result is None

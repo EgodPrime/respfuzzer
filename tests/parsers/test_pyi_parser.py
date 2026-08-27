@@ -117,13 +117,9 @@ def test_find_all_pyi_files_walk_and_visited(monkeypatch):
     monkeypatch.setattr("builtins.open", fake_open)
 
     visited_files = set()
-    pyi_cache = {}
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
-
-    # Expect functions a1,a2,b1 parsed
-    assert "a1" in pyi_cache
-    assert "a2" in pyi_cache
-    assert "b1" in pyi_cache
+    # _find_all_pyi_files(dir_path, unique_files) 是 2 参签名：只收集 .pyi 文件路径到 visited_files，
+    # 不做 AST 解析（解析由 library_visitor 单独调用 parse_pyi_files 完成），故断言仅针对 visited_files
+    _find_all_pyi_files("/root", visited_files)
     # visited_files should contain full paths
     assert any(p.endswith("a.pyi") for p in visited_files)
     assert any(p.endswith("b.pyi") for p in visited_files)
@@ -153,11 +149,8 @@ def test_find_all_pyi_files_skips_already_visited(monkeypatch):
     monkeypatch.setattr("builtins.open", fake_open)
 
     visited_files = set()
-    pyi_cache = {}
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
-    before_count = len(pyi_cache)
-
-    # Call again; because visited_files is reused, it should skip re-parsing
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
-    after_count = len(pyi_cache)
-    assert before_count == after_count
+    # 2 参签名：只收集 .pyi 路径到 visited_files；同 set 重复收集应幂等（set 去重）
+    _find_all_pyi_files("/root", visited_files)
+    first = set(visited_files)
+    _find_all_pyi_files("/root", visited_files)
+    assert set(visited_files) == first

@@ -36,6 +36,20 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
 
                     arg_list = []
 
+                    # --- C-9: 提取默认参数值 ---
+                    # 位置参数(posonlyargs + args)的默认值在 node.args.defaults 里，
+                    # 与最右 len(defaults) 个位置参数按序对齐；此处先构造逐位置默认值表。
+                    positional_params = [*node.args.posonlyargs, *node.args.args]
+                    positional_defaults = node.args.defaults  # list[ast.expr]
+                    pos_defaults: list[str] = [""] * len(positional_params)
+                    n_def = len(positional_defaults)
+                    if n_def > 0:
+                        # defaults 对齐到 positional_params[-n_def:]（最右的 n_def 个位置参数）
+                        offset = len(positional_params) - n_def
+                        for j, expr in enumerate(positional_defaults):
+                            pos_defaults[offset + j] = ast.unparse(expr)
+                    pos_idx = 0  # 遍历位置参数（先 posonlyargs 后 args）的下标
+
                     for arg in node.args.posonlyargs:
                         arg_name = arg.arg
                         arg_type = (
@@ -44,9 +58,13 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         pos_type = _ParameterKind.POSITIONAL_ONLY.name
                         arg_list.append(
                             Argument(
-                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                                arg_name=arg_name,
+                                type=arg_type,
+                                pos_type=pos_type,
+                                default_value=pos_defaults[pos_idx],
                             )
                         )
+                        pos_idx += 1
                     for arg in node.args.args:
                         arg_name = arg.arg
                         arg_type = (
@@ -55,9 +73,13 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         pos_type = _ParameterKind.POSITIONAL_OR_KEYWORD.name
                         arg_list.append(
                             Argument(
-                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                                arg_name=arg_name,
+                                type=arg_type,
+                                pos_type=pos_type,
+                                default_value=pos_defaults[pos_idx],
                             )
                         )
+                        pos_idx += 1
                     if node.args.vararg:
                         arg = node.args.vararg
                         arg_name = arg.arg
@@ -67,10 +89,17 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         pos_type = _ParameterKind.VAR_POSITIONAL.name
                         arg_list.append(
                             Argument(
-                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                                arg_name=arg_name,
+                                type=arg_type,
+                                pos_type=pos_type,
+                                default_value="",  # *args 永无默认值
                             )
                         )
-                    for arg in node.args.kwonlyargs:
+                    for arg, kw_default in zip(
+                        node.args.kwonlyargs, node.args.kw_defaults
+                    ):
+                        # kwonlyargs 的默认值在 node.args.kw_defaults（与 kwonlyargs 按序一一对应，
+                        # None 表示无默认）；ast.arg 本身没有 .default 属性。
                         arg_name = arg.arg
                         arg_type = (
                             ast.unparse(arg.annotation) if arg.annotation else "unknown"
@@ -78,7 +107,12 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         pos_type = _ParameterKind.KEYWORD_ONLY.name
                         arg_list.append(
                             Argument(
-                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                                arg_name=arg_name,
+                                type=arg_type,
+                                pos_type=pos_type,
+                                default_value=(
+                                    ast.unparse(kw_default) if kw_default is not None else ""
+                                ),
                             )
                         )
                     if node.args.kwarg:
@@ -90,7 +124,10 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         pos_type = _ParameterKind.VAR_KEYWORD.name
                         arg_list.append(
                             Argument(
-                                arg_name=arg_name, type=arg_type, pos_type=pos_type
+                                arg_name=arg_name,
+                                type=arg_type,
+                                pos_type=pos_type,
+                                default_value="",  # **kwargs 永无默认值
                             )
                         )
 
