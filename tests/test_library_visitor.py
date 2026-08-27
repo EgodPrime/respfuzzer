@@ -14,7 +14,9 @@ def test_visit_ast():
 
 
 def test_visit_pandas():
-    """Test basic functionality with pandas library"""
+    """Test basic functionality with pandas library (skipped if pandas not installed)"""
+    import pytest
+    pytest.importorskip("pandas")  # 环境(本工作区 py3.14)未装 pandas 时跳过；安装后执行真实遍历
     visitor = LibraryVisitor("pandas")
     functions = list(visitor.visit())
     assert len(functions) > 0
