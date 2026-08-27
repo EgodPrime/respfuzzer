@@ -109,13 +109,15 @@ def test_from_function_type_no_default_empty(mock_signature, mock_getsource):
 # 静态来源：pyi_parser 五槽默认值
 # ===========================================================================
 
-def _parse_pyi(content: str) -> dict:
-    """用伪文件跑 _parse_pyi_file，返回 pyi_cache。"""
+def _parse_pyi(content, *, root_path="", library_name="", file_path="/path/test.pyi"):
+    """用伪文件跑 _parse_pyi_file，返回 pyi_cache。
+    默认 root/lib 为空 → make_pyi_key 退化，键为裸函数名（用例6-9 依赖此）；调用方传 root/lib 时走限定键。"""
     cache = {}
     with patch("builtins.open", Mock(return_value=_mock_file(content))):
-        _parse_pyi_file("/path/test.pyi", cache)
+        _parse_pyi_file(
+            file_path, cache, root_path=root_path, library_name=library_name
+        )
     return cache
-
 
 # 用例 6：pyi 位置参数默认值在 node.args.defaults 对齐最右
 def test_pyi_positional_defaults_aligned_right():
@@ -228,14 +230,24 @@ def test_seed_args_propagates_default_value():
 # C-10 联动 / 既有坏测试回归
 # ===========================================================================
 
-# 用例 14（可选，C-10 联动提示）：pyi 短名缓存键下 default_value 可正常取到
+# 用例 14（C-10 联动守护）：限定键下 default_value 随 cache 值缓存，且 builtin 透传取回
 def test_pyi_short_name_cache_key_holds_default():
-    """pyi_cache 以函数短名为键，default_value 随 args 一起缓存（C-10 限定名改造前行为）。"""
-    cache = _parse_pyi("def f(a: int = 2) -> None: ...")
-    info = cache["f"]
+    """C-10 后 pyi_cache 以限定名（库名.模块.函数）为键：顶层 __init__ 的函数键为 mylib.f，
+    值仍含 default_value="2"；经 from_builtin_function_type 取回 args[0].default_value=="2"（C-9 联动）。"""
+    cache = _parse_pyi(
+        "def f(a: int = 2) -> None: ...",
+        root_path="/root/mylib",
+        library_name="mylib",
+        file_path="/root/mylib/__init__.pyi",
+    )
+    info = cache["mylib.f"]
     assert info["name"] == "f"
     assert info["args"][0].default_value == "2"
-
+    obj = Mock()
+    obj.__module__ = "mylib"
+    obj.__name__ = "f"
+    result = from_builtin_function_type(info, obj, public_name="mylib.f")
+    assert result.args[0].default_value == "2"
 
 # 用例 15（回归）：既有 test_function_parser / test_pyi_parser 的调用签名正确性
 # 说明：t14（m-analyze，pre-existing 修复）负责把这两处既有文件的坏调用签名改对；

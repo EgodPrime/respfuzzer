@@ -11,7 +11,11 @@ from respfuzzer.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
-from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files, parse_pyi_files
+from respfuzzer.lib.parsers.pyi_parser import (
+    _find_all_pyi_files,
+    make_pyi_key_from_module,
+    parse_pyi_files,
+)
 from respfuzzer.models import Function
 from respfuzzer.utils.paths import DATA_DIR
 
@@ -69,7 +73,9 @@ class LibraryVisitor:
         with ProcessPoolExecutor(cpu_count) as executor:
             futures = []
             for file_path in unique_files:
-                futures.append(executor.submit(parse_pyi_files, file_path))
+                futures.append(executor.submit(
+                    parse_pyi_files, file_path, root_path, self.library_name
+                ))
             for future in futures:
                 result = future.result()
                 self.pyi_cache.update(result)
@@ -123,9 +129,12 @@ class LibraryVisitor:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
-                    if name in self.pyi_cache:
+                    # --- C-10: 用限定键查询 stub（来源为当前遍历模块 __name__ + 函数名），
+                    # 不做裸名回退；real_path(dill namespace) 仅用于上方'是否属库'过滤。 ---
+                    prov_key = make_pyi_key_from_module(mod.__name__, name)
+                    if prov_key in self.pyi_cache:
                         function = from_builtin_function_type(
-                            self.pyi_cache[name], obj, public_name=public_name
+                            self.pyi_cache[prov_key], obj, public_name=public_name
                         )
                         yield function
 

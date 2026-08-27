@@ -123,3 +123,36 @@ def test__visit_submodule_not_in_root():
     res = list(visitor._visit(root, "rootmod", set()))
     # submodule exists but its __name__ doesn't start with root_mod_name, so it should be ignored
     assert res == []
+
+def test_builtin_hits_qualified_key(monkeypatch):
+    """缺口B完整链路：_visit 用限定键（当前遍历模块 __name__ + 函数名）命中 pyi_cache，
+    产出 is_builtin==1 且 func_name 含模块前缀；换另一模块同名函数则 miss，证明键区分模块。"""
+    def fake_namespace(obj):
+        return ["mylib", "sub", "a", "load"]
+    monkeypatch.setattr("dill.source._namespace", fake_namespace)
+
+    pyi_dict = {
+        "name": "load",
+        "source": "def load(x: int) -> int: ...",
+        "args": [],
+        "ret_type_str": "int",
+        "file_path": "/root/mylib/sub/a.pyi",
+    }
+
+    # 命中：pyi_cache 预填模块 mylib.sub.a 的 load（限定键 mylib.sub.a.load）
+    visitor = LibraryVisitor("mylib")
+    visitor.pyi_cache = {"mylib.sub.a.load": pyi_dict}
+    mod = ModuleType("mylib.sub.a")
+    setattr(mod, "load", len)  # 真实 builtin
+
+    res = list(visitor._visit(mod, "mylib", set()))
+    assert len(res) == 1
+    assert res[0].is_builtin == 1
+    assert res[0].func_name == "mylib.sub.a.load"
+    assert "mylib.sub" in res[0].func_name
+
+    # miss：仅另一模块 mylib.sub.b 有同一函数名 load 的 stub → 本模块查不到，键区分模块
+    visitor2 = LibraryVisitor("mylib")
+    visitor2.pyi_cache = {"mylib.sub.b.load": pyi_dict}
+    res2 = list(visitor2._visit(mod, "mylib", set()))
+    assert res2 == []

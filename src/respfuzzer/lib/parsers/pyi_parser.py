@@ -14,9 +14,48 @@ def is_top_level_function(node):
         if isinstance(parent, ast.ClassDef):
             return False  # 在类内部
     return True  # 在模块级别
+def _pyi_module_from_path(root_path: str, file_path: str) -> str:
+    """根据 .pyi 文件路径推导模块点分路径（相对库包根目录）。
+
+    # --- C-10: 文件路径 -> 模块点分路径 ---
+    空 root_path/file_path 守卫返回空串，防 os.path.relpath 抛异常或 ../ 链；
+    relpath 转 os.sep 为点、去 .pyi 后缀；__init__.pyi 去掉 __init__ 段取父模块。
+    """
+    if not root_path or not file_path:
+        return ""  # 空守卫：防 relpath 出错/../ 链
+    rel = os.path.relpath(file_path, root_path).replace(os.sep, ".")
+    rel = rel[:-4] if rel.endswith(".pyi") else rel  # 去 .pyi
+    if rel == "__init__":  # 库顶层 __init__.pyi -> 空模块（无前导点，单独处理）
+        return ""
+    if rel.endswith(".__init__"):  # sub/__init__.pyi -> 取父模块
+        rel = rel[: -len(".__init__")]
+    return rel.rstrip(".")
 
 
-def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
+def make_pyi_key_from_module(module_name: str, func_name: str) -> str:
+    """读端放入口：以当前遍历模块 __name__ 为权威前缀构造完全限定键（C-10）。
+
+    与写端 make_pyi_key 产出的 <库名>.<模块点分路径>.<函数名> 在镜像布局下逐字符一致。
+    """
+    return f"{module_name}.{func_name}"
+
+
+def make_pyi_key(root_path: str, library_name: str, file_path: str, func_name: str) -> str:
+    """写端出口：构造完全限定缓存键 <库名>.<模块点分路径>.<函数名>（C-10）。"""
+    if not root_path or not library_name:
+        return func_name  # 空 root/库名退化为裸函数名（无限定信息）
+    mod = _pyi_module_from_path(root_path, file_path)
+    if not mod:
+        return f"{library_name}.{func_name}"  # 顶层 __init__.pyi -> <库名>.<函数名>
+    return f"{library_name}.{mod}.{func_name}"
+
+def _parse_pyi_file(
+    file_path: str,
+    pyi_cache: Dict[str, Dict],
+    *,
+    root_path: str = "",
+    library_name: str = "",
+) -> None:
     """
     解析 .pyi 文件，提取其中的函数
     """
@@ -135,8 +174,9 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                         ast.unparse(node.returns) if node.returns else "unknown"
                     )
 
-                    pyi_cache[func_name] = {
-                        "name": func_name,
+                    key = make_pyi_key(root_path, library_name, file_path, func_name)  # --- C-10: 限定键 ---
+                    pyi_cache[key] = {
+                        "name": func_name,  # 保留裸名，供 from_builtin_function_type/public_name
                         "source": source,
                         "args": arg_list,
                         "ret_type_str": ret_type_str,
@@ -144,9 +184,13 @@ def _parse_pyi_file(file_path: str, pyi_cache: Dict[str, Dict]) -> None:
                     }
 
 
-def parse_pyi_files(file_path: str) -> dict:
+def parse_pyi_files(
+    file_path: str,
+    root_path: str = "",
+    library_name: str = "",
+) -> dict:
     tmp_cache = {}
-    _parse_pyi_file(file_path, tmp_cache)
+    _parse_pyi_file(file_path, tmp_cache, root_path=root_path, library_name=library_name)
     return tmp_cache
 
 
