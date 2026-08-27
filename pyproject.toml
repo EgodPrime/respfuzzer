@@ -1,19 +1,20 @@
 [project]
 name = "respfuzzer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "argparse>=1.4.0",
-    "autoflake>=2.3.1",
+    "autoflake>=2.3.3",
+    "bandit>=1.9.4",
+    "coverage>=7.11.0",
+    "dill>=0.4.1",
     "fire>=0.7.1",
-    "httpx>=0.28.1",
+    "langchain>=1.2.18",
+    "langchain-openai>=1.2.1",
     "loguru>=0.7.3",
-    "matplotlib>=3.10.7",
     "openai>=1.109.1",
     "psutil>=7.1.0",
-    "psycopg2-binary>=2.9.11",
     "pydantic>=2.11.9",
     "redis>=6.4.0",
 ]
@@ -23,9 +24,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "black",
-    "isort",
     "ruff",
-    "pre-commit",
 ]
 
 [tool.pytest.ini_options]
@@ -38,37 +37,6 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 # 方法名的规则，配置测试搜索的测试函数名
 python_functions = ["test_*"]
-
-[tool.isort]
-profile = "black"
-line_length = 88
-multi_line_output = 3
-include_trailing_comma = true
-
-# Use ruff to automatically remove unused imports as part of formatting workflow.
-[tool.ruff]
-line-length = 88
-fix = true
-
-[tool.ruff.lint]
-select = ["F401", "F403"]
-
-[tool.black]
-line-length = 88
-target-version = ["py313"]
-
-
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
-
-[tool.maturin]
-module-name = "respfuzzer.lib.fuzz.mutate"
-python-packages = ["respfuzzer"]
-python-source = "src"
-
-[tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.rs" }, { file = "Cargo.toml" }, { file = "Cargo.lock" }]
 
 [[tool.uv.index]]
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"

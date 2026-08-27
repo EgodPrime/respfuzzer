@@ -8,24 +8,26 @@
 """
 
 import ast
-import io
 import math
 import random
-import sys
+import signal
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
+import threading
 
 from loguru import logger
-
-from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 from respfuzzer.models import Mutant, Seed
-from respfuzzer.repos.mutant_table import create_mutant
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.llm_helper import SimpleLLMClient
+from respfuzzer.utils.llm_helper import get_sys_llm
+
+from pydantic import BaseModel, Field
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import PydanticOutputParser
+
+random.seed(4399)
 
 llm_cfg = get_config("llm_mutator")
-client = SimpleLLMClient(**llm_cfg)
-
 
 PROMPT_MUTATE = (
     '"""Please create a program that mutates the input parameters of the target function call"""',
@@ -34,32 +36,59 @@ PROMPT_MUTATE = (
     '"""Please create a simplified version of the previous generation"""',
 )
 
+class PureCodeOutput(BaseModel):
+    code: str = Field(description="A pure code snippet without any explanations or code fences.")
 
-def make_fake_history(seed: Seed, prompt: str) -> list[dict]:
-    """
-    构造对话历史记录，以便在调用LLM时提供上下文。
-    """
-    history = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful programming assistant."
-                "You ouput only Python code snippets without any explanations."
-                "You never generate `print` statements."
-                "You always ensure the target function is called in your code."
-            ),
-        },
-        {
-            "role": "user",
-            "content": f"Target function is {seed.func_name}. Please generate a program that calls it.",
-        },
-        {"role": "assistant", "content": seed.function_call},
-        {"role": "user", "content": prompt},
-    ]
-    return history
+PureCodeParser = PydanticOutputParser(pydantic_object=PureCodeOutput)
 
+MUTATE_PROMPT = PromptTemplate(
+    template="""You are a professional programmer. Your task is to generate a mutated version of the given code
+snippet according to the mutation instruction.
+    
+Code snippet:
+{func_call}
 
-def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
+Mutation instruction:
+{mutation_instruction}
+
+Target function name:
+{func_name}
+
+The mutated code should call the target function and meet the mutation instruction. Do not include any explanations or comments or print statements. The mutated code should be short and concise. Do not wrap the code with fences like \`\`\`.
+
+{format_instructions}
+    """,
+    input_variables=["func_name", "func_call", "mutation_instruction"],
+    partial_variables={"format_instructions": PureCodeParser.get_format_instructions()}
+)
+
+mutate_chain = MUTATE_PROMPT | get_sys_llm() | PureCodeParser
+
+LLM_TIMEOUT = 60  # seconds
+
+def _invoke_with_timeout(chain, input_dict, config, timeout):
+    """Call mutate_chain.invoke in a thread with timeout."""
+    result_holder: list[object] = [None]
+    exception: list[object] = [None]
+
+    def target():
+        try:
+            result_holder[0] = chain.invoke(input_dict, config=config)
+            exception[0] = "success"
+        except Exception as e:
+            exception[0] = e
+
+    t = threading.Thread(target=target)
+    t.start()
+    t.join(timeout=timeout)
+    if t.is_alive():
+        # Thread is still running => timed out
+        raise TimeoutError(f"mutate_chain.invoke timed out after {timeout}s")
+    if isinstance(exception[0], Exception):
+        raise exception[0]
+    return result_holder[0]
+
+def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
     """
     使用LLM对给定的种子进行变异。
     mutation_type:
@@ -71,9 +100,27 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
     if mutation_type < 0 or mutation_type >= len(PROMPT_MUTATE):
         raise ValueError("Invalid mutation type")
 
+    mutated_code = seed.function_call  # 默认变异结果为原始代码，以防LLM调用失败
     prompt = PROMPT_MUTATE[mutation_type]
-    messages = make_fake_history(seed, prompt)
-    mutated_code = client.chat(messages, temperature=1.5)
+    for attempt in range(3):
+        try:
+            res = _invoke_with_timeout(
+                mutate_chain,
+                input_dict={
+                    "func_name": seed.func_name,
+                    "func_call": seed.function_call,
+                    "mutation_instruction": str(rng)+prompt,
+                },
+                config={"temperature": 0.0},
+                timeout=LLM_TIMEOUT,
+            )
+            mutated_code = res.code
+        except TimeoutError as e:
+            logger.warning(f"Mutation {attempt+1}/3 timed out after {LLM_TIMEOUT}s: {e}")
+            continue
+        except Exception as e:
+            logger.warning(f"Mutation {attempt+1}/3 failed with : {e}")
+            continue
 
     # Save the mutant to the database
     mutant = Mutant(
@@ -84,57 +131,18 @@ def llm_mutate(seed: Seed, mutation_type: int) -> Mutant:
         args=seed.args,
         function_call=mutated_code,
     )
-    mutant_id = create_mutant(mutant)
-    mutant.id = mutant_id
 
     return mutant
 
 
-def random_llm_mutate(seed: Seed) -> Optional[Mutant]:
-    """
-    随机选择一种变异类型并对种子进行变异。
-    """
-    mutation_type = random.randint(0, len(PROMPT_MUTATE) - 1)
-    logger.trace(f"Randomly selected mutation type: {mutation_type}")
-    return llm_mutate(seed, mutation_type)
-
-
-def filter_syntax(mutant: Mutant) -> bool:
-    "使用AST检查变异代码的语法有效性。"
+def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
+    """使用AST检查变异代码的语法有效性。"""
     try:
         ast.parse(mutant.function_call)
         return mutant
     except SyntaxError:
         return None
 
-def batch_random_llm_mutate(seed: Seed, n: int, max_workers: int = 4) -> list[Mutant]:
-    """
-    使用多线程批量对种子进行随机变异。
-    """
-    mutants = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(random_llm_mutate, seed) for _ in range(n)]
-        for future in as_completed(futures):
-            mutants.append(future.result())
-    return mutants
-
-
-def batch_random_llm_mutate_valid_only(
-    seed: Seed, n: int, max_workers: int = 4
-) -> list[Mutant]:
-    """
-    使用多线程批量对种子进行随机变异，并仅返回语法和语义有效的变异代码。
-    """
-    mutants = batch_random_llm_mutate(seed, n, max_workers)
-    valid_mutants = []
-    # 先检查语法
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(filter_syntax, mutant): mutant for mutant in mutants}
-        for future in as_completed(futures):
-            mutant = futures[future]
-            if future.result():
-                valid_mutants.append(mutant)
-    return valid_mutants
 
 class LLMMutator:
     """采用语义负反馈（语法错误）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
@@ -156,7 +164,7 @@ class LLMMutator:
         self.mu = [0.5] * len(self.mutation_types)  # 初始期望奖励 (0.5表示中等期望)
         self.alpha = 0.1
         self.tau = 1.0
-
+        self.rng = 0
 
     def select_mutation_type(self) -> int:
         """
@@ -166,29 +174,26 @@ class LLMMutator:
         exp_mu = [math.exp(m / self.tau) for m in self.mu]
         total = sum(exp_mu)
         probs = [e / total for e in exp_mu]
-        
+
         # 从概率分布中采样
-        return random.choices(
-            population=self.mutation_types,
-            weights=probs,
-            k=1
-        )[0]
-    
+        return random.choices(population=self.mutation_types, weights=probs, k=1)[0]
+
     def update_reward(self, mutation_type: int, reward: float) -> None:
         """
         更新变异算子的期望奖励
-        
+
         Arguments:
             mutation_type: 变异算子类型
             reward: 观察到的奖励值
         """
         # 使用指数加权平均更新期望奖励
         self.mu[mutation_type] = (
-            self.alpha * reward + 
-            (1 - self.alpha) * self.mu[mutation_type]
+            self.alpha * reward + (1 - self.alpha) * self.mu[mutation_type]
         )
-        logger.info(f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}")
-    
+        logger.debug(
+            f"Updated reward for mutation type {mutation_type}: {self.mu[mutation_type]:.4f}"
+        )
+
     def calculate_reward(self, has_syntax_error: bool, coverage_gain: float) -> float:
         """
         将多种信号归一化为统一奖励值 [0,1]
@@ -203,29 +208,45 @@ class LLMMutator:
         # 基础权重分配
         w_syntax = 0.5
         w_coverage = 0.5
-        
+
         # 计算基础奖励
         base_reward = (
-            w_syntax * (1 - int(has_syntax_error)) +
-            w_coverage * coverage_gain
+            w_syntax * (1 - int(has_syntax_error)) + w_coverage * coverage_gain
         )
-        
+
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 
-    def random_llm_mutate(self) -> tuple[Mutant, int]:
+    def random_llm_mutate(self, no_check_semantic: bool=False, max_retries: int = 3, retry_delay: float = 5.0) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
+        最多重试 max_retries 次，每次失败等待 retry_delay 秒。
         """
         mutation_type = self.select_mutation_type()
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
-        while True:
-            res = llm_mutate(self.seed, mutation_type)
-            res = filter_syntax(res)
-            has_syntax_error = res is None
-            if has_syntax_error:
-                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                continue
-            break
-        # 成功变异后返回变异结果，覆盖率奖励由外部执行后再计算并更新
-        return res, mutation_type
+        for attempt in range(max_retries):
+            try:
+                self.rng += 1
+                res = llm_mutate(self.seed, mutation_type, self.rng)
+                if no_check_semantic:
+                    return res, mutation_type
+                res = filter_syntax(res)
+                has_syntax_error = res is None
+                if has_syntax_error:
+                    self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Syntax error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
+                        time.sleep(retry_delay)
+                    else:
+                        logger.error(f"All {max_retries} attempts failed with syntax errors for mutation type {mutation_type}")
+                    continue
+                return res, mutation_type
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    logger.error(f"All {max_retries} attempts failed for mutation type {mutation_type}: {e}")
+                    raise
+        # Should not reach here, but fallback to be safe
+        return llm_mutate(self.seed, mutation_type), mutation_type  # type: ignore[return-value]

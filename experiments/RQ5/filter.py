@@ -1,5 +1,5 @@
 """
-## 该脚本的功能 
+## 该脚本的功能
 
 利用LLM对漏洞进行过滤，排除掉所有的假阳性。
 LLM的判断依据包含：
@@ -26,29 +26,37 @@ LLM的判断依据包含：
 - main() -> None
 """
 
-from loguru import logger
-import openai
 import json
-from copy import deepcopy
-from concurrent.futures import ThreadPoolExecutor
-from respfuzzer.repos.function_table import get_function
 import re
-from respfuzzer.repos.mutant_table import get_mutant
+from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 
-client = openai.OpenAI(base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+import openai
+from loguru import logger
+from respfuzzer.repos import get_function_by_name
+from respfuzzer.repos import get_mutant_by_id
+
+client = openai.OpenAI(
+    base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+)
 model_name = "qwen3-30b-a3b"
+
 
 def chat_completion(prompt: str) -> str:
     response = client.chat.completions.create(
         model=model_name,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant that helps people find bugs in code."},
+            {
+                "role": "system",
+                "content": "You are a helpful assistant that helps people find bugs in code.",
+            },
             {"role": "user", "content": prompt},
         ],
         temperature=0,
         max_tokens=2048,
     )
     return response.choices[0].message.content
+
 
 def judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> bool:
     prompt = f"""## Task
@@ -183,34 +191,50 @@ IndexError: list index out of range
 """
     for _ in range(10):
         response = chat_completion(prompt)
-        re_str = re.compile(r"<is_bug>(True|False)</is_bug>.*<risk_level>(\d+)</risk_level>.*<reasoning>(.*?)</reasoning>", re.DOTALL)
+        re_str = re.compile(
+            r"<is_bug>(True|False)</is_bug>.*<risk_level>(\d+)</risk_level>.*<reasoning>(.*?)</reasoning>",
+            re.DOTALL,
+        )
         m = re_str.search(response)
         if m:
             is_bug = m.group(1) == "True"
             risk_level = int(m.group(2))
             reasoning = m.group(3).strip()
-            logger.debug(f"{poc}\nIs Bug: {is_bug}\nRisk Level: {risk_level}\nReasoning: {reasoning}")
+            logger.debug(
+                f"{poc}\nIs Bug: {is_bug}\nRisk Level: {risk_level}\nReasoning: {reasoning}"
+            )
             return is_bug, risk_level, reasoning
         else:
-            logger.warning(f"Failed to parse LLM response, retrying...\nResponse was:\n{response}")
-    logger.error(f"Failed to parse LLM response after multiple attempts. Returning default values.")
+            logger.warning(
+                f"Failed to parse LLM response, retrying...\nResponse was:\n{response}"
+            )
+    logger.error(
+        f"Failed to parse LLM response after multiple attempts. Returning default values."
+    )
 
     return False, 0, ""
 
-def batch_judge(func_sources: list[str], pocs: list[str], stderrs: list[str], max_workers: int=4) -> list[tuple[bool, int, str]]:
+
+def batch_judge(
+    func_sources: list[str], pocs: list[str], stderrs: list[str], max_workers: int = 4
+) -> list[tuple[bool, int, str]]:
     results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         for func_source, poc, stderr in zip(func_sources, pocs, stderrs):
-            futures.append(executor.submit(judge_is_vulnerable, func_source, poc, stderr))
+            futures.append(
+                executor.submit(judge_is_vulnerable, func_source, poc, stderr)
+            )
         for future in futures:
             results.append(future.result())
     return results
 
-def load_replay_results(path: str) -> dict[str,list[dict[str, int|str]]]:
+
+def load_replay_results(path: str) -> dict[str, list[dict[str, int | str]]]:
     with open(path, "r") as f:
         results = json.load(f)
     return results
+
 
 def main() -> None:
     replay_results = load_replay_results("replay_results.json")
@@ -221,7 +245,7 @@ def main() -> None:
         stderrs = []
         for result in results:
             seed_id = result["seed_id"]
-            seed = get_mutant(seed_id)
+            seed = get_mutant_by_id(seed_id)
             if seed is None:
                 logger.error(f"Seed {seed_id} not found.")
                 func_sources.append("")
@@ -229,7 +253,7 @@ def main() -> None:
                 stderrs.append(result["result"])
                 continue
             func_name = seed.func_name
-            function = get_function(func_name)
+            function = get_function_by_name(func_name)
             if function is None:
                 logger.error(f"Function {func_name} not found.")
                 func_sources.append("")
@@ -245,7 +269,9 @@ def main() -> None:
                 filtered_result["risk_level"] = risk_level
                 filtered_result["reasoning"] = reasoning
                 filtered_results.append(filtered_result)
-        logger.info(f"Library {library_name}: {len(filtered_results)}/{len(results)} vulnerabilities retained after filtering.")
+        logger.info(
+            f"Library {library_name}: {len(filtered_results)}/{len(results)} vulnerabilities retained after filtering."
+        )
         final_results[library_name] = filtered_results
     with open("filtered_replay_results.json", "w") as f:
         json.dump(final_results, f, indent=4, ensure_ascii=False)

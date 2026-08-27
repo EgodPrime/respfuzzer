@@ -1,7 +1,6 @@
 from unittest import mock
 
 import pytest
-
 from respfuzzer.lib.agentic_function_resolver import Attempter
 from respfuzzer.models import Function
 
@@ -54,6 +53,3 @@ def test_generate_raises_after_retries_on_errors():
     ):
         with pytest.raises(Exception):
             at.generate(MockFunction(), [])
-
-
-from unittest import mock

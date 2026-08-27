@@ -1,6 +1,6 @@
+import ast
 import concurrent.futures
 import json
-import ast
 import pathlib
 import time
 import traceback
@@ -10,8 +10,6 @@ import openai
 from loguru import logger
 
 from respfuzzer.models import ExecutionResultType, Function, Seed
-from respfuzzer.repos.function_table import get_functions
-from respfuzzer.repos.seed_table import create_seed
 from respfuzzer.utils.config import get_config
 
 cfg = get_config("reflective_seeder")
@@ -21,7 +19,7 @@ client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
 class Attempter:
-    def generate(self, cwe_prompt:str, history: list) -> str:
+    def generate(self, cwe_prompt: str, history: list) -> str:
         prompt = f"""任务:
 请基于用户输入的不完整代码来生成完整但不安全的函数实现。
 
@@ -146,7 +144,6 @@ class Reasoner:
         raise Exception(f"解释执行结果时发生错误，最后一次错误: {''.join(tb)}")
 
 
-
 def solve(cwe_prompt: str) -> Optional[str]:
     attempter = Attempter()
     reasoner = Reasoner()
@@ -170,7 +167,7 @@ def solve(cwe_prompt: str) -> Optional[str]:
         logger.debug(f"Generated code:\n{code}")
 
         history.append({"role": "attempter", "content": code})
-        
+
         try:
             compile(code, "<string>", "exec")
             solved = True

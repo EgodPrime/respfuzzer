@@ -1,7 +1,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from respfuzzer.lib.fuzz.fuzz_function import (
     convert_to_param_list,
     execute_once,

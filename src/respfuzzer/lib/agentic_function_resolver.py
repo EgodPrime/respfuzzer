@@ -1,18 +1,17 @@
-import concurrent.futures
 import json
 import subprocess
 import tempfile
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
 
 import openai
 from loguru import logger
-
 from respfuzzer.models import ExecutionResultType, Function, Seed
-from respfuzzer.repos.function_table import get_functions
-from respfuzzer.repos.seed_table import create_seed
+from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
+from respfuzzer.utils.paths import DATA_DIR
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -136,10 +135,16 @@ res = c(x, y)
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=500,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    max_tokens=8000,
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
-                code = response.choices[0].message.content.strip()
+                code = response.choices[0].message.content
+                if code is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                code = code.strip()
                 # tolerate some common variations: try to extract code between <code> tags
                 if "<code>" in code and "</code>" in code:
                     return code.split("<code>")[1].split("</code>")[0]
@@ -197,7 +202,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
-            command = ["python", f.name]
+            command = ["python3", f.name]
             try:
                 # 启动子进程
                 proc = subprocess.Popen(
@@ -273,10 +278,16 @@ class Reasoner:
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=500,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    max_tokens=8000,
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
-                explanation = response.choices[0].message.content.strip()
+                explanation = response.choices[0].message.content
+                if explanation is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                explanation = explanation.strip()
                 if "<explain>" in explanation and "</explain>" in explanation:
                     return explanation.split("<explain>")[1].split("</explain>")[0]
                 # fallback: return whole text if no tags but non-empty
@@ -321,11 +332,17 @@ class Judger:
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    max_tokens=200,
-                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                    max_tokens=8000,
+                    extra_body={
+                        "chat_template_kwargs": {"enable_thinking": False},
+                        "reasoning": {"enabled": False}
+                    },
                 )
 
-                text = response.choices[0].message.content.strip()
+                text = response.choices[0].message.content
+                if text is None:
+                    raise ValueError("模型返回空内容 (content is None)")
+                text = text.strip()
                 # try to extract json blob
                 try:
                     # find first '{' and last '}' to extract JSON
@@ -437,14 +454,11 @@ def solve(function: Function) -> Optional[str]:
         return None
 
 
-def solve_and_save(function: Function) -> None:
+def solve_function(function: Function) -> Optional[Seed]:
     logger.info(f"Try solving {function.func_name} ...")
     code = None
     try:
         code = solve(function)
-    except Exception:
-        pass
-    if code:
         seed = Seed(
             func_id=function.id,
             library_name=function.library_name,
@@ -452,19 +466,30 @@ def solve_and_save(function: Function) -> None:
             args=function.args,
             function_call=code,
         )
-        create_seed(seed)
-        logger.info(f"Seed found for {function.func_name}:\n{code}")
-    else:
-        logger.info(f"Failed to solve {function.func_name}")
+        logger.success(f"Seed found for {function.func_name}:\n{code}")
+        return seed
+    except Exception as e:
+        logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
 
 
 def solve_library_functions(library_name: str) -> None:
     """Load all functions of the given library from the database and attempt to generate seeds for them."""
     functions = get_functions(library_name)
+    concurrency = int(cfg.get("concurrency", 4))
 
-    # 使用线程池，最多3个线程并发执行
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=int(cfg.get("concurrency", 4))
-    ) as executor:
-        futures = [executor.submit(solve_and_save, function) for function in functions]
-        concurrent.futures.wait(futures)
+    seeds: List[Seed] = []
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(solve_function, function) for function in functions]
+        for future in as_completed(futures):
+            seed = future.result()
+            if seed is not None:
+                seeds.append(seed)
+
+    # Save all seeds to a JSON file
+    if len(seeds) == 0:
+        logger.info(f"No seeds generated for library {library_name}")
+        return
+    seeds_data = [seed.model_dump() for seed in seeds]
+    output_file = DATA_DIR / f"{library_name}_seeds.json"
+    with open(output_file, "w") as f:
+        json.dump(seeds_data, f, indent=2)

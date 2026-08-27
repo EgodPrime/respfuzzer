@@ -1,154 +1,242 @@
 """
-2025-11-18 11:26:59.088 | INFO     | tracefuzz.lib.fuzz.fuzz_dataset:calc_initial_seed_coverage_dataset:190 - Initial coverage after executing all seeds: 81786 bits.
-2025-10-19 21:23:12.357 | INFO     | __main__:fuzz_dataset:150 - Current coverage after fuzzing paddle.log10_: 210141 bits.
+Parse RQ3 experiment logs and generate a Markdown comparison table.
+
+Rows: 3 fuzzers (DyFuzz / Fuzz4All / RespFuzzer)
+Cols: 12 libraries (coverage %) + Average + #Time
+
+Multiple log files per (fuzzer, library) are automatically averaged.
 """
 
-from datetime import datetime
+import glob
 import re
+import os
+import datetime
+from collections import defaultdict
 
-time_start_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})"
-coverage_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Current coverage after fuzzing .*: (\d+) bits"
-initial_coverage_pattern = r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) .* Initial coverage after executing all seeds: (\d+) bits"
+COV_TOTAL_MAP = {
+    'nltk': 52257,
+    'dask': 83910,
+    'pyyaml': 3614,
+    'prophet': 2672,
+    'numpy': 65714,
+    'pandas': 256586,
+    'sklearn': 120346,
+    'scipy': 216789,
+    'requests': 2192,
+    'spacy': 39770,
+    'torch': 352793,
+    'paddle': 179161,
+}
 
-def convert_logtime_to_timestamp(log_time_str: str) -> float:
-    """Convert log time string to timestamp.
+DISPLAY_ORDER = ["NLTK", "Dask", "PyYAML", "Prophet", "Numpy", "Pandas",
+                 "Scikit-learn", "Scipy", "Requests", "spaCy", "PyTorch", "Paddle"]
 
-    Args:
-        log_time_str (str): Log time string in the format "%Y-%m-%d %H:%M:%S.%f".
+DISPLAY_TO_COV = {
+    "NLTK": "nltk", "Dask": "dask", "PyYAML": "pyyaml", "Prophet": "prophet",
+    "Numpy": "numpy", "Pandas": "pandas", "Scikit-learn": "sklearn",
+    "Scipy": "scipy", "Requests": "requests", "spaCy": "spacy",
+    "PyTorch": "torch", "Paddle": "paddle",
+}
 
-    Returns:
-        float: Corresponding timestamp.
+LIB_TO_COV_KEY = {
+    "nltk": "NLTK", "dask": "Dask", "pyyaml": "PyYAML", "prophet": "Prophet",
+    "numpy": "Numpy", "pandas": "Pandas", "sklearn": "Scikit-learn",
+    "scipy": "Scipy", "requests": "Requests", "spacy": "spaCy",
+    "torch": "PyTorch", "pytorch": "PyTorch", "paddle": "Paddle",
+    "NLTK": "NLTK", "Dask": "Dask", "Yaml": "PyYAML", "PyYAML": "PyYAML",
+    "Prophet": "Prophet", "Numpy": "Numpy", "Pandas": "Pandas",
+    "Sklearn": "Scikit-learn", "Scikit-learn": "Scikit-learn",
+    "Scipy": "Scipy", "Requests": "Requests", "spaCy": "spaCy",
+    "SpaCy": "spaCy", "Torch": "PyTorch", "PyTorch": "PyTorch",
+    "Paddle": "Paddle",
+    "Nltk": "NLTK", "Spacy": "spaCy",
+    "yaml": "PyYAML",
+}
+
+# Display name → COV_TOTAL_MAP key (for percentage calculation)
+DISPLAY_TO_COV_KEY = {
+    "NLTK": "nltk", "Dask": "dask", "PyYAML": "pyyaml", "Prophet": "prophet",
+    "Numpy": "numpy", "Pandas": "pandas", "Scikit-learn": "sklearn",
+    "Scipy": "scipy", "Requests": "requests", "spaCy": "spacy",
+    "PyTorch": "torch", "Paddle": "paddle",
+}
+
+LOG_DIR = os.path.join(os.path.dirname(__file__))
+COVERAGE_PATTERN = re.compile(r"Current coverage after fuzzing .*?: (\d+) bits")
+
+# Filename pattern: RQ3-{fuzzer}-{library}-{timestamp}.log
+FILENAME_PATTERN = re.compile(r"RQ3-([^-]+)-(.+?)-\d{8,12}\.log$")
+TIME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
+
+
+def extract_final_coverage_and_time(log_path: str):
+    """Read a log file and return (last_coverage, elapsed_seconds)."""
+    last_coverage = None
+    first_ts = None
+    last_ts = None
+    fmt = "%Y-%m-%d %H:%M:%S.%f"
+
+    with open(log_path, "r") as f:
+        for line in f:
+            m = TIME_PATTERN.match(line)
+            if m:
+                try:
+                    ts = datetime.datetime.strptime(line[:23], fmt)
+                except ValueError:
+                    pass
+                else:
+                    if first_ts is None:
+                        first_ts = ts
+                    last_ts = ts
+
+            cov_m = COVERAGE_PATTERN.search(line)
+            if cov_m:
+                last_coverage = int(cov_m.group(1))
+
+    elapsed = None
+    if first_ts and last_ts:
+        elapsed = round((last_ts - first_ts).total_seconds())
+
+    return last_coverage, elapsed
+
+
+def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
     """
-    dt = datetime.strptime(log_time_str, "%Y-%m-%d %H:%M:%S.%f")
-    return dt.timestamp()
+    Scan all RQ3-*.log files, extract fuzzer + library + final coverage + elapsed time.
 
-def extract_fuzz_data(log_lines: list[str], pattern: str) -> list[dict]:
-    """Extract fuzzing data from log lines using the given regex pattern.
+    Multiple log files per (fuzzer, library) are automatically averaged.
 
-    Args:
-        log_lines (list[str]): List of log lines.
-        pattern (str): Regex pattern to extract coverage.
-
-    Returns:
-        list[dict]: Extracted data with func_iter, coverage, and time_used.
+    Returns (coverage_data, time_data):
+      coverage_data: {fuzzer: {library: avg_coverage}}  (float for averaging)
+      time_data:      {fuzzer: {library: avg_elapsed_seconds}}  (int)
     """
-    time_start: float = 0.0
-    match_start = re.search(time_start_pattern, log_lines[0])
-    if match_start:
-        time_start_str = match_start.group(1)
-        time_start = convert_logtime_to_timestamp(time_start_str)
+    # Collect raw values per (fuzzer, library) for averaging
+    cov_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+    time_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
 
-    for i in range(10):
-        match_coverage_start = re.search(initial_coverage_pattern, log_lines[i])
-        coverage_start = 0
-        if match_coverage_start:
-            coverage_start = int(match_coverage_start.group(2))
-            break
-    
-    data = []
-    func_iter = 0
-    
-    for line in log_lines:
-        match = re.search(pattern, line)
-        if match:
-            log_time_str = match.group(1)
-            coverage_str = match.group(2)
-            log_time = convert_logtime_to_timestamp(log_time_str)
-            time_used = log_time - time_start
-            coverage = int(coverage_str)-coverage_start
-            data.append({
-                'func_iter': func_iter,
-                'coverage': coverage,
-                'time_used': time_used
-            })
-            func_iter += 1
-        
-    return data
+    log_files = sorted(glob.glob(os.path.join(log_dir, "RQ3-*.log")))
 
-def get_band_data(log_prefix: str) -> dict[str, list[dict]]:
-    """
-    整理带状曲线图数据
-    """
-    # 找到所有`log_prefix*.log`文件
-    import glob
-    log_files = glob.glob(f"{log_prefix}*.log")
-    all_data = []
-    for log_file in log_files:
-        with open(log_file, "r") as f:
-            log_lines = f.readlines()
-        fuzz_data = extract_fuzz_data(log_lines, coverage_pattern)
-        all_data.append(fuzz_data)
-    res = {}
-    # 计算每个func_iter的coverage和time_used的最小值、最大值、平均值
-    max_func_iter = max(len(data) for data in all_data)
-    coverage_data = []
-    time_used_data = []
-    for func_iter in range(max_func_iter):
-        coverage_values = []
-        time_used_values = []
-        for data in all_data:
-            if func_iter < len(data):
-                coverage_values.append(data[func_iter]['coverage'])
-                time_used_values.append(data[func_iter]['time_used'])
-        # 如果样本数量大于3，则删除最高和最低值
-        if len(coverage_values) > 3:
-            coverage_values.remove(max(coverage_values))
-            coverage_values.remove(min(coverage_values))
-        if len(time_used_values) > 3:
-            time_used_values.remove(max(time_used_values))
-            time_used_values.remove(min(time_used_values))
-        if coverage_values:
-            coverage_data.append({
-                'func_iter': func_iter,
-                'min': min(coverage_values),
-                'max': max(coverage_values),
-                'avg': sum(coverage_values) / len(coverage_values)
-            })
-        if time_used_values:
-            time_used_data.append({
-                'func_iter': func_iter,
-                'min': min(time_used_values),
-                'max': max(time_used_values),
-                'avg': sum(time_used_values) / len(time_used_values)
-            })
-    res['coverage'] = coverage_data
-    res['time_used'] = time_used_data
-    return res
+    for log_path in log_files:
+        filename = os.path.basename(log_path)
+        m = FILENAME_PATTERN.match(filename)
+        if not m:
+            print(f"  SKIP (no match): {filename}")
+            continue
 
-def gen_table_latex(data: dict[str, dict[str, list[dict]]]) -> str:
-    r"""
-    \begin{tabular}{lrr}
-        \toprule
-        \textbf{Configuration} & \textbf{Avg. Line Coverage} & \textbf{Avg. Time Cost (second)} \\
-        \toprule
-        ... \\
-        \bottomrule
-    \end{tabular}
+        fuzzer_raw = m.group(1)  # dyfuzz, fuzz4all, respfuzzer
+        library = m.group(2)     # Nltk, Yaml, etc.
+
+        # Normalize fuzzer display name
+        fuzzer_map = {
+            "dyfuzz": "DyFuzz",
+            "fuzz4all": "Fuzz4All",
+            "respfuzzer": "RespFuzzer",
+        }
+        fuzzer_name = fuzzer_map.get(fuzzer_raw, fuzzer_raw)
+
+        # Normalize library name to canonical display form
+        library = LIB_TO_COV_KEY.get(library, library)
+
+        coverage, elapsed = extract_final_coverage_and_time(log_path)
+        if coverage is None:
+            print(f"  WARN: no coverage found in {filename}")
+            continue
+
+        cov_accum[fuzzer_name][library].append(coverage)
+        if elapsed is not None:
+            time_accum[fuzzer_name][library].append(elapsed)
+        print(f"  {fuzzer_name:12s} | {library:12s} -> cov={coverage:>6d}  time={elapsed}s")
+
+    # Average across multiple logs per (fuzzer, library)
+    coverage_results: dict[str, dict[str, float]] = {}
+    time_results: dict[str, dict[str, int]] = {}
+
+    for fuzzer in cov_accum:
+        coverage_results[fuzzer] = {}
+        time_results[fuzzer] = {}
+        for lib, covs in cov_accum[fuzzer].items():
+            avg_cov = sum(covs) / len(covs)
+            coverage_results[fuzzer][lib] = avg_cov
+            if fuzzer in time_accum and lib in time_accum[fuzzer]:
+                times = time_accum[fuzzer][lib]
+                time_results[fuzzer][lib] = round(sum(times) / len(times))
+            else:
+                time_results[fuzzer][lib] = 0
+
+    # Print summary of averaged values
+    for fuzzer in coverage_results:
+        for lib, cov in coverage_results[fuzzer].items():
+            t = time_results[fuzzer].get(lib, 0)
+            print(f"  [AVG] {fuzzer:12s} | {lib:12s} -> cov={cov:>8.1f}  time={t}s")
+
+    return coverage_results, time_results
+
+
+def cov_percent(coverage: float, lib: str) -> str:
+    """Convert coverage to percentage of total lines, formatted as XX.XX%."""
+    key = DISPLAY_TO_COV_KEY.get(lib, lib).lower()
+    total = COV_TOTAL_MAP.get(key)
+    if total is None:
+        return f"{coverage:.1f}"
+    return f"{coverage / total * 100:.2f}%"
+
+
+def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
+                        time_data: dict[str, dict[str, int]]) -> str:
     """
-    baseline = data['RespFuzzer']
-    table = []
-    table.append(r"\begin{tabular}{lrr}")
-    table.append(r"\toprule")
-    table.append(r"\textbf{Configuration} & \textbf{Avg. Line Coverage} & \textbf{Avg. Time Cost (second)} \\")
-    table.append(r"\midrule")
-    for fuzzer_name, fuzzer_data in data.items():
-        coverage = fuzzer_data['coverage'][-1]['avg']
-        coverage_drop_percent = (baseline['coverage'][-1]['avg'] - coverage) / baseline['coverage'][-1]['avg'] * 100
-        coverage_drop_percent_str = rf"({coverage_drop_percent:.2f}\%$\downarrow$)"
-        total_time_used = fuzzer_data['time_used'][-1]['avg']
-        time_drop_percent = total_time_used / baseline['time_used'][-1]['avg'] -1
-        time_drop_percent_str = rf"({time_drop_percent:.2f}x$\uparrow$)"
-        table.append(f"{fuzzer_name} & {int(coverage)} {coverage_drop_percent_str} & {int(total_time_used)} {time_drop_percent_str}\\\\")
-    table.append(r"\bottomrule")
-    table.append(r"\end{tabular}")
-    return "\n".join(table)
+    Generate a Markdown pipe table:
+        rows: DyFuzz | Fuzz4All | RespFuzzer
+        cols: 12 library names + Average + #Time
+    """
+    fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
+
+    libs = DISPLAY_ORDER
+
+    lines = []
+    header = "| " + " | ".join([""] + libs + ["Average", "#Time"]) + " |"
+    lines.append(header)
+    lines.append("| " + " | ".join(["---"] * (len(libs) + 2)) + " |")
+
+    for fuzzer in fuzzers:
+        cells = [fuzzer]
+        row_vals = []
+        for lib in libs:
+            cov = coverage_data.get(fuzzer, {}).get(lib, None)
+            if cov is not None:
+                pct = cov_percent(cov, lib)
+                cells.append(pct)
+                try:
+                    row_vals.append(float(pct.rstrip("%")))
+                except ValueError:
+                    pass
+            else:
+                cells.append("--")
+        # Average column
+        if row_vals:
+            avg = sum(row_vals) / len(row_vals)
+            cells.append(f"{avg:.2f}%")
+        else:
+            cells.append("--")
+        # #Time column
+        td = time_data.get(fuzzer, {})
+        total_time = sum(td.get(lib, 0) for lib in libs)
+        cells.append(str(total_time))
+        lines.append("| " + " | ".join(cells) + " |")
+
+    return "\n".join(lines)
+
+
+def main():
+    print(f"Scanning logs in: {LOG_DIR}\n")
+    data, time_data = parse_log_files(LOG_DIR)
+
+    print(f"\n--- Summary ---")
+    for fuzzer, lib_data in data.items():
+        print(f"  {fuzzer}: {len(lib_data)} libraries")
+
+    print(f"\n--- Markdown Table ---")
+    print(gen_markdown_table(data, time_data))
+
 
 if __name__ == "__main__":
-    data = {
-        'DyFuzz': get_band_data('RQ3-dyfuzz'),
-        'Fuzz4All': get_band_data('RQ3-fuzz4all'),
-        'RespFuzzer': get_band_data('RQ4-20251208-1-'),
-    }
-
-    # 汇报统计数据
-    print(gen_table_latex(data))
+    main()

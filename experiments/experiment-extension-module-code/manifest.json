@@ -1,0 +1,202 @@
+[
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.array_utils.normalize_axis_index",
+    "success": true,
+    "source_file": "numpy/_core/src/multiarray/multiarraymodule.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/numpy_normalize_axis_index.py",
+    "code": "\nfrom numpy.lib.array_utils import normalize_axis_index\naxis = 0\nndim = 3\nmsg_prefix = None\nres = normalize_axis_index(axis, ndim, msg_prefix)\n"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.introspect.opt_func_info",
+    "success": true,
+    "source_file": "numpy/_core/src/common/npy_cpu_dispatch.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/numpy_opt_func_info.py",
+    "code": "\nfrom numpy.lib.introspect import opt_func_info\nfunc_name = \"add|abs\"\nsignature = \"float64|complex64\"\nres = opt_func_info(func_name=func_name, signature=signature)\n"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.add_newdoc",
+    "success": true,
+    "source_file": "numpy/_core/src/multiarray/compiled_base.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/numpy_add_newdoc.py",
+    "code": "\nfrom numpy.lib import add_newdoc\nplace = \"numpy\"\nobj = \"ndarray\"\ndoc = (\"__str__\", \"String representation of the array.\")\nwarn_on_python = True\nadd_newdoc(place, obj, doc, warn_on_python)\n"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.stride_tricks.as_strided",
+    "success": true,
+    "source_file": "numpy/_core/src/common/mem_overlap.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/numpy_as_strided.py",
+    "code": "\nfrom numpy.lib.stride_tricks import as_strided\nimport numpy as np\nx = np.array([1, 2, 3, 4])\nshape = (3,)\nstrides = (8,)\nsubok = False\nwriteable = True\nres = as_strided(x, shape=shape, strides=strides, subok=subok, writeable=writeable)\n"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.add_docstring",
+    "success": true,
+    "source_file": "numpy/_core/src/multiarray/multiarraymodule.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/numpy_add_docstring.py",
+    "code": "from numpy.lib import add_docstring\n\ndef my_custom_function():\n    pass\n\nadd_docstring(my_custom_function, \"This is a new docstring for my_custom_function.\")\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.col",
+    "success": true,
+    "source_file": "pandas/_libs/src/parser/pd_parser.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/pandas_col.py",
+    "code": "\nfrom pandas import col\nres = col(\"name\")\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.api.extensions.take",
+    "success": true,
+    "source_file": "pandas/_libs/src/parser/tokenizer.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/pandas_take.py",
+    "code": "\nfrom pandas.api.extensions import take\nimport numpy as np\narr = np.array([10, 20, 30])\nindices = [0, 0, -1]\naxis = 0\nallow_fill = False\nfill_value = None\nres = take(arr, indices, axis, allow_fill, fill_value)\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.array",
+    "success": true,
+    "source_file": "pandas/_libs/src/parser/tokenizer.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/pandas_array.py",
+    "code": "\nfrom pandas import array\nres = array([1, 2])\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.concat",
+    "success": true,
+    "source_file": "pandas/_libs/include/pandas/vendored/klib/khash.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/pandas_concat.py",
+    "code": "\nfrom pandas import concat\nimport pandas as pd\n\ndf1 = pd.DataFrame({'A': [1, 2], 'B': [3, 4]})\ndf2 = pd.DataFrame({'A': [5, 6], 'B': [7, 8]})\nres = concat([df1, df2])\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.cut",
+    "success": true,
+    "source_file": "pandas/_libs/src/vendored/ujson/python/objToJSON.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/pandas_cut.py",
+    "code": "\nfrom pandas import cut\nimport numpy as np\nx = np.array([1, 7, 5, 4, 6, 3])\nbins = 3\nright = True\nlabels = None\nretbins = False\nprecision = 3\ninclude_lowest = False\nduplicates = \"raise\"\nordered = True\nres = cut(x, bins, right, labels, retbins, precision, include_lowest, duplicates, ordered)\n"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.correspond",
+    "success": true,
+    "source_file": "subprojects/qhull_r/libqhull_r/poly2_r.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/scipy_correspond.py",
+    "code": "\nfrom scipy.cluster.hierarchy import correspond\nimport numpy as np\nZ = np.array([[3, 4, 0.5, 2], [1, 6, 1.5, 3], [0, 7, 2.5, 4], [2, 8, 3.5, 5], [5, 9, 4.5, 6]])\nY = np.array([1.0, 1.5, 2.0, 2.5, 3.0, 3.5])\nres = correspond(Z, Y)\n"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.average",
+    "success": true,
+    "source_file": "subprojects/qhull_r/libqhull_r/libqhull_r.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/scipy_average.py",
+    "code": "\nfrom scipy.cluster.hierarchy import average\nimport numpy as np\nX = [[0, 0], [0, 1], [1, 0], [0, 4], [0, 3], [1, 4], [4, 0], [3, 0], [4, 1], [4, 4], [3, 4], [4, 3]]\nfrom scipy.spatial.distance import pdist\ny = pdist(X)\nres = average(y)\n"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.complete",
+    "success": true,
+    "source_file": "subprojects/qhull_r/libqhull_r/poly2_r.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/scipy_complete.py",
+    "code": "\nfrom scipy.cluster.hierarchy import complete\nimport numpy as np\ny = np.array([1.0, 2.0, 3.0])\nres = complete(y)\n"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.vq.vq",
+    "success": true,
+    "source_file": "scipy/sparse/linalg/_eigen/arpack/arnaud/src/arnaud_s_double.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/scipy_vq.py",
+    "code": "from scipy.cluster.vq import vq\nimport numpy as np\nobs = np.array([[1.9, 2.3, 1.7], [1.5, 2.5, 2.2], [0.8, 0.6, 1.7]])\ncode_book = np.array([[1., 1., 1.], [2., 2., 2.]])\ncheck_finite = True\nres = vq(obs, code_book, check_finite)\n"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.inconsistent",
+    "success": true,
+    "source_file": "subprojects/qhull_r/libqhull_r/poly2_r.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/scipy_inconsistent.py",
+    "code": "\nfrom scipy.cluster.hierarchy import inconsistent\nimport numpy as np\nZ = np.array([[5., 6., 0., 2.], [2., 7., 0., 2.], [0., 4., 1., 2.], [1., 8., 1.15470054, 3.], [9., 10., 2.12132034, 4.], [3., 12., 4.11096096, 5.], [11., 13., 14.07183949, 8.]])\nres = inconsistent(Z)\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.chunk",
+    "success": true,
+    "source_file": "torch/csrc/dynamo/cpython_defs.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/torch_chunk.py",
+    "code": "\nfrom torch import chunk\nimport torch\ninput_tensor = torch.randn(3, 4, 5)\nchunks_num = 2\ndim = 1\nres = chunk(input_tensor, chunks_num, dim)\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.export.dims",
+    "success": true,
+    "source_file": "torch/csrc/stable/ops.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/torch_dims.py",
+    "code": "\nfrom torch.export import dims\nres = dims(\"batch\", \"seq\", min=1, max=10)\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.cond",
+    "success": true,
+    "source_file": "torch/csrc/dynamo/eval_frame.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/torch_cond.py",
+    "code": "\nfrom torch import cond\nimport torch\n\ndef true_fn(x):\n    return x.cos()\n\ndef false_fn(x):\n    return x.sin()\n\nx = torch.tensor([1.0, 2.0, 3.0])\npred = x.shape[0] > 4\noperands = (x,)\n\nres = cond(pred, true_fn, false_fn, operands)\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.compile",
+    "success": true,
+    "source_file": "torch/csrc/dynamo/eval_frame.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/torch_compile.py",
+    "code": "from torch import compile\nimport torch.nn as nn\n\nclass MyModel(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.linear = nn.Linear(10, 5)\n\n    def forward(self, x):\n        return self.linear(x)\n\nmodel = MyModel()\ncompiled_model = compile(model, fullgraph=True, backend=\"inductor\", mode=\"default\")\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.export.export",
+    "success": true,
+    "source_file": "third_party/miniz-3.0.2/miniz.c",
+    "output_file": "/home/yb/respfuzzer/output/resp/torch_export.py",
+    "code": "\nfrom torch.export import export\nimport torch\nimport torch.nn as nn\n\nclass MyModel(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.linear = nn.Linear(10, 5)\n    \n    def forward(self, x):\n        return self.linear(x)\n\nmodel = MyModel()\nexample_input = torch.randn(3, 10)\nexported_program = export(model, (example_input,))\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.addmm",
+    "success": true,
+    "source_file": "paddle/phi/kernels/addmm_grad_kernel.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/paddle_addmm.py",
+    "code": "\nfrom paddle import addmm\nimport paddle\ninput = paddle.ones([2, 2])\nx = paddle.ones([2, 2])\ny = paddle.ones([2, 2])\nres = addmm(input=input, x=x, y=y)\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.equal",
+    "success": true,
+    "source_file": "patches/eigen/Meta.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/paddle_equal.py",
+    "code": "\nfrom paddle import equal\nimport paddle\nx = paddle.to_tensor([1, 2, 3])\ny = paddle.to_tensor([1, 3, 2])\nres = equal(x, y)\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.gt",
+    "success": true,
+    "source_file": "patches/eigen/Meta.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/paddle_gt.py",
+    "code": "\nfrom paddle import gt\nimport paddle\nx = paddle.to_tensor([1, 2, 3])\ny = paddle.to_tensor([1, 3, 2])\nres = gt(x, y)\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.finfo",
+    "success": true,
+    "source_file": "paddle/fluid/framework/new_executor/new_executor_defs.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/paddle_finfo.py",
+    "code": "\nfrom paddle import finfo\nimport paddle\nres = finfo(paddle.float32)\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.addmm_",
+    "success": true,
+    "source_file": "paddle/phi/kernels/impl/addmm_kernel_impl.h",
+    "output_file": "/home/yb/respfuzzer/output/resp/paddle_addmm_.py",
+    "code": "\nfrom paddle import addmm_\nimport paddle\ninput = paddle.randn([3, 4])\nx = paddle.randn([3, 2])\ny = paddle.randn([2, 4])\nres = addmm_(input, x, y)\n"
+  }
+]

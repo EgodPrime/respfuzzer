@@ -11,7 +11,6 @@ wheels/
 
 run_data
 .coverage
-uv.lock
 src/mplfuzz/mutate.cpython-312-x86_64-linux-gnu.so
 .gitignore
 .vscode/settings.json
@@ -33,3 +32,11 @@ experiments/RQ5/SecurityEval
 experiments/RQ5/*.log
 data
 *_data
+htmlcov
+.ruff_cache
+.pytest_cache
+.python-version
+
+RQ*_data*
+**/*.log
+.hermes

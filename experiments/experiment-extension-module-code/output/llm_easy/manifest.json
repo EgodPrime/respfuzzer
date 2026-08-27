@@ -1,0 +1,177 @@
+[
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.array_utils.normalize_axis_index",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/numpy_normalize_axis_index.py",
+    "code": "import numpy as np\n\n# \u793a\u4f8b\uff1a\u5c06\u8d1f\u8f74\u7d22\u5f15\u8f6c\u6362\u4e3a\u6b63\u8f74\u7d22\u5f15\naxis = -1\nndim = 3\nnormalized_axis = np.lib.array_utils.normalize_axis_index(axis, ndim)\nprint(f\"Normalized axis index: {normalized_axis}\")  # \u8f93\u51fa: 2\n\n# \u53e6\u4e00\u4e2a\u793a\u4f8b\naxis = -3\nnormalized_axis = np.lib.array_utils.normalize_axis_index(axis, ndim)\nprint(f\"Normalized axis index: {normalized_axis}\")  # \u8f93\u51fa: 0"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.introspect.opt_func_info",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/numpy_opt_func_info.py",
+    "code": "import numpy as np\nfrom numpy.lib.introspect import opt_func_info\n\ndef example_function(x, y):\n    \"\"\"Example function to inspect.\"\"\"\n    return x + y\n\n# Get the function info for the example function\ninfo = opt_func_info(example_function)\n\nprint(\"Function Name:\", info['name'])\nprint(\"Signature:\", info['signature'])\nprint(\"Docstring:\", info['docstring'][:100] if info['docstring'] else \"No docstring\")"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.add_newdoc",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/numpy_add_newdoc.py",
+    "code": "import numpy as np\nfrom numpy.lib import add_newdoc\n\n# \u5b9a\u4e49\u4e00\u4e2a\u793a\u4f8b\u51fd\u6570\uff0c\u6211\u4eec\u5c06\u4e3a\u5176\u6dfb\u52a0\u6587\u6863\u5b57\u7b26\u4e32\ndef my_custom_function(x):\n    \"\"\"\n    \u8fd9\u662f\u4e00\u4e2a\u81ea\u5b9a\u4e49\u51fd\u6570\u3002\n    \n    \u53c2\u6570\n    ----------\n    x : array_like\n        \u8f93\u5165\u6570\u7ec4\u3002\n        \n    \u8fd4\u56de\n    -------\n    y : ndarray\n        \u8f93\u51fa\u6570\u7ec4\u3002\n    \"\"\"\n    return x * 2\n\n# \u4f7f\u7528 add_newdoc \u4e3a numpy \u6a21\u5757\u4e2d\u7684\u67d0\u4e2a\u73b0\u6709\u51fd\u6570\u6216\u7c7b\u6dfb\u52a0\u989d\u5916\u7684\u6587\u6863\u5b57\u7b26\u4e32\n# \u8fd9\u91cc\u6211\u4eec\u4ee5 np.ndarray \u4e3a\u4f8b\uff0c\u4e3a\u5b83\u7684 'my_method' \u5c5e\u6027\u6dfb\u52a0\u6587\u6863\uff08\u5047\u8bbe\u5b83\u5b58\u5728\uff0c\u6216\u8005\u7528\u4e8e\u6f14\u793a\u7ed3\u6784\uff09\n# \u6ce8\u610f\uff1aadd_newdoc \u901a\u5e38\u7528\u4e8e\u5411\u73b0\u6709\u7684 NumPy \u5bf9\u8c61\uff08\u5982 ndarray, ufunc \u7b49\uff09\u6dfb\u52a0\u6216\u4fee\u6539 docstring\n\n# \u793a\u4f8b\uff1a\u4e3a np.ndarray \u7684 'shape' \u5c5e\u6027\u6dfb\u52a0\u989d\u5916\u7684\u8bf4\u660e\u6587\u6863\uff08\u5982\u679c\u8be5\u5c5e\u6027\u5df2\u6709\u6587\u6863\uff0c\u8fd9\u4f1a\u8ffd\u52a0\u5185\u5bb9\uff1b\u5982\u679c\u6ca1\u6709\uff0c\u4f1a\u521b\u5efa\u65b0\u6587\u6863\uff09\nadd_newdoc('numpy', 'ndarray', 'shape', \n           \"\"\"\n           tuple of ints\n               Shape of an array.\n               \n           \u989d\u5916\u8bf4\u660e\uff1a\u8fd9\u662f\u901a\u8fc7 add_newdoc \u52a8\u6001\u6dfb\u52a0\u7684\u6587\u6863\u3002\n           \"\"\")\n\n# \u793a\u4f8b\uff1a\u4e3a np.sum \u51fd\u6570\u6dfb\u52a0\u989d\u5916\u7684\u6587\u6863\u5b57\u7b26\u4e32\nadd_newdoc('numpy', 'sum', \n           \"\"\"\n           \u81ea\u5b9a\u4e49\u989d\u5916\u6587\u6863\u7247\u6bb5\uff1a\u8fd9\u4e2a\u6c42\u548c\u51fd\u6570\u975e\u5e38\u9ad8\u6548\u3002\n           \"\"\")\n\n# \u9a8c\u8bc1\u6587\u6863\u662f\u5426\u5df2\u6dfb\u52a0\uff08\u6253\u5370 ndarray.shape \u7684\u6587\u6863\u7684\u4e00\u90e8\u5206\uff09\nprint(\"ndarray.shape \u7684\u6587\u6863\u672b\u5c3e\u90e8\u5206\uff1a\")\nprint(np.ndarray.shape.__doc__[-200:] if np.ndarray.shape.__doc__ else \"No docstring\")\n\n# \u9a8c\u8bc1 sum \u51fd\u6570\u7684\u6587\u6863\u662f\u5426\u5df2\u66f4\u65b0\nprint(\"\\nnp.sum \u7684\u6587\u6863\u672b\u5c3e\u90e8\u5206\uff1a\")\nprint(np.sum.__doc__[-200:] if np.sum.__doc__ else \"No docstring\")"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.stride_tricks.as_strided",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/numpy_as_strided.py",
+    "code": "import numpy as np\nfrom numpy.lib.stride_tricks import as_strided\n\n# \u521b\u5efa\u4e00\u4e2a\u4e00\u7ef4\u6570\u7ec4\na = np.array([1, 2, 3, 4, 5, 6])\n\n# \u5b9a\u4e49\u6ed1\u52a8\u7a97\u53e3\u7684\u5f62\u72b6\u548c\u6b65\u957f\n# shape: (\u7a97\u53e3\u5927\u5c0f, \u8d77\u59cb\u4f4d\u7f6e\u6570\u91cf) -> (3, 4) \u8868\u793a\u6bcf\u4e2a\u7a97\u53e3\u67093\u4e2a\u5143\u7d20\uff0c\u51714\u4e2a\u7a97\u53e3\n# strides: (\u5143\u7d20\u6b65\u957f, \u7a97\u53e3\u8d77\u59cb\u4f4d\u7f6e\u6b65\u957f) -> (a.itemsize, a.itemsize)\nwindow_size = 3\nn_windows = len(a) - window_size + 1\n\nshape = (n_windows, window_size)\nstrides = (a.itemsize, a.itemsize)\n\n# \u4f7f\u7528 as_strided \u521b\u5efa\u89c6\u56fe\uff0c\u5b9e\u73b0\u6ed1\u52a8\u7a97\u53e3\u6548\u679c\nsliding_window = as_strided(a, shape=shape, strides=strides)\n\nprint(\"\u539f\u59cb\u6570\u7ec4:\")\nprint(a)\nprint(\"\\n\u6ed1\u52a8\u7a97\u53e3\u89c6\u56fe (3x4):\")\nprint(sliding_window)\n\n# \u9a8c\u8bc1\uff1a\u6253\u5370\u6bcf\u4e2a\u7a97\u53e3\u7684\u5185\u5bb9\nfor i, window in enumerate(sliding_window):\n    print(f\"\u7a97\u53e3 {i}: {window}\")"
+  },
+  {
+    "library_name": "numpy",
+    "func_name": "numpy.lib.add_docstring",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/numpy_add_docstring.py",
+    "code": "import numpy as np\n\n# \u5047\u8bbe\u6709\u4e00\u4e2a\u81ea\u5b9a\u4e49\u51fd\u6570\ndef my_function(x):\n    \"\"\"This is a placeholder function.\"\"\"\n    return x + 1\n\n# \u6dfb\u52a0\u4e00\u4e2a\u81ea\u5b9a\u4e49\u7684\u6587\u6863\u5b57\u7b26\u4e32\u5230\u8be5\u51fd\u6570\nnp.lib.add_docstring(my_function, \"This is an additional docstring added using add_docstring.\")\n\nprint(my_function.__doc__)"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.col",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/pandas_col.py",
+    "code": "import numpy as np\nimport pandas as pd\n\n# \u6ce8\u610f\uff1apandas.col \u5e76\u4e0d\u662f\u4e00\u4e2a\u6807\u51c6\u7684 numpy API\u3002\n# \u901a\u5e38\u6211\u4eec\u4f7f\u7528 pandas.DataFrame \u7684\u5217\u8bbf\u95ee\u65b9\u5f0f\u3002\n# \u8fd9\u91cc\u6f14\u793a\u5982\u4f55\u83b7\u53d6 DataFrame \u7684\u4e00\u5217\u5e76\u8f6c\u6362\u4e3a numpy \u6570\u7ec4\u3002\n\n# \u521b\u5efa\u4e00\u4e2a\u793a\u4f8b DataFrame\ndata = {\n    'A': [1, 2, 3, 4],\n    'B': [5, 6, 7, 8]\n}\ndf = pd.DataFrame(data)\n\n# \u83b7\u53d6\u5217 'A' \u5e76\u8f6c\u6362\u4e3a numpy \u6570\u7ec4\ncolumn_A_np = df['A'].to_numpy()\n\nprint(column_A_np)\n"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.api.extensions.take",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/pandas_take.py",
+    "code": "import numpy as np\nfrom pandas.api.extensions import take\n\n# \u5b9a\u4e49\u6e90\u6570\u636e\u6570\u7ec4\ndata = np.array([10, 20, 30, 40, 50])\n\n# \u5b9a\u4e49\u7d22\u5f15\u5217\u8868\uff0c\u7528\u4e8e\u9009\u53d6\u5143\u7d20\uff08\u652f\u6301\u91cd\u590d\u7d22\u5f15\u548c\u8d1f\u6570\u7d22\u5f15\uff09\nindices = np.array([0, 2, 4, 1, -1])\n\n# \u4f7f\u7528 take \u51fd\u6570\u6839\u636e\u7d22\u5f15\u63d0\u53d6\u6570\u636e\nresult = take(data, indices)\n\nprint(\"\u539f\u59cb\u6570\u7ec4:\", data)\nprint(\"\u7d22\u5f15\u5217\u8868:\", indices)\nprint(\"\u63d0\u53d6\u7ed3\u679c:\", result)"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.array",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/pandas_array.py",
+    "code": "import numpy as np\nimport pandas as pd\n\n# \u521b\u5efa\u4e00\u4e2a\u5305\u542b\u6df7\u5408\u7c7b\u578b\u6570\u636e\u7684\u5217\u8868\ndata = [1, 'two', 3.0, None]\n\n# \u4f7f\u7528 pandas.array \u521b\u5efa PandasArray (ExtensionArray)\n# \u6ce8\u610f\uff1apandas.array \u662f pandas \u5e93\u4e2d\u7684\u51fd\u6570\uff0c\u4e0d\u662f numpy \u7684\u76f4\u63a5 API\n# \u4f46\u5b83\u53ef\u4ee5\u4e0e numpy \u4e92\u64cd\u4f5c\uff0c\u8fd9\u91cc\u5c55\u793a\u5176\u57fa\u672c\u7528\u6cd5\npd_array = pd.array(data)\n\nprint(\"Pandas Array:\")\nprint(pd_array)\nprint(f\"Type: {type(pd_array)}\")\n\n# \u8f6c\u6362\u4e3a numpy \u6570\u7ec4 (\u5982\u679c\u53ef\u80fd\uff0c\u5426\u5219\u8fd4\u56de object dtype \u6216\u62a5\u9519)\ntry:\n    np_array = pd_array.to_numpy()\n    print(\"\\nConverted to NumPy Array:\")\n    print(np_array)\n    print(f\"NumPy Type: {np_array.dtype}\")\nexcept Exception as e:\n    print(f\"\\nConversion failed: {e}\")\n\n# \u793a\u4f8b\uff1a\u4e0e numpy \u51fd\u6570\u7ed3\u5408\u4f7f\u7528\nprint(\"\\nMean of numeric values (using pandas array):\")\n# pandas.array \u652f\u6301\u4e00\u4e9b\u7c7b\u4f3c numpy \u7684\u64cd\u4f5c\uff0c\u4f46\u9700\u6ce8\u610f\u7c7b\u578b\u517c\u5bb9\u6027\nnumeric_data = pd.array([1.0, 2.0, 3.0])\nprint(numeric_data.mean())"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.concat",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/pandas_concat.py",
+    "code": "import pandas as pd\n\n# \u521b\u5efa\u793a\u4f8b\u6570\u636e\u6846\ndf1 = pd.DataFrame({'A': [1, 2], 'B': [3, 4]})\ndf2 = pd.DataFrame({'A': [5, 6], 'B': [7, 8]})\n\n# \u4f7f\u7528 concat \u8fde\u63a5\u4e24\u4e2a\u6570\u636e\u6846\nresult = pd.concat([df1, df2])\n\nprint(result)"
+  },
+  {
+    "library_name": "pandas",
+    "func_name": "pandas.cut",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/pandas_cut.py",
+    "code": "import pandas as pd\n\n# \u521b\u5efa\u793a\u4f8b\u6570\u636e\ndata = [10, 25, 35, 45, 55, 65, 75]\ndf = pd.DataFrame({'value': data})\n\n# \u5b9a\u4e49\u5206\u7bb1\u8fb9\u754c\u548c\u6807\u7b7e\nbins = [0, 20, 40, 60, 80]\nlabels = ['Low', 'Medium-Low', 'Medium-High', 'High']\n\n# \u4f7f\u7528 pandas.cut \u8fdb\u884c\u5206\u7bb1\ndf['category'] = pd.cut(df['value'], bins=bins, labels=labels)\n\nprint(df)"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.correspond",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/scipy_correspond.py",
+    "code": "import numpy as np\nfrom scipy.cluster.hierarchy import linkage, corresponding\n\n# \u521b\u5efa\u793a\u4f8b\u6570\u636e\ndata = np.array([\n    [1, 2],\n    [1, 4],\n    [1, 0],\n    [4, 2],\n    [4, 4],\n    [4, 0]\n])\n\n# \u4f7f\u7528\u5e73\u5747\u6cd5\u8fdb\u884c\u5c42\u6b21\u805a\u7c7b\nZ = linkage(data, method='average')\n\n# \u5b9a\u4e49\u4e24\u4e2a\u5b50\u96c6\u7d22\u5f15\nsubset1_indices = np.array([0, 1, 2])\nsubset2_indices = np.array([3, 4, 5])\n\n# \u83b7\u53d6\u5bf9\u5e94\u5173\u7cfb\ncorresponding_matrix = corresponding(Z, subset1_indices, subset2_indices)\n\nprint(\"Corresponding matrix:\")\nprint(corresponding_matrix)"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.average",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/scipy_average.py",
+    "code": "import numpy as np\nfrom scipy.cluster.hierarchy import average, linkage\nfrom scipy.spatial.distance import pdist\n\n# \u751f\u6210\u4e00\u4e9b\u793a\u4f8b\u6570\u636e\ndata = np.array([\n    [1, 2],\n    [1, 4],\n    [1, 0],\n    [10, 2],\n    [10, 4],\n    [10, 0]\n])\n\n# \u8ba1\u7b97\u6210\u5bf9\u8ddd\u79bb\ndistances = pdist(data)\n\n# \u4f7f\u7528\u5e73\u5747\u94fe\u63a5\u6cd5\u8fdb\u884c\u5c42\u6b21\u805a\u7c7b\nZ = average(distances)\n\nprint(\"Average Linkage Dendrogram Matrix:\")\nprint(Z)"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.complete",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/scipy_complete.py",
+    "code": "import numpy as np\nfrom scipy.cluster.hierarchy import complete, linkage\nfrom scipy.spatial.distance import pdist\n\n# Generate some random data points for clustering\nnp.random.seed(42)\ndata = np.random.rand(10, 2)\n\n# Compute the pairwise distances between observations\ndistances = pdist(data)\n\n# Perform hierarchical clustering using the complete linkage method\nZ = linkage(distances, method='complete')\n\nprint(\"Linkage Matrix (Complete Method):\")\nprint(Z)"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.vq.vq",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/scipy_vq.py",
+    "code": "import numpy as np\nfrom scipy.cluster.vq import vq, kmeans, whiten\n\n# \u751f\u6210\u4e00\u4e9b\u793a\u4f8b\u6570\u636e\u70b9\ndata_points = np.random.rand(100, 2) * 10\n\n# \u5b9a\u4e49\u521d\u59cb\u805a\u7c7b\u4e2d\u5fc3\ninitial_centroids = np.array([[5.0, 5.0], [2.0, 2.0]])\n\n# \u5bf9\u6570\u636e\u8fdb\u884c\u6807\u51c6\u5316\uff08\u53ef\u9009\uff0c\u901a\u5e38\u5efa\u8bae\u8fdb\u884c\uff09\ndata_whitened = whiten(data_points)\ncentroids_whitened = whiten(initial_centroids)\n\n# \u4f7f\u7528 vq \u51fd\u6570\u5c06\u6570\u636e\u70b9\u5206\u914d\u5230\u6700\u8fd1\u7684\u805a\u7c7b\u4e2d\u5fc3\ncode, distance = vq(data_whitened, centroids_whitened)\n\nprint(\"\u5206\u914d\u7684\u805a\u7c7b\u7d22\u5f15 (code):\", code[:10])\nprint(\"\u5230\u6700\u8fd1\u805a\u7c7b\u4e2d\u5fc3\u7684\u8ddd\u79bb (distance):\", distance[:10])"
+  },
+  {
+    "library_name": "scipy",
+    "func_name": "scipy.cluster.hierarchy.inconsistent",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/scipy_inconsistent.py",
+    "code": "import numpy as np\nfrom scipy.cluster.hierarchy import linkage, inconsistent\n\n# Generate a random dataset with 10 samples and 3 features\nnp.random.seed(42)\ndata = np.random.rand(10, 3)\n\n# Perform hierarchical clustering using the 'ward' method\nZ = linkage(data, method='ward')\n\n# Compute the inconsistency statistics for each cluster in the dendrogram\n# The depth parameter determines how many levels of clusters below are considered\ninconsistency_stats = inconsistent(Z, depth=2)\n\nprint(\"Inconsistent Statistics:\")\nprint(inconsistency_stats)"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.chunk",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/torch_chunk.py",
+    "code": "import torch\n\n# \u521b\u5efa\u4e00\u4e2a\u5f20\u91cf\nx = torch.arange(10)\n\n# \u4f7f\u7528 torch.chunk \u5c06\u5f20\u91cf\u5206\u6210\u82e5\u5e72\u4efd\nchunks = torch.chunk(x, chunks=2, dim=0)\n\nprint(\"Original tensor:\", x)\nprint(\"Number of chunks:\", len(chunks))\nfor i, chunk in enumerate(chunks):\n    print(f\"Chunk {i}:\", chunk)"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.export.dims",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/torch_dims.py",
+    "code": "\n# \u6ce8\u610f\uff1atorch.export.dims \u662f PyTorch \u7684 API\uff0c\u4e0d\u662f NumPy \u7684 API\u3002\n# \u8fd9\u91cc\u63d0\u4f9b\u4e00\u4e2a\u4f7f\u7528 torch.export \u548c dims \u6982\u5ff5\u7684\u793a\u4f8b\u7a0b\u5e8f\u3002\n\nimport torch\nfrom torch.export import export, Dim\n\ndef example_torch_export_dims():\n    # \u5b9a\u4e49\u4e00\u4e2a\u52a8\u6001\u7ef4\u5ea6\n    batch_size = Dim(\"batch_size\", min=1, max=10)\n    \n    # \u521b\u5efa\u4e00\u4e2a\u7b80\u5355\u7684\u6a21\u578b\n    class SimpleModel(torch.nn.Module):\n        def forward(self, x: torch.Tensor) -> torch.Tensor:\n            return x.sum(dim=1)\n\n    model = SimpleModel()\n    \n    # \u521b\u5efa\u793a\u4f8b\u8f93\u5165\n    example_inputs = (torch.randn(5, 3),)\n    \n    # \u5bfc\u51fa\u6a21\u578b\uff0c\u6307\u5b9a\u52a8\u6001\u7ef4\u5ea6\n    exported_program = export(model, example_inputs, dynamic_shapes={\"x\": {0: batch_size}})\n    \n    return exported_program\n\nif __name__ == \"__main__\":\n    exported_prog = example_torch_export_dims()\n    print(\"Exported program:\", exported_prog)\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.cond",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/torch_cond.py",
+    "code": "import numpy as np\n\n# \u6ce8\u610f\uff1atorch.cond \u662f PyTorch \u7684 API\uff0c\u4e0d\u662f NumPy \u7684\u3002\n# NumPy \u4e2d\u6ca1\u6709\u76f4\u63a5\u5bf9\u5e94\u7684 torch.cond API\u3002\n# \u5982\u679c\u60a8\u662f\u60f3\u5728 NumPy \u4e2d\u5b9e\u73b0\u7c7b\u4f3c\u7684\u6761\u4ef6\u9009\u62e9\u903b\u8f91\uff0c\u53ef\u4ee5\u4f7f\u7528 np.where\u3002\n\n# \u793a\u4f8b\uff1a\u4f7f\u7528 np.where \u6a21\u62df\u6761\u4ef6\u5206\u652f\ncondition = True\nx = np.array([1, 2, 3])\ny = np.array([4, 5, 6])\n\nresult = np.where(condition, x, y)\nprint(result)\n\n# \u5982\u679c condition \u4e3a True\uff0c\u8fd4\u56de x\uff1b\u5426\u5219\u8fd4\u56de y\u3002\n# \u5bf9\u4e8e\u6807\u91cf\u6761\u4ef6\u6216\u66f4\u590d\u6742\u7684\u903b\u8f91\u5206\u652f\uff0cNumPy \u6ca1\u6709\u50cf torch.cond \u90a3\u6837\u7684\u63a7\u5236\u6d41\u539f\u8bed\uff0c\n# \u901a\u5e38\u4f7f\u7528\u6807\u51c6\u7684 Python if-else \u8bed\u53e5\u7ed3\u5408 NumPy \u6570\u7ec4\u64cd\u4f5c\u6765\u5b9e\u73b0\u3002"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.compile",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/torch_compile.py",
+    "code": "import numpy as np\n# \u6ce8\u610f\uff1atorch.compile \u662f PyTorch \u5e93\u7684 API\uff0c\u4e0d\u662f NumPy \u7684\u3002\n# NumPy \u672c\u8eab\u4e0d\u652f\u6301 torch.compile\u3002\n# \u4ee5\u4e0b\u793a\u4f8b\u6f14\u793a\u5982\u4f55\u5728 PyTorch \u4e2d\u4f7f\u7528 torch.compile \u8fdb\u884c\u52a0\u901f\uff0c\n# \u5e76\u5c55\u793a\u5982\u4f55\u4e0e NumPy \u6570\u7ec4\u8fdb\u884c\u6570\u636e\u4ea4\u4e92\uff08\u5982\u679c\u9700\u8981\u7684\u8bdd\uff09\u3002\n\nimport torch\n\ndef simple_function(x, y):\n    return x + y\n\n# \u5c06\u51fd\u6570\u7f16\u8bd1\u4e3a\u4f18\u5316\u540e\u7684\u7248\u672c\ncompiled_func = torch.compile(simple_function)\n\n# \u521b\u5efa PyTorch \u5f20\u91cf\na = torch.randn(1000, 1000, device='cuda')\nb = torch.randn(1000, 1000, device='cuda')\n\n# \u4f7f\u7528\u7f16\u8bd1\u540e\u7684\u51fd\u6570\u8fdb\u884c\u8ba1\u7b97\nresult = compiled_func(a, b)\n\n# \u5982\u679c\u9700\u8981\uff0c\u53ef\u4ee5\u5c06\u7ed3\u679c\u8f6c\u6362\u56de NumPy \u6570\u7ec4\uff08\u4ec5\u9650 CPU \u5f20\u91cf\uff09\nif result.is_cuda:\n    result_cpu = result.cpu()\nnp_result = result_cpu.numpy()\n"
+  },
+  {
+    "library_name": "torch",
+    "func_name": "torch.export.export",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/torch_export.py",
+    "code": "import torch\nfrom torch.export import export\n\ndef my_func(x, y):\n    return x + y\n\n# Create sample inputs\nx = torch.randn(3, 4)\ny = torch.randn(3, 4)\n\n# Export the function\nexported_program = export(my_func, (x, y))\n\n# Get the graph signature\nprint(exported_program.graph_signature)\n\n# Run the exported program\nresult = exported_program.call_function(\"entry_point\", (x, y))\nprint(result)\n"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.addmm",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/paddle_addmm.py",
+    "code": "import numpy as np\n\n# paddle.addmm is not a standard NumPy function, but it can be approximated using NumPy operations.\n# The operation is: output = beta * input + alpha * (mat1 @ mat2)\n\n# Example inputs\ninput_matrix = np.array([[1.0, 2.0], [3.0, 4.0]])\nmat1 = np.array([[1.0, 2.0], [3.0, 4.0]])\nmat2 = np.array([[5.0, 6.0], [7.0, 8.0]])\n\nalpha = 2.0\nbeta = 3.0\n\n# Compute mat1 @ mat2\nproduct = np.dot(mat1, mat2)\n\n# Apply scaling and addition\nresult = beta * input_matrix + alpha * product\n\nprint(\"Input Matrix:\\n\", input_matrix)\nprint(\"\\nMatrix Product (mat1 @ mat2):\\n\", product)\nprint(\"\\nResult of paddle.addmm approximation:\\n\", result)"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.equal",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/paddle_equal.py",
+    "code": "import numpy as np\n\n# paddle.equal \u5bf9\u5e94\u7684 NumPy API \u662f np.equal \u6216 == \u8fd0\u7b97\u7b26\n\n# \u793a\u4f8b1: \u6bd4\u8f83\u4e24\u4e2a\u6807\u91cf\na = 5\nb = 5\nresult = np.equal(a, b)\nprint(\"np.equal(5, 5):\", result)  # True\n\n# \u793a\u4f8b2: \u6bd4\u8f83\u4e24\u4e2a\u4e00\u7ef4\u6570\u7ec4\narr1 = np.array([1, 2, 3])\narr2 = np.array([1, 2, 4])\nresult = np.equal(arr1, arr2)\nprint(\"np.equal([1,2,3], [1,2,4]):\", result)  # [ True  True False]\n\n# \u793a\u4f8b3: \u4f7f\u7528 == \u8fd0\u7b97\u7b26\u5b9e\u73b0\u76f8\u540c\u529f\u80fd\nresult_alt = (arr1 == arr2)\nprint(\"arr1 == arr2:\", result_alt)  # [ True  True False]\n\n# \u793a\u4f8b4: \u5e7f\u64ad\u673a\u5236\u6bd4\u8f83\u4e0d\u540c\u5f62\u72b6\u7684\u6570\u7ec4\narr3 = np.array([[1, 2], [3, 4]])\nscalar = 2\nresult_broadcast = np.equal(arr3, scalar)\nprint(\"np.equal([[1,2],[3,4]], 2):\\n\", result_broadcast)\n# [[False  True]\n#  [False False]]"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.gt",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/paddle_gt.py",
+    "code": "import numpy as np\n\n# \u521b\u5efa\u4e24\u4e2a\u6570\u7ec4\nx = np.array([1, 2, 3, 4, 5])\ny = np.array([0, 2, 3, 5, 6])\n\n# \u4f7f\u7528 paddle.gt (\u5728 NumPy \u4e2d\u5bf9\u5e94\u4e3a np.greater) \u8fdb\u884c\u6bd4\u8f83\u64cd\u4f5c\n# \u6ce8\u610f\uff1aNumPy \u4e2d\u6ca1\u6709 paddle.gt\uff0c\u4f46\u529f\u80fd\u7b49\u4ef7\u4e8e np.greater\nresult = np.greater(x, y)\n\nprint(result)"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.finfo",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/paddle_finfo.py",
+    "code": "import numpy as np\n\n# Get floating point machine limits for float32\ninfo = np.finfo(np.float32)\n\nprint(\"float32 max:\", info.max)\nprint(\"float32 min:\", info.min)\nprint(\"float32 precision:\", info.precision)\nprint(\"float32 eps:\", info.eps)\n\n# Get floating point machine limits for float64\ninfo_double = np.finfo(np.float64)\n\nprint(\"\\nfloat64 max:\", info_double.max)\nprint(\"float64 min:\", info_double.min)\nprint(\"float64 precision:\", info_double.precision)\nprint(\"float64 eps:\", info_double.eps)"
+  },
+  {
+    "library_name": "paddle",
+    "func_name": "paddle.addmm_",
+    "success": true,
+    "output_file": "/home/yb/respfuzzer/experiments/RQ6/output/llm_easy/paddle_addmm_.py",
+    "code": "import numpy as np\n\n# Note: paddle.addmm_ is a PaddlePaddle API, not a NumPy API.\n# However, based on your request for a numpy-style example mimicking addmm behavior:\n# addmm(input, mat1, mat2, *, beta=1, alpha=1) -> out\n# Computes: out = beta * input + alpha * (mat1 @ mat2)\n\ndef addmm_like(input, mat1, mat2, beta=1.0, alpha=1.0):\n    \"\"\"\n    Mimics paddle.addmm_ behavior using NumPy.\n    \n    Parameters:\n    input (np.ndarray): The tensor to be added to the result.\n    mat1 (np.ndarray): The first matrix to be multiplied.\n    mat2 (np.ndarray): The second matrix to be multiplied.\n    beta (float): Multiplier for input.\n    alpha (float): Multiplier for mat1 @ mat2.\n    \n    Returns:\n    np.ndarray: The result of beta * input + alpha * (mat1 @ mat2)\n    \"\"\"\n    return beta * input + alpha * np.matmul(mat1, mat2)\n\n# Example usage\ninput_tensor = np.array([[1.0, 2.0], [3.0, 4.0]])\nmat1 = np.array([[1.0, 2.0], [3.0, 4.0]])\nmat2 = np.array([[5.0, 6.0], [7.0, 8.0]])\n\nbeta = 1.0\nalpha = 2.0\n\nresult = addmm_like(input_tensor, mat1, mat2, beta=beta, alpha=alpha)\nprint(\"Input:\\n\", input_tensor)\nprint(\"Mat1:\\n\", mat1)\nprint(\"Mat2:\\n\", mat2)\nprint(\"Result (beta * input + alpha * (mat1 @ mat2)):\\n\", result)"
+  }
+]

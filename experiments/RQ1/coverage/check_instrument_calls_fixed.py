@@ -11,23 +11,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import json as _json
 import py_compile
-from pathlib import Path
-from typing import Dict, Any
 import signal
-from contextlib import redirect_stdout, redirect_stderr
 import subprocess
 import sys
-import json as _json
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+from typing import Any, Dict
 
-
-RUNNER = Path(__file__).resolve().parent / 'seed_instrument_runner.py'
+RUNNER = Path(__file__).resolve().parent / "seed_instrument_runner.py"
 
 # Ensure repository `src/` is on sys.path so imports like `respfuzzer.*` work
 # when the script is executed directly (helps avoid requiring PYTHONPATH).
 try:
     repo_root = Path(__file__).resolve().parents[3]
-    src_path = str(repo_root / 'src')
+    src_path = str(repo_root / "src")
     if src_path not in sys.path:
         sys.path.insert(0, src_path)
 except Exception:
@@ -43,7 +42,9 @@ def is_compilable(path: Path) -> bool:
         return False
 
 
-def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument: list[str]) -> Dict[str, Any]:
+def run_in_process(
+    seed: Path, apis_json: Path, timeout: int, libs_to_instrument: list[str]
+) -> Dict[str, Any]:
     """Execute the seed in the current process with per-API instrumentation.
 
     Behavior:
@@ -54,9 +55,10 @@ def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument
     - Returns a dict with keys: seed, covered (list), errors (dict)
     """
     import importlib
-    from instrument import instrument_function_fcr, covered_functions
 
-    out: Dict[str, Any] = {'seed': str(seed), 'covered': [], 'errors': {}}
+    from instrument import covered_functions, instrument_function_fcr
+
+    out: Dict[str, Any] = {"seed": str(seed), "covered": [], "errors": {}}
 
     # This function instruments and runs a single seed. Historically we
     # instrumented the API targets on a per-seed basis which adds a lot of
@@ -67,7 +69,7 @@ def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument
 
     # Fallback behaviour: if instrumentation hasn't been applied, just run the
     # seed without further instrumentation (the caller should instrument once).
-    out['errors'] = out.get('errors', {})
+    out["errors"] = out.get("errors", {})
 
     # Ensure covered_functions is empty before run
     try:
@@ -76,15 +78,15 @@ def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument
         pass
 
     # Prepare log file and redirect stdout/stderr
-    log_path = seed.with_suffix('.log')
+    log_path = seed.with_suffix(".log")
     try:
-        log_fh = open(log_path, 'w', encoding='utf-8')
+        log_fh = open(log_path, "w", encoding="utf-8")
     except Exception as e:
-        out['errors']['log_open'] = str(e)
+        out["errors"]["log_open"] = str(e)
         return out
 
     def _alarm_handler(signum, frame):
-        raise TimeoutError('seed_timeout')
+        raise TimeoutError("seed_timeout")
 
     try:
         # Set alarm
@@ -95,15 +97,15 @@ def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument
         with redirect_stdout(log_fh), redirect_stderr(log_fh):
             # Execute seed
             try:
-                code = seed.read_text(encoding='utf-8')
-                g: dict = {'__name__': '__main__', '__file__': str(seed)}
-                exec(compile(code, str(seed), 'exec'), g)
+                code = seed.read_text(encoding="utf-8")
+                g: dict = {"__name__": "__main__", "__file__": str(seed)}
+                exec(compile(code, str(seed), "exec"), g)
             except TimeoutError:
-                out['errors']['exec'] = 'timeout'
+                out["errors"]["exec"] = "timeout"
             except SystemExit:
-                out['errors']['exec'] = 'SystemExit'
+                out["errors"]["exec"] = "SystemExit"
             except Exception as e:
-                out['errors']['exec_exception'] = str(e)
+                out["errors"]["exec_exception"] = str(e)
     finally:
         # cancel alarm
         try:
@@ -114,9 +116,9 @@ def run_in_process(seed: Path, apis_json: Path, timeout: int, libs_to_instrument
 
     # Collect covered functions from instrument module
     try:
-        out['covered'] = sorted(list(covered_functions))
+        out["covered"] = sorted(list(covered_functions))
     except Exception:
-        out['covered'] = []
+        out["covered"] = []
 
     return out
 
@@ -129,25 +131,36 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
     into the per-seed .log file, and return a result dict compatible with
     `run_in_process` output (keys: seed, covered, errors).
     """
-    out: Dict[str, Any] = {'seed': str(seed), 'covered': [], 'errors': {}}
+    out: Dict[str, Any] = {"seed": str(seed), "covered": [], "errors": {}}
 
     # Build command
     runner_py = RUNNER
-    cmd = [sys.executable, str(runner_py), '--seed', str(seed), '--apis-json', str(apis_json)]
+    cmd = [
+        sys.executable,
+        str(runner_py),
+        "--seed",
+        str(seed),
+        "--apis-json",
+        str(apis_json),
+    ]
 
-    log_path = seed.with_suffix('.log')
+    log_path = seed.with_suffix(".log")
     try:
         # Start subprocess in a new session so we can signal the whole group
         # (POSIX only). This ensures that C-level threads or child processes
         # spawned by the seed are also terminated.
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+        p = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True
+        )
         try:
             stdout, stderr = p.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             # First try polite termination of the whole process group
             try:
                 pgid = p.pid
-                import os, signal as _signal
+                import os
+                import signal as _signal
+
                 # send SIGTERM to the process group
                 os.killpg(pgid, _signal.SIGTERM)
             except Exception:
@@ -161,7 +174,9 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
             except subprocess.TimeoutExpired:
                 # still alive -> force kill the process group
                 try:
-                    import os, signal as _signal
+                    import os
+                    import signal as _signal
+
                     os.killpg(pgid, _signal.SIGKILL)
                 except Exception:
                     try:
@@ -171,7 +186,7 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
                 stdout, stderr = p.communicate()
             # write logs
             try:
-                with open(log_path, 'wb') as fh:
+                with open(log_path, "wb") as fh:
                     if stdout:
                         fh.write(stdout)
                     if stderr:
@@ -179,13 +194,13 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
                         fh.write(stderr)
             except Exception:
                 pass
-            out['errors']['exec'] = 'timeout_subprocess'
-            out['errors']['termination_signal'] = 'SIGTERM/SIGKILL'
+            out["errors"]["exec"] = "timeout_subprocess"
+            out["errors"]["termination_signal"] = "SIGTERM/SIGKILL"
             return out
 
         # Write logs (stdout + stderr) for debugging
         try:
-            with open(log_path, 'wb') as fh:
+            with open(log_path, "wb") as fh:
                 if stdout:
                     fh.write(stdout)
                 if stderr:
@@ -203,65 +218,122 @@ def run_in_subprocess(seed: Path, apis_json: Path, timeout: int) -> Dict[str, An
         try:
             # Read the log we just wrote and look for lines that resemble
             # fully-qualified function names (module.submodule.func).
-            txt = ''
+            txt = ""
             try:
-                with open(log_path, 'r', encoding='utf-8', errors='ignore') as fh:
+                with open(log_path, "r", encoding="utf-8", errors="ignore") as fh:
                     txt = fh.read()
             except Exception:
                 # fallback to decoding captured stdout
                 try:
-                    txt = stdout.decode('utf-8') if isinstance(stdout, (bytes, bytearray)) else str(stdout)
+                    txt = (
+                        stdout.decode("utf-8")
+                        if isinstance(stdout, (bytes, bytearray))
+                        else str(stdout)
+                    )
                 except Exception:
-                    txt = ''
+                    txt = ""
 
             covered_set = set()
             import re
+
             # match lines that are a dotted name (e.g. numpy.array)
-            pattern = re.compile(r'^([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+)$', re.MULTILINE)
+            pattern = re.compile(
+                r"^([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)+)$", re.MULTILINE
+            )
             for m in pattern.finditer(txt):
                 covered_set.add(m.group(1))
 
-            out['covered'] = sorted(covered_set)
+            out["covered"] = sorted(covered_set)
 
             # If subprocess exit code indicates termination by signal, record it
             try:
                 if p.returncode is not None and p.returncode < 0:
                     import signal as _signal
+
                     sig = -p.returncode
                     try:
                         sig_name = _signal.Signals(sig).name
                     except Exception:
                         sig_name = str(sig)
-                    out['errors']['terminated_by_signal'] = sig_name
+                    out["errors"]["terminated_by_signal"] = sig_name
             except Exception:
                 pass
 
             # If there was no covered API and process failed, record exit code
-            if p.returncode and not out['covered'] and not out['errors']:
-                out['errors']['exit_code'] = p.returncode
+            if p.returncode and not out["covered"] and not out["errors"]:
+                out["errors"]["exit_code"] = p.returncode
 
         except Exception as e:
-            out['errors']['log_parse'] = str(e)
+            out["errors"]["log_parse"] = str(e)
 
     except Exception as e:
-        out['errors']['subprocess_spawn'] = str(e)
+        out["errors"]["subprocess_spawn"] = str(e)
 
     return out
 
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument('--base', '-b', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/generated_by_api', help='Base directory containing .py seeds')
-    p.add_argument('--apis-json', '-a', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/api_list.json', help='API list JSON')
-    p.add_argument('--out', '-o', default='/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/instrument_check_report.json', help='Output report JSON')
-    p.add_argument('--timeout', type=int, default=10, help='Per-seed execution timeout in seconds')
-    p.add_argument('--workers', '-j', type=int, default=4, help='Parallel workers to run subprocesses')
-    p.add_argument('--no-progress', action='store_true', help='Disable progress bar output')
-    p.add_argument('--max-seeds', type=int, default=0, help='If >0, process at most this many seeds (for testing)')
-    p.add_argument('--start-index', type=int, default=0, help='Start index into the compilable seed list (0-based)')
-    p.add_argument('--end-index', type=int, default=0, help='End index (exclusive) into the compilable seed list (0-based). If 0, goes to end')
-    p.add_argument('--skip-interactive', action='store_true', help='Skip seeds that appear interactive (contain Ctrl+C/等待信号/input prompts)')
-    p.add_argument('--libs', type=str, default='', help='Comma-separated list of top-level libs from the APIs JSON to instrument (default: all)')
+    p.add_argument(
+        "--base",
+        "-b",
+        default="/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/generated_by_api",
+        help="Base directory containing .py seeds",
+    )
+    p.add_argument(
+        "--apis-json",
+        "-a",
+        default="/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/api_list.json",
+        help="API list JSON",
+    )
+    p.add_argument(
+        "--out",
+        "-o",
+        default="/home/yb/respfuzzer/experiments/RQ1/LLM_testcases/instrument_check_report.json",
+        help="Output report JSON",
+    )
+    p.add_argument(
+        "--timeout", type=int, default=10, help="Per-seed execution timeout in seconds"
+    )
+    p.add_argument(
+        "--workers",
+        "-j",
+        type=int,
+        default=4,
+        help="Parallel workers to run subprocesses",
+    )
+    p.add_argument(
+        "--no-progress", action="store_true", help="Disable progress bar output"
+    )
+    p.add_argument(
+        "--max-seeds",
+        type=int,
+        default=0,
+        help="If >0, process at most this many seeds (for testing)",
+    )
+    p.add_argument(
+        "--start-index",
+        type=int,
+        default=0,
+        help="Start index into the compilable seed list (0-based)",
+    )
+    p.add_argument(
+        "--end-index",
+        type=int,
+        default=0,
+        help="End index (exclusive) into the compilable seed list (0-based). If 0, goes to end",
+    )
+    p.add_argument(
+        "--skip-interactive",
+        action="store_true",
+        help="Skip seeds that appear interactive (contain Ctrl+C/等待信号/input prompts)",
+    )
+    p.add_argument(
+        "--libs",
+        type=str,
+        default="",
+        help="Comma-separated list of top-level libs from the APIs JSON to instrument (default: all)",
+    )
     args = p.parse_args()
 
     # Lightweight guard: patch nltk.download to avoid repeated blocking downloads
@@ -270,7 +342,8 @@ def main() -> None:
     # resource at most once per process and to no-op on subsequent calls.
     try:
         import nltk
-        _nltk_orig_download = getattr(nltk, 'download', None)
+
+        _nltk_orig_download = getattr(nltk, "download", None)
         _nltk_tried = set()
 
         def _patched_nltk_download(resource, *a, **kw):
@@ -298,7 +371,7 @@ def main() -> None:
                     return True
                 return True
 
-        if hasattr(nltk, 'download'):
+        if hasattr(nltk, "download"):
             nltk.download = _patched_nltk_download
     except Exception:
         # Ignore if nltk is not installed or patching fails
@@ -306,36 +379,36 @@ def main() -> None:
 
     base = Path(args.base)
     if not base.exists() or not base.is_dir():
-        raise SystemExit(f'Base directory not found: {base}')
+        raise SystemExit(f"Base directory not found: {base}")
 
     apis_json = Path(args.apis_json)
     if not apis_json.exists():
-        raise SystemExit(f'APIs JSON not found: {apis_json}')
+        raise SystemExit(f"APIs JSON not found: {apis_json}")
 
-    files = sorted(base.rglob('*.py'))
+    files = sorted(base.rglob("*.py"))
 
     # Optional: filter out seeds that look interactive to avoid long-running
     # or waiting-for-signal behavior (e.g. tests that print 'Ctrl+C' and wait).
     def looks_interactive(path: Path) -> bool:
         try:
-            txt = path.read_text(encoding='utf-8', errors='ignore')[:8192]
+            txt = path.read_text(encoding="utf-8", errors="ignore")[:8192]
         except Exception:
             return False
         s = txt.lower()
         keywords = [
-            'ctrl+c',
-            '按 ctrl',
-            '按 ctrl+c',
-            '等待信号',
-            '等待 ctrl',
-            'press ctrl',
-            'disable_signal_handler',
-            'signal.pause',
-            'press ctrl+c',
-            '按下 ctrl',
-            '按下 ctrl+c',
-            'input(',
-            'raw_input('
+            "ctrl+c",
+            "按 ctrl",
+            "按 ctrl+c",
+            "等待信号",
+            "等待 ctrl",
+            "press ctrl",
+            "disable_signal_handler",
+            "signal.pause",
+            "press ctrl+c",
+            "按下 ctrl",
+            "按下 ctrl+c",
+            "input(",
+            "raw_input(",
         ]
         for k in keywords:
             if k in s:
@@ -345,7 +418,7 @@ def main() -> None:
     if args.skip_interactive:
         old_count = len(files)
         files = [f for f in files if not looks_interactive(f)]
-        print(f'Skipped {old_count - len(files)} interactive-looking seeds')
+        print(f"Skipped {old_count - len(files)} interactive-looking seeds")
 
     compilable_all = [f for f in files if is_compilable(f)]
 
@@ -376,39 +449,40 @@ def main() -> None:
     # Parse libs filter
     libs_to_instrument = []
     if args.libs:
-        libs_to_instrument = [x.strip() for x in args.libs.split(',') if x.strip()]
+        libs_to_instrument = [x.strip() for x in args.libs.split(",") if x.strip()]
 
     # Instrument all target APIs once, keep originals and restore at the end.
     import importlib
-    from instrument import instrument_function_fcr, covered_functions
+
+    from instrument import covered_functions, instrument_function_fcr
 
     originals: dict = {}
     instrumentation_errors: dict = {}
 
     # Load API list and filter to requested libraries
     try:
-        with open(apis_json, 'r', encoding='utf-8') as fh:
+        with open(apis_json, "r", encoding="utf-8") as fh:
             api_data = json.load(fh)
     except Exception as e:
-        raise SystemExit(f'Failed to load APIs JSON: {e}')
+        raise SystemExit(f"Failed to load APIs JSON: {e}")
 
     apis: list[str] = []
     for lib, val in api_data.items():
         if libs_to_instrument and lib not in libs_to_instrument:
             continue
         if isinstance(val, dict):
-            apis_list = val.get('apis') or []
+            apis_list = val.get("apis") or []
         elif isinstance(val, list):
             apis_list = val
         else:
             apis_list = []
         for a in apis_list:
-            if isinstance(a, str) and '.' in a:
+            if isinstance(a, str) and "." in a:
                 apis.append(a)
 
     # Instrument each API once
     for api in apis:
-        mods = api.split('.')
+        mods = api.split(".")
         try:
             m = importlib.import_module(mods[0])
             parent = m
@@ -417,20 +491,20 @@ def main() -> None:
                 if parent is None:
                     break
             if parent is None:
-                instrumentation_errors[api] = 'parent_not_found'
+                instrumentation_errors[api] = "parent_not_found"
                 continue
             cur = getattr(parent, mods[-1], None)
             if cur is None:
-                instrumentation_errors[api] = 'attr_not_found'
+                instrumentation_errors[api] = "attr_not_found"
                 continue
             originals[api] = (parent, cur)
             new = instrument_function_fcr(cur)
             setattr(parent, mods[-1], new)
         except Exception as e:
-            instrumentation_errors[api] = f'instrument_error: {e}'
+            instrumentation_errors[api] = f"instrument_error: {e}"
 
     # Notify instrumentation summary
-    print(f'Instrumented {len(originals)} APIs, {len(instrumentation_errors)} errors')
+    print(f"Instrumented {len(originals)} APIs, {len(instrumentation_errors)} errors")
 
     # Run seeds sequentially in the same process, under the single instrumentation set.
     for seed in compilable:
@@ -445,39 +519,42 @@ def main() -> None:
         try:
             res = run_in_process(seed, apis_json, args.timeout, libs_to_instrument)
         except Exception as e:
-            res = {'seed': str(seed), 'error': f'exception: {e}'}
+            res = {"seed": str(seed), "error": f"exception: {e}"}
 
         # If the in-process run timed out or hung, retry in a subprocess which
         # we can forcibly kill. This helps with seeds that block at C level or
         # otherwise cannot be reliably terminated from inside the interpreter.
         try:
-            errs = res.get('errors') or {}
-            if errs.get('exec') == 'timeout':
-                print(f"Seed timed out in-process, retrying in subprocess: {seed}", flush=True)
+            errs = res.get("errors") or {}
+            if errs.get("exec") == "timeout":
+                print(
+                    f"Seed timed out in-process, retrying in subprocess: {seed}",
+                    flush=True,
+                )
                 try:
                     print(f"RUNNING_SEED_SUBPROCESS: {seed}", flush=True)
                 except Exception:
                     pass
                 sub = run_in_subprocess(seed, apis_json, args.timeout)
                 # Preserve the original timeout info for auditing
-                sub.setdefault('errors', {})
-                sub['errors']['retry_in_process_timeout'] = errs
+                sub.setdefault("errors", {})
+                sub["errors"]["retry_in_process_timeout"] = errs
                 res = sub
         except Exception:
             # Don't let retry logic crash the whole orchestrator
             pass
         # attach instrumentation errors once to the first seed result for reference
         if instrumentation_errors and not results:
-            res.setdefault('instrumentation_errors', instrumentation_errors)
+            res.setdefault("instrumentation_errors", instrumentation_errors)
         results[str(seed)] = res
         completed += 1
         if not args.no_progress:
-            print(_render_progress(completed, total), end='\r', flush=True)
+            print(_render_progress(completed, total), end="\r", flush=True)
 
     # Restore originals after running all seeds
     for api, (parent, cur) in originals.items():
         try:
-            setattr(parent, api.split('.')[-1], cur)
+            setattr(parent, api.split(".")[-1], cur)
         except Exception:
             pass
 
@@ -488,22 +565,22 @@ def main() -> None:
     api_counts: Dict[str, int] = {}
     total_seeds = len(compilable)
     for seed, r in results.items():
-        covered = r.get('covered') or []
+        covered = r.get("covered") or []
         for api in covered:
             api_counts[api] = api_counts.get(api, 0) + 1
 
     report = {
-        'base': str(base),
-        'total_seeds_compilable': total_seeds,
-        'per_seed_results': results,
-        'api_called_counts': api_counts,
+        "base": str(base),
+        "total_seeds_compilable": total_seeds,
+        "per_seed_results": results,
+        "api_called_counts": api_counts,
     }
 
-    with open(args.out, 'w', encoding='utf-8') as fh:
+    with open(args.out, "w", encoding="utf-8") as fh:
         json.dump(report, fh, ensure_ascii=False, indent=2)
 
-    print(f'Wrote report to {args.out}')
+    print(f"Wrote report to {args.out}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

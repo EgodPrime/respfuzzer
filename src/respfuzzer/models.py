@@ -1,7 +1,8 @@
+import uuid
 from enum import IntEnum
 from typing import Protocol
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class Argument(BaseModel):
@@ -11,9 +12,10 @@ class Argument(BaseModel):
 
 
 class Function(BaseModel):
-    id: int | None = None
+    id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str | None = None
     func_name: str
+    real_path: str = ""
     source: str
     args: list[Argument]
     ret_type: str = "unknown"
@@ -32,17 +34,14 @@ class Function(BaseModel):
         return self.__repr__()
 
     @model_validator(mode="after")
-    def generate_attributes(self):
-        """
-        Automatically set library_name if not provided, based on func_name.
-        """
-        if not self.library_name:
+    def set_library_name(self) -> "Function":
+        if self.library_name is None and "." in self.func_name:
             self.library_name = self.func_name.split(".")[0]
         return self
 
 
 class Seed(BaseModel):
-    id: int | None = None
+    id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     func_id: int
     library_name: str
     func_name: str
@@ -51,7 +50,7 @@ class Seed(BaseModel):
 
 
 class Mutant(BaseModel):
-    id: int | None = None
+    id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     func_id: int
     seed_id: int
     library_name: str
@@ -61,7 +60,7 @@ class Mutant(BaseModel):
 
 
 class HasCode(Protocol):
-    id: int | None = None
+    id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str
     func_name: str
     function_call: str

@@ -1,11 +1,12 @@
+import importlib
 import inspect
+from contextlib import contextmanager
 from functools import wraps
 from sys import path
 from types import BuiltinFunctionType, FunctionType, ModuleType
 
-from contextlib import contextmanager
 from loguru import logger
-import importlib
+
 from respfuzzer.utils.config import get_config
 
 # Delay importing fuzzing functions to runtime to avoid importing heavy project
@@ -13,6 +14,7 @@ from respfuzzer.utils.config import get_config
 # performed inside the wrappers where needed.
 
 fuzzed_set = set()
+
 
 def instrument_function(func: FunctionType | BuiltinFunctionType):
     """
@@ -38,6 +40,7 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
             try:
                 # lazy import to avoid module-level config access
                 from respfuzzer.lib.fuzz.fuzz_function import fuzz_function
+
                 fuzz_function(func, *args, **kwargs)
             except Exception:
                 # if fuzzing subsystem isn't available in this environment,
@@ -61,6 +64,7 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
         res = func(*args, **kwargs)
         try:
             from respfuzzer.lib.fuzz.fuzz_function import replay_fuzz
+
             replay_fuzz(func, *args, **kwargs)
         except Exception:
             pass
@@ -68,9 +72,12 @@ def instrument_function_replay(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 fuzzed_dict: dict[str:int] = {}
 cfg = get_config("fuzz4all")
 limit_per_function = cfg.get("mutants_per_seed", 1)
+
+
 def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -91,6 +98,7 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
             fuzzed_dict[func_name] += 1
             try:
                 from respfuzzer.lib.fuzz.fuzz_function import fuzz_function_f4a
+
                 fuzz_function_f4a(func, *args, **kwargs)
             except Exception:
                 pass
@@ -99,13 +107,16 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
 
     return wrapper
 
+
 def instrument_function_check(func: FunctionType | BuiltinFunctionType):
     @wraps(func)
     def wrapper(*args, **kwargs):
         res = func(*args, **kwargs)
-        wrapper.called=True
+        wrapper.called = True
         return res
+
     return wrapper
+
 
 @contextmanager
 def instrument_function_via_path_ctx(full_func_path: str):
@@ -124,7 +135,7 @@ def instrument_function_via_path_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         logger.debug(f"Instrumented {full_func_path}")
@@ -132,6 +143,7 @@ def instrument_function_via_path_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_replay_ctx(full_func_path: str):
@@ -150,7 +162,7 @@ def instrument_function_via_path_replay_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function_replay(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         logger.debug(f"Instrumented {full_func_path} for replay")
@@ -158,6 +170,7 @@ def instrument_function_via_path_replay_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_f4a_ctx(full_func_path: str):
@@ -176,7 +189,7 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
         yield
         return
     new_func = instrument_function_f4a(orig_func)
-    
+
     try:
         setattr(parent, mods[-1], new_func)
         # logger.debug(f"Instrumented {full_func_path} for f4a")
@@ -184,6 +197,7 @@ def instrument_function_via_path_f4a_ctx(full_func_path: str):
     finally:
         setattr(parent, mods[-1], orig_func)
         # logger.debug(f"Restored original function for {full_func_path}")
+
 
 @contextmanager
 def instrument_function_via_path_check_ctx(full_func_path: str):
@@ -210,6 +224,7 @@ def instrument_function_via_path_check_ctx(full_func_path: str):
         setattr(parent, mods[-1], orig_func)
         logger.debug(f"Restored original function for {full_func_path}")
 
+
 mod_has_been_seen = set()
 top_mod = None
 top_mod_name = None
@@ -219,6 +234,7 @@ top_mod_name = None
 mod_has_been_seen_fcr = set()
 top_mod_fcr = None
 top_mod_name_fcr = None
+
 
 def instrument_module(mod: ModuleType) -> None:
     """
@@ -296,7 +312,7 @@ def instrument_module_fcr(mod: ModuleType) -> None:
             true_module_path = obj.__module__
             if true_module_path is None:
                 continue
-            tokens = true_module_path.split('.')
+            tokens = true_module_path.split(".")
             if not tokens[0] == top_mod_name_fcr:
                 continue
             new_func = instrument_function_fcr(obj)
@@ -309,7 +325,9 @@ def instrument_module_fcr(mod: ModuleType) -> None:
             except Exception:
                 pass
 
+
 covered_functions: set = set()
+
 
 def instrument_function_fcr(func: FunctionType | BuiltinFunctionType):
     """
@@ -342,6 +360,7 @@ def instrument_function_fcr(func: FunctionType | BuiltinFunctionType):
                 pass
             try:
                 from respfuzzer.lib.fuzz.fuzz_function import fuzz_function
+
                 fuzz_function(func, *args, **kwargs)
             except Exception:
                 # We still record coverage even if fuzzing isn't available.

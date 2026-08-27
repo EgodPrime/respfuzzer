@@ -8,7 +8,7 @@ from respfuzzer.models import Seed
 from respfuzzer.utils.config import get_config
 
 cfg = get_config("fuzz4all")
-llm_cfg = get_config("llm_mutator")
+llm_cfg = get_config("llm")
 
 client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
@@ -88,9 +88,10 @@ class Fuzz4AllMutator:
             ]
         )
         return code
-    
+
     def remove_unsed_imports(self, code: str) -> str:
         import autoflake
+
         return autoflake.fix_code(code, remove_all_unused_imports=True)
 
     def _comment_remover(self, code: str) -> str:
