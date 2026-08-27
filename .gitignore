@@ -41,3 +41,5 @@ RQ*_data*
 **/*.log
 .hermes
 docs/
+AGENTS.md
+.agent-teams/

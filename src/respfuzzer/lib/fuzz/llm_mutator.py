@@ -135,13 +135,43 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
     return mutant
 
 
-def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
-    """使用AST检查变异代码的语法有效性。"""
+def is_valid_semantic(mutant: Mutant) -> Optional[Mutant]:
+    """Algorithm 2 IsValidSemantic: a variant is valid iff (1) it passes Python builtin
+    compile(), and (2) it contains a valid function call to the target function.
+
+    Replaces the previous AST-syntax-only filter_syntax (C-6 / P-11 alignment): it
+    checks compile-level validity AND structurally verifies that the mutated code
+    actually invokes the target function -- not just that it parses. An invalid
+    variant is returned as None so the caller skips it or uses it as negative feedback.
+    """
     try:
-        ast.parse(mutant.function_call)
+        # 1) compile-level validity (paper: "pass Python builtin function compile")
+        tree = ast.parse(mutant.function_call, mode="exec")
+        compile(tree, "<mutant>", "exec")
+        # 2) structural check: code must contain a call to the target function
+        #    (paper: "contains valid function calls to the target function")
+        target = mutant.func_name.rsplit(".", 1)[-1]
+        if not _contains_target_call(target, tree):
+            return None
         return mutant
-    except SyntaxError:
+    except (SyntaxError, ValueError, TypeError, OverflowError, MemoryError):
         return None
+def _contains_target_call(target_short: str, tree: ast.AST) -> bool:
+    """Return True if the AST contains a Call that references the target function by its
+    unqualified name -- either a bare name(...) or a qualified module/class attribute
+    call (terminal attribute segment). Used by Algorithm 2 IsValidSemantic to verify
+    that the mutated code actually invokes the target function."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        callee = node.func
+        if isinstance(callee, ast.Name):
+            if callee.id == target_short:
+                return True
+        elif isinstance(callee, ast.Attribute):
+            if callee.attr == target_short:
+                return True
+    return False
 
 
 class LLMMutator:
@@ -230,15 +260,15 @@ class LLMMutator:
                 res = llm_mutate(self.seed, mutation_type, self.rng)
                 if no_check_semantic:
                     return res, mutation_type
-                res = filter_syntax(res)
-                has_syntax_error = res is None
-                if has_syntax_error:
+                res = is_valid_semantic(res)
+                has_semantic_error = res is None
+                if has_semantic_error:
                     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
                     if attempt < max_retries - 1:
-                        logger.warning(f"Syntax error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
+                        logger.warning(f"Semantic error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"All {max_retries} attempts failed with syntax errors for mutation type {mutation_type}")
+                        logger.error(f"All {max_retries} attempts failed with semantic errors for mutation type {mutation_type}")
                     continue
                 return res, mutation_type
             except Exception as e:
