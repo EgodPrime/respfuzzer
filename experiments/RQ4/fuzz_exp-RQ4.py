@@ -115,8 +115,10 @@ def fuzz_single_seed(
         Mutator = LLMMutator(seed)
         for _ in range(llm_fuzz_per_seed):
             mutant, mutation_type = Mutator.random_llm_mutate(
-                no_check_semantic=no_semantic_filter
+                no_check_semantic=no_semantic_filter, max_retries=1
             )
+            if not getattr(Mutator, "last_valid", True):
+                continue
             with open(DATA_DIR / "mutants.data", "a+") as f:
                 f.write(f"{mutant.model_dump_json()}\n")
             cov_before = bm.count_bitmap_s()
@@ -172,6 +174,7 @@ def fuzz_single_seed(
                     logger.info(
                         f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
                     )
+    logger.info(f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', lambda: {})()}")
 
     send.put(("exit", None))
     try:

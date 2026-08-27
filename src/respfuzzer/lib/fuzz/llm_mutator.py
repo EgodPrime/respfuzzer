@@ -195,6 +195,11 @@ class LLMMutator:
         self.alpha = 0.1
         self.tau = 1.0
         self.rng = 0
+        # --- C-8 预算/有效性记账（每次 random_llm_mutate 后更新） ---
+        self.last_valid = False       # 最近一次随机变异的有效性（True=有效）
+        self.attempts_total = 0       # LLM 尝试总数（=主循环轮数，每轮1次，供 E-9）
+        self.valid_count = 0          # 有效变异计数
+        self.invalid_count = 0        # 无效变异计数（无效输出同样计入预算）
 
     def select_mutation_type(self) -> int:
         """
@@ -247,33 +252,68 @@ class LLMMutator:
     def random_llm_mutate(self, no_check_semantic: bool=False, max_retries: int = 3, retry_delay: float = 5.0) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
-        最多重试 max_retries 次，每次失败等待 retry_delay 秒。
+
+        C-8（预算语义）：每次调用即消耗一次变异尝试预算。主循环应传 max_retries=1，
+        使「每主循环轮 = 1 次 LLM 尝试 = 1 个预算单元」，无效输出同样计入预算（不免费无限重试）。
+        当本轮未产出有效变异体（静态语义无效 / LLM 超时 / LLM 硬失败）时，返回「占位 Mutant +
+        self.last_valid=False」，主循环据此 continue 跳过写库/执行/奖励，从而根除 fallback 把
+        原始代码当有效变异的污染，且不向调用方 re-raise。
+
+        每次调用后被设置的字段：
+            self.last_valid : bool    本轮是否产出通过 C-6 的有效变异体
+            self.attempts_total : int 累计 LLM 尝试次数（= 主循环轮数，供 E-9）
+            self.valid_count / self.invalid_count
         """
         mutation_type = self.select_mutation_type()
-        logger.trace(f"Randomly selected mutation type: {mutation_type}")
+        self.last_valid = False
         for attempt in range(max_retries):
+            self.attempts_total += 1          # 每次尝试记账（C-8 预算单元）
             try:
                 self.rng += 1
                 res = llm_mutate(self.seed, mutation_type, self.rng)
-                if no_check_semantic:
-                    return res, mutation_type
-                res = is_valid_semantic(res)
-                has_semantic_error = res is None
-                if has_semantic_error:
+            except Exception as e:            # LLM 硬失败/超时：不 re-raise
+                logger.warning(f"Mutation attempt {attempt+1}/{max_retries} failed: {e}")
+                self.invalid_count += 1
+                if not no_check_semantic:
                     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                    if attempt < max_retries - 1:
-                        logger.warning(f"Semantic error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
-                        time.sleep(retry_delay)
-                    else:
-                        logger.error(f"All {max_retries} attempts failed with semantic errors for mutation type {mutation_type}")
-                    continue
-                return res, mutation_type
-            except Exception as e:
                 if attempt < max_retries - 1:
-                    logger.warning(f"Attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
                     time.sleep(retry_delay)
-                else:
-                    logger.error(f"All {max_retries} attempts failed for mutation type {mutation_type}: {e}")
-                    raise
-        # Should not reach here, but fallback to be safe
-        return llm_mutate(self.seed, mutation_type), mutation_type  # type: ignore[return-value]
+                    continue
+                return self._placeholder_mutant(mutation_type), mutation_type
+            if no_check_semantic:             # RQ4 NSF：跳过静态判定，恒视为有效
+                self.valid_count += 1
+                self.last_valid = True
+                return res, mutation_type
+            checked = is_valid_semantic(res)  # C-6 判定
+            if checked is None:               # 静态无效：负反馈一次 + 记无效（无双计）
+                self.invalid_count += 1
+                self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                return self._placeholder_mutant(mutation_type), mutation_type
+            self.valid_count += 1
+            self.last_valid = True
+            return checked, mutation_type
+        return self._placeholder_mutant(mutation_type), mutation_type
+
+    def _placeholder_mutant(self, mutation_type: int) -> Mutant:
+        """哨兵 Mutant（function_call 置空）。配合 self.last_valid=False 由主循环拦截，
+        不会被写入 mutants.data 或执行，从而根除 fallback 返回原始代码的污染。"""
+        return Mutant(
+            func_id=self.seed.func_id,
+            seed_id=self.seed.id,
+            library_name=self.seed.library_name,
+            func_name=self.seed.func_name,
+            args=self.seed.args,
+            function_call="",
+        )
+
+    def budget_report(self) -> dict:
+        """只读预算/有效性统计，供实验侧（E-8/E-9/E-21）观测无效占比。"""
+        return {
+            "budget": self.attempts_total,
+            "valid": self.valid_count,
+            "invalid": self.invalid_count,
+            "invalid_ratio": self.invalid_count / self.attempts_total if self.attempts_total else 0.0,
+        }
