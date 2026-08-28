@@ -40,6 +40,26 @@ def make_pyi_key_from_module(module_name: str, func_name: str) -> str:
     return f"{module_name}.{func_name}"
 
 
+
+def build_name_index(pyi_cache: Dict[str, Dict]) -> Dict[str, str]:
+    """由 pyi_cache 派生「裸函数名 -> 限定键」索引：仅当某裸名在整库 pyi 中唯一时登记。
+
+    C-10 v2：读端限定键 miss 时用唯一裸名兜底，恢复 re-export/镜像布局库
+    （torch / paddle）的 builtin 提取；同名歧义（多个限定键共用同一裸名）不入索引，
+    强制走限定键以保留 C-10 的防碰撞语义。
+    """
+    counts: Dict[str, int] = {}
+    for key, entry in pyi_cache.items():
+        nm = entry.get("name") or key.rsplit(".", 1)[-1]
+        counts[nm] = counts.get(nm, 0) + 1
+    index: Dict[str, str] = {}
+    for key, entry in pyi_cache.items():
+        nm = entry.get("name") or key.rsplit(".", 1)[-1]
+        if counts[nm] == 1:
+            index[nm] = key
+    return index
+
+
 def make_pyi_key(root_path: str, library_name: str, file_path: str, func_name: str) -> str:
     """写端出口：构造完全限定缓存键 <库名>.<模块点分路径>.<函数名>（C-10）。"""
     if not root_path or not library_name:

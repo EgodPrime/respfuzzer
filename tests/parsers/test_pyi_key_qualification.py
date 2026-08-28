@@ -156,3 +156,94 @@ def test_e2e_write_key_equals_read_key(tmp_path):
     assert write_key == read_key == "mylib.sub.a.load"
     assert read_key in cache
 
+
+
+# ===== C-10 v2：私有命名空间 builtin + 唯一裸名兜底 ======
+from respfuzzer.models import Argument
+from respfuzzer.lib.parsers.pyi_parser import build_name_index
+
+
+def _pyi_entry(name="f", arg_types=("int",)):
+    args = [
+        Argument(arg_name=f"a{i}", type=t, pos_type="POSITIONAL_OR_KEYWORD", default_value="")
+        for i, t in enumerate(arg_types)
+    ]
+    return {"name": name, "source": "def f(...): ...", "args": args, "ret_type_str": "int", "file_path": ""}
+
+
+def test_build_name_index_unique_and_ambiguous():
+    """C-10 v2：build_name_index 为整库唯一裸名登记，歧义裸名不登记。"""
+    cache = {
+        "lib.sub.a.load": {"name": "load"},
+        "lib.sub.b.load": {"name": "load"},   # load 歧义：不入索引
+        "lib.sub.unique": {"name": "unique"},  # 唯一：登记
+    }
+    assert build_name_index(cache) == {"unique": "lib.sub.unique"}
+
+
+def test_private_namespace_builtin_top_level_name(monkeypatch):
+    """C-10 v2：私有命名空间内 builtin 命中 stub，若在库顶层 re-export 则 public_name 用顶层名。"""
+    cache = {"torch._C._VariableFunctions.abs": _pyi_entry()}
+    obj = len
+    mod = ModuleType("torch._C._VariableFunctions")  # 模块名含 ._ -> 私有命名空间
+    setattr(mod, "abs", obj)
+    top = ModuleType("torch"); setattr(top, "abs", obj)  # 顶层 re-export 同一对象
+    monkeypatch.setattr("dill.source._namespace", lambda _o: ["torch", "_C", "_VariableFunctions", "abs"])
+    visitor = LibraryVisitor("torch")
+    visitor.pyi_cache = cache; visitor._top_module = top
+    funcs = list(visitor._visit(mod, "torch", set()))
+    assert len(funcs) == 1 and funcs[0].is_builtin == 1
+    assert funcs[0].func_name == "torch.abs"  # 顶层公开名
+
+
+def test_private_namespace_builtin_not_top_level_skipped(monkeypatch):
+    """C-10 v2：私有命名空间内 builtin 若顶层未公开 re-export，则跳过（排除私有内部绑定）。"""
+    cache = {"torch._C._aoti.alloc": _pyi_entry()}
+    obj = len
+    mod = ModuleType("torch._C._aoti"); setattr(mod, "alloc", obj)
+    monkeypatch.setattr("dill.source._namespace", lambda _o: ["torch", "_C", "_aoti", "alloc"])
+    visitor = LibraryVisitor("torch")
+    visitor.pyi_cache = cache; visitor._top_module = ModuleType("torch")  # 顶层无 alloc
+    assert list(visitor._visit(mod, "torch", set())) == []
+
+
+def test_private_namespace_skips_function_type(monkeypatch):
+    """C-10 v2：私有命名空间内只收 builtin，FunctionType 跳过（保持口径 1）。"""
+    cache = {"torch._C.abs": _pyi_entry()}
+    obj = len
+    mod = ModuleType("torch._C"); setattr(mod, "abs", obj)
+    setattr(mod, "helper", lambda x: x)  # 内部 Python 函数
+    def _ns(o):
+        return ["torch", "_C", "abs"] if o is obj else ["torch", "_C", "helper"]
+    monkeypatch.setattr("dill.source._namespace", _ns)
+    visitor = LibraryVisitor("torch")
+    visitor.pyi_cache = cache; visitor._top_module = ModuleType("torch")
+    setattr(visitor._top_module, "abs", obj)
+    funcs = list(visitor._visit(mod, "torch", set()))
+    assert len(funcs) == 1 and funcs[0].is_builtin == 1  # helper 被跳过
+
+
+def test_unique_bare_name_fallback(monkeypatch):
+    """C-10 v2：非私有模块 builtin 限定键 miss 时，整库唯一裸名兜底命中。"""
+    cache = {"mylib.deffile.load": _pyi_entry(name="load")}
+    obj = len
+    mod = ModuleType("mylib.sub"); setattr(mod, "load", obj)
+    monkeypatch.setattr("dill.source._namespace", lambda _o: ["mylib", "sub", "load"])
+    visitor = LibraryVisitor("mylib")
+    visitor.pyi_cache = cache; visitor.name_index = build_name_index(cache)
+    funcs = list(visitor._visit(mod, "mylib", set()))
+    assert len(funcs) == 1 and funcs[0].is_builtin == 1
+    assert funcs[0].func_name == "mylib.sub.load"
+    assert funcs[0].args[0].type == "int"
+
+
+def test_ambiguous_bare_name_no_fallback(monkeypatch):
+    """C-10 v2：裸名歧义不兜底，限定键 miss 则丢弃（保留 C-10 防碰撞）。"""
+    cache = {"mylib.sub.a.load": _pyi_entry(name="load"), "mylib.sub.b.load": _pyi_entry(name="load")}
+    obj = len
+    mod = ModuleType("mylib.sub"); setattr(mod, "load", obj)
+    monkeypatch.setattr("dill.source._namespace", lambda _o: ["mylib", "sub", "load"])
+    visitor = LibraryVisitor("mylib")
+    visitor.pyi_cache = cache; visitor.name_index = build_name_index(cache)  # load 歧义 -> 空
+    assert "load" not in visitor.name_index
+    assert list(visitor._visit(mod, "mylib", set())) == []

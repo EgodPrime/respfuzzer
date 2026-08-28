@@ -14,6 +14,8 @@ from respfuzzer.lib.parsers.function_parser import (
 from respfuzzer.lib.parsers.pyi_parser import (
     _find_all_pyi_files,
     make_pyi_key_from_module,
+    build_name_index,
+
     parse_pyi_files,
 )
 from respfuzzer.models import Function
@@ -31,6 +33,8 @@ class LibraryVisitor:
         """
         self.library_name = library_name
         self.pyi_cache: Dict[str, Dict] = {}
+        self.name_index: Dict[str, str] = {}  # 裸函数名 -> 限定键（仅唯一裸名，C-10 v2）
+        self._top_module = None  # 库顶层模块引用（builtin public_name 顶层映射用）
 
     def visit(self) -> Iterator[Function]:
         """
@@ -48,6 +52,7 @@ class LibraryVisitor:
             return
 
         self.find_all_pyi_functions()
+        self._top_module = library  # 顶层模块引用：builtin 私有路径映射到顶层公开名用
 
         obj_has_been_seen = set()
         for function in self._visit(library, self.library_name, obj_has_been_seen):
@@ -80,6 +85,9 @@ class LibraryVisitor:
                 result = future.result()
                 self.pyi_cache.update(result)
 
+        # --- C-10 v2: 由 pyi_cache 派生唯一裸名索引（读端 builtin 限定键 miss 时兜底） ---
+        self.name_index = build_name_index(self.pyi_cache)
+
     def _visit(
         self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set
     ) -> Iterator[Function]:
@@ -91,8 +99,9 @@ class LibraryVisitor:
 
         # Visit all the attributes in the module.
         names = dir(mod)
-        # Skip private attributes
-        names = [name for name in names if not name.startswith("_")]
+        # 判断当前模块是否处于私有命名空间（模块全名含以 "_" 开头的段，如 torch._C）：
+        # 该路径下仅收集 builtin（C 扩展绑定），FunctionType 不从中提取（保持口径 1：不要私有函数）。
+        in_private = any(seg.startswith("_") for seg in mod.__name__.split("."))
 
         for name in names:
             # Try to get the attribute.
@@ -104,6 +113,9 @@ class LibraryVisitor:
 
             # Only support modules, functions, and built-in functions.
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
+                continue
+            # 私有函数/私有 builtin（"_" 开头且非模块）一律跳过（口径 1）；私有子模块（如 torch._C）仍进入。
+            if name.startswith("_") and not isinstance(obj, ModuleType):
                 continue
 
             real_path = dill.source._namespace(obj)
@@ -123,18 +135,30 @@ class LibraryVisitor:
                     yield function
             else:
 
-                if isinstance(obj, FunctionType):
+                if isinstance(obj, FunctionType) and not in_private:
                     function = from_function_type(obj, public_name=public_name)
                     if function is not None:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
-                    # --- C-10: 用限定键查询 stub（来源为当前遍历模块 __name__ + 函数名），
-                    # 不做裸名回退；real_path(dill namespace) 仅用于上方'是否属库'过滤。 ---
+                    # --- C-10 v2: 限定键优先查询 stub；miss 时回落"整库唯一裸名"兜底。
+                    # 歧义裸名（多个限定键同名）不入索引，强制走限定键，保留 C-10 防碰撞。
                     prov_key = make_pyi_key_from_module(mod.__name__, name)
-                    if prov_key in self.pyi_cache:
+                    entry = self.pyi_cache.get(prov_key)
+                    if entry is None:
+                        mapped_key = self.name_index.get(name)
+                        if mapped_key:
+                            entry = self.pyi_cache.get(mapped_key)
+                    if entry is not None:
+                        # 私有命名空间内（如 torch._C）：仅当 obj 在库顶层被公开 re-export 时收，
+                        # 且 public_name 用顶层公开名（避免把私有内部绑定/私有路径名混入候选池）。
+                        if in_private:
+                            top_attr = getattr(self._top_module, name, None)
+                            if top_attr is not obj:
+                                continue
+                            public_name = f"{root_mod_name}.{name}"
                         function = from_builtin_function_type(
-                            self.pyi_cache[prov_key], obj, public_name=public_name
+                            entry, obj, public_name=public_name
                         )
                         yield function
 
