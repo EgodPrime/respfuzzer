@@ -313,4 +313,6 @@ def test_ambiguous_bare_name_no_fallback(monkeypatch):
     assert "load" not in visitor.name_index
     funcs = list(visitor._visit(mod, "mylib", set()))
     assert len(funcs) == 1  # inspect 兜底收集，而非误用歧义 stub
-    assert funcs[0].args[0].arg_name == "obj"  # inspect(len)->(obj, /)，未取自任一歧义 stub
+    assert (
+        funcs[0].args[0].arg_name == "obj"
+    )  # inspect(len)->(obj, /)，未取自任一歧义 stub

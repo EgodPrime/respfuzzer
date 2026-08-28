@@ -130,7 +130,13 @@ def test_from_function_type_no_default_empty(mock_signature, mock_getsource):
 # ===========================================================================
 
 
-def _parse_pyi(content, *, root_path="/root/mylib", library_name="mylib", file_path="/root/mylib/mod.pyi"):
+def _parse_pyi(
+    content,
+    *,
+    root_path="/root/mylib",
+    library_name="mylib",
+    file_path="/root/mylib/mod.pyi",
+):
     """用伪文件跑 _parse_pyi_file，返回 pyi_cache（键为限定名）。
 
     C-10 彻底关闭裸名键：root_path/library_name 必传且非空（make_pyi_key 空参已改抛 ValueError）。

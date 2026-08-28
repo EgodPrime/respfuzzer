@@ -24,8 +24,10 @@ def another_func(c: List[int]) -> None:...
     pyi_cache = {}
     with patch("builtins.open", mock_open):
         _parse_pyi_file(
-            "/root/lib/test.pyi", pyi_cache,
-            root_path="/root/lib", library_name="lib",
+            "/root/lib/test.pyi",
+            pyi_cache,
+            root_path="/root/lib",
+            library_name="lib",
         )
 
     assert "lib.test.test_func" in pyi_cache
@@ -72,8 +74,10 @@ def plain(x):...
     pyi_cache = {}
     with patch("builtins.open", mock_open):
         _parse_pyi_file(
-            "/root/lib/x.pyi", pyi_cache,
-            root_path="/root/lib", library_name="lib",
+            "/root/lib/x.pyi",
+            pyi_cache,
+            root_path="/root/lib",
+            library_name="lib",
         )
 
     # pos_only should be parsed
