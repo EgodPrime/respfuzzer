@@ -35,7 +35,7 @@ class LibraryVisitor:
         self.name_index: Dict[str, str] = {}  # 裸函数名 -> 限定键（仅唯一裸名，C-10 v2）
         self._top_module = None  # 库顶层模块引用（builtin public_name 顶层映射用）
         self._rp_cache: dict = {}  # id(obj) -> real_path 记忆化（§8.1）
-        self.fail_closed: bool = False  # builtin 签名三源全缺时抛错中止（§8.3 E4，默认关）
+        self._builtin_resolve_cache: dict = {}  # real_path -> Function：同一物理函数只 resolve 一次（先去重后 resolve），别名绑定仅复用签名重打 func_path
 
     def visit(self) -> Iterator[Function]:
         """
@@ -56,6 +56,7 @@ class LibraryVisitor:
         self._top_module = library  # 顶层模块引用：builtin 私有路径映射到顶层公开名用
 
         obj_has_been_seen = set()
+        self._builtin_resolve_cache = {}  # 每次 visit 重置：跨库/重复提取不串缓存
         for function in self._visit(library, self.library_name, obj_has_been_seen):
             yield function
 
@@ -192,8 +193,8 @@ class LibraryVisitor:
 
                 if isinstance(obj, FunctionType) and not in_private:
                     function = from_function_type(obj, public_name=public_name)
-                    if function is not None:
-                        yield function
+                    # resolve 失败不再 drop（signature_resolved=False 留空收录）
+                    yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
                     # 私有命名空间内仅当 obj 在库顶层被公开 re-export 时收（口径1，v2 保留）。
@@ -204,13 +205,22 @@ class LibraryVisitor:
                             continue
                         public_name = f"{root_mod_name}.{name}"
                     # 三阶签名闭合（§8 阶段3 / §8.3 E）：stub(物理身份键) → inspect →
-                    # docstring 解析 → fail-closed（默认关，避免打断缺 stub 库的全量提取）。
-                    function = resolve_builtin_signature(
-                        obj, rp, pyi_cache=self.pyi_cache, name_index=self.name_index,
-                        public_name=public_name, fail_closed=self.fail_closed,
-                    )
-                    if function is not None:
-                        yield function
+                    # docstring 解析 → 三源全缺返回 signature_resolved=False 占位条目
+                    #（不再 fail-closed、不再 drop；失败字段留空，由下游识别）。
+                    # 先去重后 resolve：以物理 real_path 为键，同一物理函数（被多个公开名/模块
+                    # 重导出）只真正 resolve 一次，别名绑定复用签名并重打 func_path 标签；
+                    # 池级最短 func_path 取舍仍由 visit() 后的 _deduplicate_functions 负责。
+                    rp_key = tuple(rp)
+                    function = self._builtin_resolve_cache.get(rp_key)
+                    if function is None:
+                        function = resolve_builtin_signature(
+                            obj, rp, pyi_cache=self.pyi_cache, name_index=self.name_index,
+                            public_name=public_name,
+                        )
+                        self._builtin_resolve_cache[rp_key] = function  # resolve 永不返回 None
+                    elif function.func_path != public_name:
+                        function = function.model_copy(update={"func_path": public_name})
+                    yield function
 
 
 def _deduplicate_functions(functions: list[Function]) -> list[Function]:

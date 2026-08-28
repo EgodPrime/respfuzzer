@@ -35,12 +35,19 @@ class Function(BaseModel):
     # --- ED-14a 分层元数据 ---
     function_type: str = "user_defined"  # 'user_defined' | 'built_in'；提取时由 is_builtin 映射
     docstring: str = ""                  # 可空；ED-14a 方案B：进入 RQ1 seed prompt
+    # C-10 分桶落地：签名是否解析成功。False = 三源(stub/inspect/docstring)全缺，
+    # 不再 drop 也不再抛错——失败字段留空并收录，由下游显式识别/过滤。
+    signature_resolved: bool = True
 
     @computed_field
     @property
     def has_full_type_hints(self) -> bool:
-        """全 Argument.type 均非 'unknown'/'' 才算满类型注解（ED-14a，由 args 派生）。"""
-        return all(a.type not in ("unknown", "") for a in self.args)
+        '''全 Argument.type 均非 unknown/空 才算满类型注解（ED-14a，由 args 派生）。'''
+        # 未解析（signature_resolved=False）的占位条目不算满注解：空 args 的 all() 是空真，
+        # 必须显式短路避免把失败占位误判为满注解（失败字段留空）。
+        return self.signature_resolved and all(
+            a.type not in ("unknown", "") for a in self.args
+        )
 
     def __repr__(self):
         """

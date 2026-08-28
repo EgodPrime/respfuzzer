@@ -22,7 +22,7 @@ def _default_to_str(v_default) -> str:
     except Exception:
         return "unknown"
 
-def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Optional[Function]:
+def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Function:
     """
     convert a `FunctionType` to an `function` object
 
@@ -36,7 +36,12 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
     try:
         sig = inspect.signature(obj)
     except ValueError:
-        return None
+        # C-10 分桶落地：签名解析失败不 drop——失败字段留空，返回 signature_resolved=False 条目
+        return Function(
+            func_path=name, real_path=real_path, source="", args=[],
+            ret_type="", function_type="user_defined",
+            docstring=inspect.getdoc(obj) or "", signature_resolved=False,
+        )
 
     try:
         source = inspect.getsource(obj)

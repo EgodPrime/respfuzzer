@@ -5,12 +5,15 @@
   ② inspect.signature / __text_signature__（多数 C 扩展抛 ValueError，降为此级）
   ③ 解析 __doc__ 签名（torch / numpy 把调用签名写在 docstring 首行，如
      "linalg.norm(A, ord=None, dim=None, keepdim=False, *, out=None) -> Tensor"）
-  ④ 三类全无 → fail-closed（fail_closed=True 时显式抛错中止，而非静默跳过）。
+  ④ 三类全无 → 不抛错、不 drop：失败字段留空（args=[]/ret_type=""），返回
+     signature_resolved=False 的占位条目，由下游显式识别/过滤。
 
-设计取舍（§10）：fail-closed 是 Q2 定稿原则，但会让缺 stub 的库（torch/pandas 大量
-builtin）提取中止，需先补 supplemental-stub；故默认 fail_closed=False（跳过并返回 None），
-由调用方在需要强制闭合的场合开启。supplemental-stub 注入让"先补 stub 再提取"可落地。
+设计取舍（§10）：不再 fail-closed（删除抛错机制）、不再静默 drop——unsolved 一律收录
+并打标（signature_resolved），使『分桶到失败』落地为数据形态而非统计口径；同时
+signature_resolved=False 的占位条目不参与满类型注解判定（has_full_type_hints 短路）。
 """
+
+import re
 
 from inspect import Parameter, _ParameterKind
 from inspect import signature as _inspect_signature
@@ -19,9 +22,6 @@ from typing import Any
 from respfuzzer.lib.parsers.function_parser import _default_to_str
 from respfuzzer.models import Argument, Function
 
-
-class SignatureUnresolvedError(RuntimeError):
-    """fail-closed：builtin 三类签名源（stub/inspect/docstring）全缺失时抛出。"""
 
 
 def _split_top_level(s: str, sep: str = ",") -> list[str]:
@@ -78,8 +78,44 @@ def _extract_paren_args(line: str) -> str | None:
     return None
 
 
-def _has_top_level(s: str, sep: str) -> bool:
-    return len(_split_top_level(s, sep)) >= 2
+def _first_top_sep(seg: str, chars: str = ":=") -> int:
+    """首个顶层冒号/等号下标（忽略括号与引号嵌套），无则 -1。"""
+    depth = 0
+    quote: str | None = None
+    for i, ch in enumerate(seg):
+        if quote is not None:
+            if ch == quote:
+                quote = None
+            continue
+        if ch in "\"'":
+            quote = ch
+            continue
+        if ch in "([{":
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+        elif depth == 0 and ch in chars:
+            return i
+    return -1
+
+
+def _is_identifier(s: str) -> bool:
+    return re.fullmatch(r"\w[\w.]*", s.strip()) is not None
+def _is_param_token(seg: str) -> bool:
+    """判定逗号分段是否为形参 token。先剥掉所有 [] 可选括号组（numpy [start,] / stop[, step,] / [start,] stop[, step,]），
+    再要求剩余核心为标识符或『名:=默认』。散文（多词无分隔）→ False。"""
+    s = seg.strip()
+    if not s:
+        return True
+    if s in ("*", "/") or s.startswith("*"):
+        return True  # 裸*（kw-only）/ 仅位置标记 / *args/**kwargs
+    core = re.sub(r"\[[^\]]*\]", "", s).replace(" ", "").rstrip(",")
+    if not core:
+        return True  # 纯可选括号组（如 [start,]）
+    i = _first_top_sep(core, ":=")
+    if i >= 0:
+        return _is_identifier(core[:i])  # 冒号/等号前是单个标识符 → 形参
+    return _is_identifier(core)  # 无分隔 → 核心须为标识符
 
 
 def _parse_doc_param(tok: str, kw_only: bool):
@@ -110,6 +146,11 @@ def _parse_doc_param(tok: str, kw_only: bool):
 
     nt = _split_top_level(name_type, sep=":")
     name = nt[0].strip().strip(".,;")
+
+    _m = re.match(r"\[?\s*([\w.]+)", name)  # numpy 可选括号记法 [start,] / stop[, step,] → 取首个标识符
+
+    if _m:
+        name = _m.group(1)
     type_ = nt[1].strip() if len(nt) > 1 else "unknown"
 
     pos_type = (
@@ -120,18 +161,79 @@ def _parse_doc_param(tok: str, kw_only: bool):
     return ("ARG", name, type_, default, pos_type)
 
 
+def _paren_span(lines: list[str], idx: int):
+    """自 lines[idx] 首个 '(' 起跨行扫到匹配 ')'（numpy 长签名多行）。返回 (签名串, 括号内内容) 或 None。"""
+    line = lines[idx]
+    open_i = line.find("(")
+    if open_i < 0:
+        return None
+    depth = 0
+    quote: str | None = None
+    buf = ""
+    content_buf = ""
+    started = False
+    for li in range(idx, len(lines)):
+        text = lines[li]
+        for i, ch in enumerate(text):
+            if li == idx and i < open_i:
+                buf += ch
+                continue
+            if quote is not None:
+                buf += ch
+                if started:
+                    content_buf += ch
+                if ch == quote:
+                    quote = None
+                continue
+            if ch in "\"'":
+                quote = ch
+                buf += ch
+                if started:
+                    content_buf += ch
+                continue
+            if ch == "(":
+                depth += 1
+                buf += ch
+                if started:
+                    content_buf += ch  # 嵌套 '('（仅内容）
+                else:
+                    started = True  # 外层 '('：开始收集，但不入内容
+                continue
+            if ch == ")":
+                depth -= 1
+                buf += ch
+                if depth == 0:
+                    # 闭括号后收集本行剩余（含 -> 返回注解），供 ret_type 检测
+                    return buf + text[i + 1 :], content_buf
+                if started:
+                    content_buf += ch  # 嵌套 ')'
+                continue
+            buf += ch
+            if started:
+                content_buf += ch
+    return None
 def _signature_line_and_args(doc: str, max_lines: int = 5):
-    """在 docstring 前若干行里找『形如签名』的首行（括号内容含顶层 , 或 =）。"""
-    for line in (doc or "").splitlines()[:max_lines]:
-        line = line.strip()
-        if not line:
+    """在 docstring 前若干行（支持跨行平衡括号）找形如签名的首行：前缀标识符、段落形参形态、零参单判。"""
+    lines = [l.strip() for l in (doc or "").splitlines()[:max_lines]]
+    for idx, line in enumerate(lines):
+        if not line or "(" not in line:
             continue
-        content = _extract_paren_args(line)
-        if content is None:
+        span = _paren_span(lines, idx)
+        if span is None:
             continue
-        # 散文内容（如 math.sin "measured in radians"）无顶层 , 或 = → 不是签名
-        if _has_top_level(content, ",") or (content and _has_top_level(content, "=")):
-            return line, content
+        sig, content = span
+        # '(' 前必须是纯标识符（点分/下划线），排除句中括号的散文（“Return the sine of x (…)”）
+        prefix = line[: line.find("(")].strip()
+        if prefix and not re.fullmatch(r"[\w.]+", prefix):
+            continue
+        if content.strip() == "":
+            # 零参签名：括号后须有 -> 返回注解，或整行就是 `name()`
+            tail = sig[sig.rfind(")") + 1 :].strip()
+            if "->" in tail or (tail == "" and prefix):
+                return sig, content
+            continue
+        if all(_is_param_token(s) for s in _split_top_level(content, sep=",")):
+            return sig, content
     return None
 
 
@@ -145,7 +247,30 @@ def parse_docstring_signature(doc: str):
     args: list[Argument] = []
     kw_only = False
     for tok in _split_top_level(content, sep=","):
-        parsed = _parse_doc_param(tok, kw_only)
+        t = tok.strip()
+        if not t:
+            continue  # 零参（content 为空）不产出无名参数
+        if t == "/":
+            continue  # 仅位置参数标记 /：跳过（近似视为位置参数均可）
+        # numpy 连续可选括号记法（[start,] stop[, step,]）→ 展开为多个位置参数
+        if "[" in t:
+            _names = re.findall(r"\[?([\w.]+)", t)
+            if len(_names) >= 1 and len(t.split()) > 1:
+                for _nm in _names:
+                    args.append(
+                        Argument(
+                            arg_name=_nm,
+                            type="unknown",
+                            pos_type=(
+                                _ParameterKind.KEYWORD_ONLY.name
+                                if kw_only
+                                else _ParameterKind.POSITIONAL_OR_KEYWORD.name
+                            ),
+                            default_value="",
+                        )
+                    )
+                continue
+        parsed = _parse_doc_param(t, kw_only)
         if parsed is None:
             kw_only = True
             continue
@@ -158,7 +283,6 @@ def parse_docstring_signature(doc: str):
                 default_value=(default if kind.startswith("ARG") else ""),
             )
         )
-
     ret_type = "unknown"
     if "->" in line:
         ret_type = line.split("->", 1)[1].strip().rstrip(".").strip() or "unknown"
@@ -229,13 +353,13 @@ def resolve_builtin_signature(
     pyi_cache,
     name_index,
     public_name,
-    fail_closed: bool = False,
 ):
-    """builtin 签名闭合三阶解析链（§8.3 E1-E5）。
+    '''builtin 签名闭合三阶解析链（§8.3 E1-E5）。
 
-    返回 Function 或 None（可解析则建签名函数）；若全缺且 fail_closed=True 则抛
-    `SignatureUnresolvedError`（Q2 硬失败原则），否则跳过返回 None。
-    """
+    返回 Function，**永不返回 None、永不抛错**：三源(stub/inspect/docstring)全缺时
+    返回失败字段留空（args=[]/ret_type=""）的 signature_resolved=False 占位条目，
+    由下游显式识别/过滤（删 fail/drop 机制，§10）。
+    '''
     from respfuzzer.lib.parsers.function_parser import from_builtin_function_type
 
     key = ".".join(real_path)
@@ -266,8 +390,19 @@ def resolve_builtin_signature(
     if parsed is not None:
         return _build_builtin_function(obj, real_path, public_name, parsed)
 
-    # tier④ fail-closed
-    where = f"{public_name} (real={'.'.join(real_path)})"
-    if fail_closed:
-        raise SignatureUnresolvedError(f"unresolvable builtin signature: {where}")
-    return None
+    # tier④ 三源全缺：不抛错、不 drop——失败字段留空，返回 signature_resolved=False 占位条目
+    try:
+        _doc = (obj.__doc__ or "") if hasattr(obj, "__doc__") else ""
+    except Exception:
+        _doc = ""
+    return Function(
+        func_path=public_name,
+        real_path=".".join(real_path) if real_path else "",
+        source="",
+        args=[],
+        ret_type="",
+        is_builtin=1,
+        function_type="built_in",
+        docstring=_doc,
+        signature_resolved=False,
+    )

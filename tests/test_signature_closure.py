@@ -1,14 +1,14 @@
 """C-10 签名闭合（§8 阶段3 / §8.3 E 组）：docstring 解析 + 三阶链 + fail-closed + supplemental-stub。
 
 E1 stub 按物理身份键命中；E2 inspect 兜底；E3 docstring 救 torch.linalg.norm；
-E4 三源全缺 fail-closed 抛错；E5 supplemental-stub 注入。
+E4 三源全缺 → signature_resolved=False 占位条目（不再 fail-closed / 不再 drop）；
+E5 supplemental-stub 注入。
 """
 
 import pytest
 
 from respfuzzer.lib.signature import (
     SUPPLEMENTAL_STUBS,
-    SignatureUnresolvedError,
     parse_docstring_signature,
     resolve_builtin_signature,
 )
@@ -65,6 +65,33 @@ def test_E3_parse_docstring_numpy_dot():
     assert [a.arg_name for a in parsed["args"]] == ["a", "b", "out"]
 
 
+def test_E3_parse_docstring_zero_arg():
+    """修复：零参签名 `func() -> T` 可解析（paddle 大量 `is_compiled_with_avx() -> bool` 曾被误拒）。"""
+    r = parse_docstring_signature("is_compiled_with_avx() -> bool")
+    assert r is not None and r["args"] == [] and r["ret_type"] == "bool"
+
+
+def test_E3_parse_docstring_single_param_no_default():
+    """修复：单参无默认 `func(x: T) -> U` 可解析（paddle `call_decomp_rule(arg0: ...Operation) -> list` 曾被误拒）。"""
+    r = parse_docstring_signature(
+        "call_decomp_rule(arg0: paddle.base.libpaddle.pir.Operation) -> list"
+    )
+    assert r is not None
+    assert r["args"][0].arg_name == "arg0"
+    assert r["args"][0].type == "paddle.base.libpaddle.pir.Operation"
+
+
+def test_E3_parse_docstring_kwargs_only():
+    """**kwargs 仅：paddle `set_printoptions(**kwargs) -> None`。"""
+    r = parse_docstring_signature("set_printoptions(**kwargs) -> None")
+    assert r is not None and r["args"][0].pos_type == "VAR_KEYWORD"
+
+
+def test_E3_parse_docstring_prose_first_word_paren():
+    """修复：句中括号散文（首词 + (…)）仍拒，如 paddle "Calculate the cache key for scope."。"""
+    assert parse_docstring_signature("Calculate the cache key for scope.") is None
+
+
 # --------------------------------------------------------------------------- #
 # 三阶解析链 resolve_builtin_signature
 # --------------------------------------------------------------------------- #
@@ -115,8 +142,8 @@ def test_E3_resolve_docstring_torch_norm():
     assert fn.real_path == "torch._C._linalg.linalg_norm"
 
 
-def test_E4_fail_closed_default_skips():
-    """三源全缺 + fail_closed 默认关 → 返回 None（跳过），不抛。"""
+def test_E4_unresolved_returns_false_entry():
+    """三源全缺 → 不抛错、不 drop：返回 signature_resolved=False 占位条目，失败字段留空。"""
 
     class _NotCallable:
         """仅散文描述，无可解析签名。"""
@@ -125,29 +152,14 @@ def test_E4_fail_closed_default_skips():
     res = resolve_builtin_signature(
         obj, ("mylib", "f"), pyi_cache={}, name_index={}, public_name="mylib.f"
     )
-    assert res is None
-
-
-def test_E4_fail_closed_raises():
-    """三源全缺 + fail_closed=True → 显式抛 SignatureUnresolvedError（Q2 硬失败）。"""
-
-    class _NotCallable:
-        """仅散文描述，无可解析签名。"""
-
-    obj = _NotCallable()
-    with pytest.raises(SignatureUnresolvedError):
-        resolve_builtin_signature(
-            obj,
-            ("mylib", "f"),
-            pyi_cache={},
-            name_index={},
-            public_name="mylib.f",
-            fail_closed=True,
-        )
+    assert res is not None
+    assert res.signature_resolved is False
+    assert res.args == [] and res.ret_type == ""
+    assert res.is_builtin == 1 and res.real_path == "mylib.f"
 
 
 def test_E5_supplemental_stub_injection():
-    """supplemental-stub 注入：登记后按物理身份键命中，避免 fail-closed。"""
+    """supplemental-stub 注入：登记后按物理身份键命中，避免落入三源全缺桶。"""
     rp = ("mylib", "f")
     SUPPLEMENTAL_STUBS.append(
         {
@@ -163,7 +175,6 @@ def test_E5_supplemental_stub_injection():
             pyi_cache={},
             name_index={},
             public_name="mylib.f",
-            fail_closed=True,
         )
         assert fn is not None and fn.args[0].type == "str"  # 来自注入 stub
     finally:
