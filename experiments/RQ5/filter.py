@@ -57,7 +57,7 @@ def chat_completion(prompt: str) -> str:
     return response.choices[0].message.content
 
 
-def judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> bool:
+def judge_is_vulnerable(func_source: str, poc: str, stderr: str) -> tuple[bool, int, str]:
     prompt = f"""## Task
 你是一个资深的安全研究员，专门负责分析漏洞复现结果。
 你需要根据`source`, `poc`和`stderr`判断该复现结果是否意味着一个崩溃或者潜在的安全漏洞。
@@ -244,7 +244,7 @@ def main() -> None:
         stderrs = []
         for result in results:
             seed_id = result["seed_id"]
-            seed = get_mutant_by_id(seed_id)
+            seed = get_mutant_by_id(int(seed_id))  # mutant 缓存以 int id 为键；JSON 读出的 str 数字需显式转型
             if seed is None:
                 logger.error(f"Seed {seed_id} not found.")
                 func_sources.append("")

@@ -91,7 +91,7 @@ def test_e15_guard_crasher_with_cov_gain_not_zeroed():
 def test_update_reward_ewm_transition():
     """update_reward = alpha*reward + (1-alpha)*mu; from a fresh mu=0.5 with
     alpha=0.1: raw 1.0 -> mu 0.55, raw 0.5 -> mu 0.5, raw 0.0 -> mu 0.45."""
-    alpha = 0.1
+    # alpha 见 docstring（=0.1）；测试内不直接使用该常量，避免冗余局部变量
     for raw_reward, expected_mu in ((1.0, 0.55), (0.5, 0.5), (0.0, 0.45)):
         m = _mutator()
         mt = 0
@@ -120,7 +120,7 @@ def test_exec_error_reward_differs_from_clean_no_cov_regression():
 
     # AFTER patch: crasher is strictly lower and definitely not identical.
     assert exec_error_reward < clean_no_cov_reward
-    assert not (exec_error_reward == clean_no_cov_reward)
+    assert exec_error_reward != clean_no_cov_reward
 
     # And it collapses onto the static-IsValidSemantic-invalid penalty path.
     # G1: a crasher WITHOUT coverage collapses to the same penalty as a static-IsValidSemantic-invalid

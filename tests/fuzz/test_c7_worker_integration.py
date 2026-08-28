@@ -28,8 +28,10 @@ choice (still stdlib, still no numpy / no LLM / no network).
 case; ``statistics.median([1, 2, 3])`` is clean.
 """
 
-from multiprocessing import Process, Queue
+import contextlib
+from typing import ClassVar
 
+from multiprocessing import Process, Queue
 from respfuzzer.lib.fuzz.fuzz_exp import continue_safe_execute, fuzz_single_seed
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -90,23 +92,17 @@ def _run_real_worker(send, recv, process_index, command, payload):
         return reply, process, child_pid
     finally:
         # Command the worker to exit, then force-clean it no matter what.
-        try:
+        with contextlib.suppress(Exception):  # 清理路径尽力而为：发送 exit 失败直接忽略
             send.put(("exit", None))
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):  # join 超时/异常不影响强制清理
             process.join(timeout=CLEANUP_TIMEOUT)
-        except Exception:
-            pass
         if process.is_alive():
             kill_process_tree_linux(process)
             process.join(timeout=CLEANUP_TIMEOUT)
         # Remove the redis "random_state:<child_pid>" keys this worker created
         # (fuzz_function in the child writes them).  Redis is available per env.
-        try:
+        with contextlib.suppress(Exception):  # Redis 不可用/键不存在时忽略清理
             get_redis_client().hdel("random_state", str(child_pid))
-        except Exception:
-            pass
 
 
 # --------------------------------------------------------------------------- #
@@ -202,7 +198,7 @@ def test_worker_clean_signal():
 
 
 class _FakeProcess:
-    spawned = []
+    spawned: ClassVar[list] = []  # 有意跨实例共享：作为 pid 分配器计数
 
     def __init__(self, *args, **kwargs):
         self.pid = 12345 + len(_FakeProcess.spawned)
@@ -255,7 +251,7 @@ class _FakeRedis:
 
 
 class _FakeLLMMutator:
-    update_calls = []
+    update_calls: ClassVar[list] = []  # 有意跨实例共享：收集 worker 侧奖励更新记录
 
     def __init__(self, seed):
         self.seed = seed

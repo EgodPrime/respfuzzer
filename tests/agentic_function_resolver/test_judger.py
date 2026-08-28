@@ -68,14 +68,14 @@ def test_judge_raises_on_api_error(monkeypatch):
     j = Judger()
 
     def raise_err(*a, **k):
-        raise Exception("api down")
+        raise RuntimeError("api down")
 
     monkeypatch.setattr(
         "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
         raise_err,
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):  # judge 出口为 RuntimeError（3 次重试后包装）
         j.judge("code", MockFunction())
 
 

@@ -22,6 +22,7 @@ import importlib.util
 import inspect
 import json
 import os
+from typing import Any
 
 import pytest
 
@@ -288,7 +289,7 @@ def test_getattr_compat():
     value when present - proving zero-invasion on existing fakes."""
 
     class FakeWithoutAttr:
-        pass
+        last_valid: Any  # 未初始化实例属性：getattr(..., True) 兜底验证零侵入（C-8）
 
     obj = FakeWithoutAttr()
     assert getattr(obj, "last_valid", True) is True
@@ -466,7 +467,7 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
     fuzz_sends = [
         item for item in q.puts if isinstance(item, tuple) and item[0] == "fuzz"
     ]
-    for cmd, sent_mutant in fuzz_sends:
+    for _cmd, sent_mutant in fuzz_sends:
         assert sent_mutant.function_call != "", (
             "placeholder must not be sent to the worker"
         )
@@ -511,6 +512,7 @@ def test_rq4_nsf_ablation_budget(monkeypatch, tmp_path):
     """RQ4 fuzz_single_seed with no_semantic_filter=True: every round is treated as
     valid (last_valid True), the mutant is written to mutants.data, and the budget /
     valid counters stay consistent (NSF has no invalid concept)."""
+    rq4: Any = None  # 预声明：except 分支 pytest.skip 中断（pyright 静态不识别），此处保证已绑定
     try:
         rq4 = _load_rq4_module()
     except Exception as exc:  # pragma: no cover - deps missing (dcov/fire/...)

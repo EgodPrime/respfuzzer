@@ -371,7 +371,7 @@ class Judger:
                 continue
 
         tb = traceback.format_exception_only(type(last_exc), last_exc)
-        raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
+        raise RuntimeError(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
 def solve(function: Function) -> Optional[str]:
