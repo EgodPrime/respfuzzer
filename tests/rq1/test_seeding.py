@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from respfuzzer.lib.rq1.seeding import derive_run_seed, seed_run, shuffled
+from respfuzzer.lib.rq1.seeding import derive_run_seed, ed4_quota, seed_run, shuffled
 
 FUNCS = [f"f{i}" for i in range(30)]
 
@@ -43,3 +43,14 @@ def test_f2_seed_derivation_deterministic_and_stable():
     s22 = derive_run_seed(base_seed=100, run_index=1)
     assert s21 == s22
     assert derive_run_seed(100, 1) != derive_run_seed(100, 2)
+
+
+
+def test_ed4_quota():
+    """ED-4 采样配额：len<250 → min(50,len)；len≥250 → round(0.2·len)（RQ1 §4 口径）。"""
+    assert ed4_quota(0) == 0
+    assert ed4_quota(30) == 30   # <250 → min(50,30)
+    assert ed4_quota(200) == 50  # <250 → min(50,200)
+    assert ed4_quota(479) == 96  # ≥250 → round(0.2·479)
+    assert ed4_quota(6249) == 1250  # round(0.2·6249)
+    assert ed4_quota(26) == 26

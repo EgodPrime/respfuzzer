@@ -33,3 +33,14 @@ def shuffled(functions: list, rng: random.Random) -> list:
 def derive_run_seed(base_seed: int, run_index: int) -> int:
   """按 run 序次派生稳定种子（1..runs），同 base+run 恒同值（可复现）。"""
   return (base_seed * 1000003 + run_index) % (2**31 - 1)
+
+
+def ed4_quota(pool_len: int, threshold: int = 250, ratio: float = 0.2) -> int:
+    """ED-4 采样配额：len<250 → min(50, len)；len≥250 → round(0.2·len)。
+
+    RQ1 函数池应用同一口径（RQ1_plan §4）：每库按此配额随机采样函数进入评测
+    （driver limit=配额 + run_seed 洗牌即放回采样，可复现；与 ED-4 口径一致）。
+    """
+    if pool_len < threshold:
+        return min(50, pool_len)
+    return round(ratio * pool_len)

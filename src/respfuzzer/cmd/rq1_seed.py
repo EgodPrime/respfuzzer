@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 
+from respfuzzer.lib.rq1.seeding import ed4_quota
+from respfuzzer.repos import get_functions
 from respfuzzer.lib.rq1.driver import merge_results, run_experiment
 from respfuzzer.lib.rq1.prompts import DEFAULT_MODE, MODES
 
@@ -45,6 +47,11 @@ def main() -> None:
         default=None,
         help="冒烟子集：仅处理前 N 个（洗牌后）函数",
     )
+    parser.add_argument(
+        "--ed4-sample",
+        action="store_true",
+        help="ED-4 配额采样：每库按 250/0.2 口径计算应采样函数数并全跑（覆盖 --limit）",
+    )
     parser.add_argument("--outdir", default="runs/RQ1")
     parser.add_argument(
         "--no-fake-embedding",
@@ -52,6 +59,13 @@ def main() -> None:
         help="RAG 正式运行：allow_fake=False，[embedding] 未配置则显式报错",
     )
     args = parser.parse_args()
+
+    if args.ed4_sample:
+        if not args.library:
+            parser.error("--ed4-sample 需要 --library（每库配额）")
+        pool = get_functions(args.library)
+        args.limit = ed4_quota(len(pool))
+        print(f"ED-4 配额采样: {args.library} 池 {len(pool)} → 采样 {args.limit}", flush=True)
 
     out = run_experiment(
         args.mode,
