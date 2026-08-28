@@ -136,6 +136,7 @@ res = c(x, y)
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=8000,
+                    temperature=0.7,  # RQ1 F4：显式采样温度（pass@k 候选多样性源）
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
@@ -166,7 +167,7 @@ res = c(x, y)
                 continue
         # after retries, raise a clear exception with traceback
         tb = traceback.format_exception_only(type(last_exc), last_exc)
-        raise Exception(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
+        raise RuntimeError(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
 
 
 class QueitExecutor:
@@ -279,6 +280,7 @@ class Reasoner:
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=8000,
+                    temperature=0.7,  # RQ1 F4
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
@@ -300,7 +302,7 @@ class Reasoner:
                 time.sleep(1 + attempt)
                 continue
         tb = traceback.format_exception_only(type(last_exc), last_exc)
-        raise Exception(f"解释执行结果时发生错误，最后一次错误: {''.join(tb)}")
+        raise RuntimeError(f"解释执行结果时发生错误，最后一次错误: {''.join(tb)}")
 
 
 class Judger:
@@ -333,6 +335,7 @@ class Judger:
                         {"role": "user", "content": prompt},
                     ],
                     max_tokens=8000,
+                    temperature=0.7,  # RQ1 F4
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
                         "reasoning": {"enabled": False}
@@ -374,13 +377,13 @@ class Judger:
         raise RuntimeError(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
-def solve(function: Function) -> Optional[str]:
+def solve(function: Function, budget: int = 10) -> Optional[str]:
     attempter = Attempter()
     judger = Judger()
     executor = QueitExecutor()
     reasoner = Reasoner()
 
-    budget = 10
+    # 预算直接使用入参 budget（RQ1 F1：*对齐* 对照 pass@k 的 k，ED-4 等预算）
     history: List[dict] = []
     solved = False
     code = None

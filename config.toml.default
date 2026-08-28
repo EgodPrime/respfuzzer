@@ -10,6 +10,13 @@ api_key = "sk-xxxxxxx" # your OpenAI API key
 model_name = "Qwen3.6-35B-A3B"
 temperature = 0.7
 
+# [embedding] RAG 基线（ED-14b）embedding 模型服务占位——服务由作者提供，检索代码后续开发
+[embedding]
+base_url = ""        # TODO: 作者提供的 embedding 服务地址
+api_key = ""          # TODO
+model_name = ""       # TODO: embedding 模型名
+batch_size = 32       # 默认批大小（按服务能力调整）
+
 [redis]
 host = "127.0.0.1"
 port = 6379

@@ -53,6 +53,6 @@ def test_generate_raises_after_retries_on_errors():
             "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
             side_effect=Exception("boom"),
         ),
-        pytest.raises(Exception),
+        pytest.raises(RuntimeError),  # attempter 出口为 RuntimeError（与 judge 一致）
     ):
         at.generate(MockFunction(), [])

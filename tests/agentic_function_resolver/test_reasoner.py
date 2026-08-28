@@ -39,5 +39,5 @@ def test_explain_raises_on_api_errors():
         "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
         side_effect=Exception("api fail"),
     ):
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):  # reasoner 出口为 RuntimeError
             Reasoner().explain("code", {"stderr": "err"})

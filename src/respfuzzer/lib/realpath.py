@@ -10,7 +10,7 @@ from collections.abc import Callable
 from types import ModuleType
 from typing import Any
 
-import dill
+import dill  # pyright: ignore[reportMissingImports]  # 环境：dill 已装（0.4.1），LSP 对 namespace 包索引滞后
 from loguru import logger
 
 # 库顶层别名集：同一库的多个命名空间视为同一归属（root 前缀匹配时任一命中即认）。

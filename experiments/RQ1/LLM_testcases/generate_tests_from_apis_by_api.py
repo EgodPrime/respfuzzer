@@ -46,7 +46,7 @@ async def call_llm(
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
-        "temperature": 0.2,
+        "temperature": 0.7,  # RQ1 F4：统一采样温度
     }
     if not api_base.startswith("http"):
         api_base = "http://" + api_base
