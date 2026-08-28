@@ -122,7 +122,8 @@ def fuzz_function(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> N
     full_name = ".".join(dill.source._namespace(func))
     pid = os.getpid()
     set_random_state(int(time.time()))
-    logger.debug(f"RespFuzzer start fuzz {full_name}")
+    _initial_seed = get_random_state()
+    logger.info(f"RespFuzzer start fuzz {full_name} (worker_pid={pid}, seed={_initial_seed})")
 
     param_list = convert_to_param_list(*args, **kwargs)
 

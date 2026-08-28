@@ -50,7 +50,9 @@ def test_fuzz_function_no_args(
     # No user args -> param_list empty -> early return AFTER the start log,
     # and WITHOUT the "done" log (impl returns before logging done).
     fuzz_function(math.ceil, data_fuzz_per_seed=3)
-    mock_logger.debug.assert_any_call("RespFuzzer start fuzz math.ceil")
+    # start log is now via logger.info and records the worker pid + initial RNG seed
+    start_msgs = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert any(isinstance(s, str) and s.startswith("RespFuzzer start fuzz math.ceil (worker_pid=") for s in start_msgs)
 
 
 @patch("respfuzzer.lib.fuzz.fuzz_function.logger")
@@ -61,5 +63,6 @@ def test_fuzz_function_with_args(
     kwargs = {"a": 4, "b": 5}
     # data_fuzz_per_seed is the 2nd positional arg; user args follow.
     fuzz_function(math.ceil, 3, *args, **kwargs)
-    mock_logger.debug.assert_any_call("RespFuzzer start fuzz math.ceil")
+    start_msgs = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert any(isinstance(s, str) and s.startswith("RespFuzzer start fuzz math.ceil (worker_pid=") for s in start_msgs)
     mock_logger.debug.assert_any_call("RespFuzzer fuzz math.ceil done")
