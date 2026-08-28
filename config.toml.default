@@ -1,7 +1,12 @@
 [llm]
 base_url = "https://api.openai.com/v1"
 api_key = "sk-xxxxxxx" # your OpenAI API key
-model_name = "gpt-4-0613"
+# 稿件使用的最终模型（三模型之一，复现实验时按需替换）:
+#   - Llama3.1-8B-Instruct   (Llama-3.1-8B-Instruct / Llama-3.1-8B)
+#   - Qwen3.6-35B-A3B        (默认，本模板采用)
+#   - gpt-oss-120b
+# 复现多个模型时请分别替换 model_name 并记录 checkpoint 版本（见 E-20）。
+model_name = "Qwen3.6-35B-A3B"
 temperature = 0.7
 
 [redis]
@@ -20,7 +25,7 @@ max_workers = 50
 [llm_mutator]
 base_url = "https://api.openai.com/v1"
 api_key = "sk-xxxxxxx" # your OpenAI API key
-model_name = "gpt-4-0613"
+model_name = "Qwen3.6-35B-A3B"
 temperature = 0.7
 
 [reflective_seeder]
