@@ -18,11 +18,10 @@ Integration tests reuse the hermetic fake environment of test_c7_worker_integrat
 (fake Queue/Process/BitmapManager/Redis).
 """
 
-import inspect
 import importlib.util
+import inspect
 import json
 import os
-from multiprocessing import Process, Queue
 
 import pytest
 
@@ -31,12 +30,11 @@ from respfuzzer.lib.fuzz import llm_mutator as llm_mutator_module
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import Mutant, Seed
 
-
 # --------------------------------------------------------------------------- #
 # Shared test data / helpers
 # --------------------------------------------------------------------------- #
 
-_SEED_FUNCTION_CALL = 'import numpy\nresult = numpy.asarray([1])\n'
+_SEED_FUNCTION_CALL = "import numpy\nresult = numpy.asarray([1])\n"
 _VALID_CODE = "import numpy\nresult = numpy.asarray([1, 2, 3])\n"
 _INVALID_CODE = "x = 1 + 2\nprint(x)\n"  # compiles but calls no target function
 
@@ -106,9 +104,9 @@ def test_invalid_consumes_budget_and_last_valid_false(monkeypatch):
     mutant, mutation_type = m.random_llm_mutate(max_retries=1)
 
     assert isinstance(mutant, Mutant)
-    assert mutant.function_call == ""          # placeholder sentinel
+    assert mutant.function_call == ""  # placeholder sentinel
     assert m.last_valid is False
-    assert m.attempts_total == 1               # one budget unit consumed
+    assert m.attempts_total == 1  # one budget unit consumed
     assert m.invalid_count == 1
     assert m.valid_count == 0
     # exactly one negative-reward call, with the static-invalid reward value
@@ -138,8 +136,8 @@ def test_loop_stops_at_budget(monkeypatch):
     for _ in range(rounds):
         m.random_llm_mutate(max_retries=1)
 
-    assert m.attempts_total == rounds          # budget == fixed rounds, does not exceed
-    assert m.invalid_count == rounds           # every invalid round counts toward budget
+    assert m.attempts_total == rounds  # budget == fixed rounds, does not exceed
+    assert m.invalid_count == rounds  # every invalid round counts toward budget
     assert m.valid_count == 0
     assert m.last_valid is False
 
@@ -168,7 +166,7 @@ def test_valid_mutant_last_valid_true(monkeypatch):
     assert m.valid_count == 1
     assert m.attempts_total == 1
     assert m.invalid_count == 0
-    assert update_calls == []                   # no penalty on valid path
+    assert update_calls == []  # no penalty on valid path
 
 
 # --------------------------------------------------------------------------- #
@@ -206,7 +204,7 @@ def test_no_semantic_always_valid(monkeypatch):
     NO static negative reward (RQ4 NSF path regression)."""
 
     def fake_llm_mutate(seed, mutation_type, rng):
-        return _mutant(_INVALID_CODE)   # would be invalid if checked
+        return _mutant(_INVALID_CODE)  # would be invalid if checked
 
     _patch_llm_mutate(monkeypatch, fake_llm_mutate)
     m = _fresh_mutator()
@@ -215,7 +213,7 @@ def test_no_semantic_always_valid(monkeypatch):
     mutant, mutation_type = m.random_llm_mutate(no_check_semantic=True, max_retries=1)
 
     assert m.last_valid is True
-    assert mutant.function_call == _INVALID_CODE   # returned as-is (no gate)
+    assert mutant.function_call == _INVALID_CODE  # returned as-is (no gate)
     assert m.valid_count == 1
     assert m.attempts_total == 1
     assert m.invalid_count == 0
@@ -392,9 +390,11 @@ def _loop_adapted() -> bool:
 
 @pytest.mark.skipif(
     not _loop_adapted(),
-    reason=("fuzz_exp.fuzz_single_seed 尚未适配 C-8 last_valid 守门 "
-            '(需加 max_retries=1 与 if not getattr(...,"last_valid",True): continue)；'
-            "该集成测试在落地后自动启用"),
+    reason=(
+        "fuzz_exp.fuzz_single_seed 尚未适配 C-8 last_valid 守门 "
+        '(需加 max_retries=1 与 if not getattr(...,"last_valid",True): continue)；'
+        "该集成测试在落地后自动启用"
+    ),
 )
 def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
     """When one round yields last_valid=False (placeholder), fuzz_single_seed must:
@@ -419,7 +419,7 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
 
         def random_llm_mutate(self, *a, **k):
             self.round += 1
-            if self.round == 2:      # round 2 -> invalid placeholder
+            if self.round == 2:  # round 2 -> invalid placeholder
                 self.last_valid = False
                 self.attempts_total += 1
                 self.invalid_count += 1
@@ -431,6 +431,7 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
 
         def update_reward(self, mutation_type, reward):
             self.reward_calls.append((mutation_type, reward))
+
         def calculate_reward(self, has_semantic_error, coverage_gain):
             self._reward_calls.append((has_semantic_error, coverage_gain))
             base = 0.5 * (1 - int(has_semantic_error)) + 0.5 * coverage_gain
@@ -442,7 +443,8 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
                 "valid": self.valid_count,
                 "invalid": self.invalid_count,
                 "invalid_ratio": (self.invalid_count / self.attempts_total)
-                                if self.attempts_total else 0.0,
+                if self.attempts_total
+                else 0.0,
             }
 
     q = _setup_fuzz_exp_hermetic(monkeypatch, tmp_path, _FakeLLMMutator)
@@ -456,19 +458,25 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
     assert lines, "fuzz_single_seed should have written at least one valid mutant"
     for line in lines:
         rec = json.loads(line)
-        assert rec["function_call"] != "", "placeholder must not be written to mutants.data"
+        assert rec["function_call"] != "", (
+            "placeholder must not be written to mutants.data"
+        )
 
     # 2) no "fuzz" send whose mutant carries the placeholder
-    fuzz_sends = [item for item in q.puts
-                  if isinstance(item, tuple) and item[0] == "fuzz"]
+    fuzz_sends = [
+        item for item in q.puts if isinstance(item, tuple) and item[0] == "fuzz"
+    ]
     for cmd, sent_mutant in fuzz_sends:
-        assert sent_mutant.function_call != "", "placeholder must not be sent to the worker"
+        assert sent_mutant.function_call != "", (
+            "placeholder must not be sent to the worker"
+        )
     # 10 rounds, one invalid (round 2) -> 9 valid written+sent
     assert len(fuzz_sends) == 9, fuzz_sends
     mutator = _FakeLLMMutator.instances[-1]
     assert len(mutator.reward_calls) == 9, (
         "update_reward must be called only for the 9 valid rounds, "
-        "not the invalid one (no double negative-feedback)")
+        "not the invalid one (no double negative-feedback)"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -478,7 +486,11 @@ def test_fuzz_single_seed_skips_invalid(monkeypatch, tmp_path):
 
 _RQ4_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "..", "..", "experiments", "RQ4", "fuzz_exp-RQ4.py",
+    "..",
+    "..",
+    "experiments",
+    "RQ4",
+    "fuzz_exp-RQ4.py",
 )
 
 
@@ -492,8 +504,9 @@ def _load_rq4_module():
     return mod
 
 
-@pytest.mark.skipif(not os.path.exists(_RQ4_PATH),
-                    reason="experiments/RQ4/fuzz_exp-RQ4.py 不存在")
+@pytest.mark.skipif(
+    not os.path.exists(_RQ4_PATH), reason="experiments/RQ4/fuzz_exp-RQ4.py 不存在"
+)
 def test_rq4_nsf_ablation_budget(monkeypatch, tmp_path):
     """RQ4 fuzz_single_seed with no_semantic_filter=True: every round is treated as
     valid (last_valid True), the mutant is written to mutants.data, and the budget /
@@ -525,6 +538,7 @@ def test_rq4_nsf_ablation_budget(monkeypatch, tmp_path):
 
         def update_reward(self, mutation_type, reward):
             self.reward_calls.append((mutation_type, reward))
+
         def calculate_reward(self, has_semantic_error, coverage_gain):
             self._reward_calls.append((has_semantic_error, coverage_gain))
             base = 0.5 * (1 - int(has_semantic_error)) + 0.5 * coverage_gain
@@ -536,7 +550,8 @@ def test_rq4_nsf_ablation_budget(monkeypatch, tmp_path):
                 "valid": self.valid_count,
                 "invalid": self.invalid_count,
                 "invalid_ratio": (self.invalid_count / self.attempts_total)
-                                if self.attempts_total else 0.0,
+                if self.attempts_total
+                else 0.0,
             }
 
     q = _FakeQueue()

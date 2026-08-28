@@ -10,20 +10,17 @@
 import ast
 import math
 import random
-import signal
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
 import threading
+import time
 
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import PromptTemplate
 from loguru import logger
+from pydantic import BaseModel, Field
+
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.llm_helper import get_sys_llm
-
-from pydantic import BaseModel, Field
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
 
 random.seed(4399)
 
@@ -36,13 +33,17 @@ PROMPT_MUTATE = (
     '"""Please create a simplified version of the previous generation"""',
 )
 
+
 class PureCodeOutput(BaseModel):
-    code: str = Field(description="A pure code snippet without any explanations or code fences.")
+    code: str = Field(
+        description="A pure code snippet without any explanations or code fences."
+    )
+
 
 PureCodeParser = PydanticOutputParser(pydantic_object=PureCodeOutput)
 
 MUTATE_PROMPT = PromptTemplate(
-    template="""You are a professional programmer. Your task is to generate a mutated version of the given code
+    template=r"""You are a professional programmer. Your task is to generate a mutated version of the given code
 snippet according to the mutation instruction.
     
 Code snippet:
@@ -59,12 +60,13 @@ The mutated code should call the target function and meet the mutation instructi
 {format_instructions}
     """,
     input_variables=["func_name", "func_call", "mutation_instruction"],
-    partial_variables={"format_instructions": PureCodeParser.get_format_instructions()}
+    partial_variables={"format_instructions": PureCodeParser.get_format_instructions()},
 )
 
 mutate_chain = MUTATE_PROMPT | get_sys_llm() | PureCodeParser
 
 LLM_TIMEOUT = 60  # seconds
+
 
 def _invoke_with_timeout(chain, input_dict, config, timeout):
     """Call mutate_chain.invoke in a thread with timeout."""
@@ -88,7 +90,8 @@ def _invoke_with_timeout(chain, input_dict, config, timeout):
         raise exception[0]
     return result_holder[0]
 
-def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
+
+def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant:
     """
     使用LLM对给定的种子进行变异。
     mutation_type:
@@ -109,17 +112,19 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
                 input_dict={
                     "func_name": seed.func_name,
                     "func_call": seed.function_call,
-                    "mutation_instruction": str(rng)+prompt,
+                    "mutation_instruction": str(rng) + prompt,
                 },
                 config={"temperature": 0.0},
                 timeout=LLM_TIMEOUT,
             )
             mutated_code = res.code
         except TimeoutError as e:
-            logger.warning(f"Mutation {attempt+1}/3 timed out after {LLM_TIMEOUT}s: {e}")
+            logger.warning(
+                f"Mutation {attempt + 1}/3 timed out after {LLM_TIMEOUT}s: {e}"
+            )
             continue
         except Exception as e:
-            logger.warning(f"Mutation {attempt+1}/3 failed with : {e}")
+            logger.warning(f"Mutation {attempt + 1}/3 failed with : {e}")
             continue
 
     # Save the mutant to the database
@@ -135,7 +140,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
     return mutant
 
 
-def is_valid_semantic(mutant: Mutant) -> Optional[Mutant]:
+def is_valid_semantic(mutant: Mutant) -> Mutant | None:
     """Algorithm 2 IsValidSemantic: a variant is valid iff (1) it passes Python builtin
     compile(), and (2) it contains a valid function call to the target function.
 
@@ -156,6 +161,8 @@ def is_valid_semantic(mutant: Mutant) -> Optional[Mutant]:
         return mutant
     except (SyntaxError, ValueError, TypeError, OverflowError, MemoryError):
         return None
+
+
 def _contains_target_call(target_short: str, tree: ast.AST) -> bool:
     """Return True if the AST contains a Call that references the target function by its
     unqualified name -- either a bare name(...) or a qualified module/class attribute
@@ -196,10 +203,10 @@ class LLMMutator:
         self.tau = 1.0
         self.rng = 0
         # --- C-8 预算/有效性记账（每次 random_llm_mutate 后更新） ---
-        self.last_valid = False       # 最近一次随机变异的有效性（True=有效）
-        self.attempts_total = 0       # LLM 尝试总数（=主循环轮数，每轮1次，供 E-9）
-        self.valid_count = 0          # 有效变异计数
-        self.invalid_count = 0        # 无效变异计数（无效输出同样计入预算）
+        self.last_valid = False  # 最近一次随机变异的有效性（True=有效）
+        self.attempts_total = 0  # LLM 尝试总数（=主循环轮数，每轮1次，供 E-9）
+        self.valid_count = 0  # 有效变异计数
+        self.invalid_count = 0  # 无效变异计数（无效输出同样计入预算）
 
     def select_mutation_type(self) -> int:
         """
@@ -249,7 +256,12 @@ class LLMMutator:
         # 归一化到 [0,1]
         return min(max(base_reward, 0), 1)
 
-    def random_llm_mutate(self, no_check_semantic: bool=False, max_retries: int = 3, retry_delay: float = 5.0) -> tuple[Mutant, int]:
+    def random_llm_mutate(
+        self,
+        no_check_semantic: bool = False,
+        max_retries: int = 3,
+        retry_delay: float = 5.0,
+    ) -> tuple[Mutant, int]:
         """
         随机选择一种变异类型并对种子进行变异。
 
@@ -267,12 +279,14 @@ class LLMMutator:
         mutation_type = self.select_mutation_type()
         self.last_valid = False
         for attempt in range(max_retries):
-            self.attempts_total += 1          # 每次尝试记账（C-8 预算单元）
+            self.attempts_total += 1  # 每次尝试记账（C-8 预算单元）
             try:
                 self.rng += 1
                 res = llm_mutate(self.seed, mutation_type, self.rng)
-            except Exception as e:            # LLM 硬失败/超时：不 re-raise
-                logger.warning(f"Mutation attempt {attempt+1}/{max_retries} failed: {e}")
+            except Exception as e:  # LLM 硬失败/超时：不 re-raise
+                logger.warning(
+                    f"Mutation attempt {attempt + 1}/{max_retries} failed: {e}"
+                )
                 self.invalid_count += 1
                 if not no_check_semantic:
                     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
@@ -280,12 +294,12 @@ class LLMMutator:
                     time.sleep(retry_delay)
                     continue
                 return self._placeholder_mutant(mutation_type), mutation_type
-            if no_check_semantic:             # RQ4 NSF：跳过静态判定，恒视为有效
+            if no_check_semantic:  # RQ4 NSF：跳过静态判定，恒视为有效
                 self.valid_count += 1
                 self.last_valid = True
                 return res, mutation_type
             checked = is_valid_semantic(res)  # C-6 判定
-            if checked is None:               # 静态无效：负反馈一次 + 记无效（无双计）
+            if checked is None:  # 静态无效：负反馈一次 + 记无效（无双计）
                 self.invalid_count += 1
                 self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
                 if attempt < max_retries - 1:
@@ -315,5 +329,7 @@ class LLMMutator:
             "budget": self.attempts_total,
             "valid": self.valid_count,
             "invalid": self.invalid_count,
-            "invalid_ratio": self.invalid_count / self.attempts_total if self.attempts_total else 0.0,
+            "invalid_ratio": self.invalid_count / self.attempts_total
+            if self.attempts_total
+            else 0.0,
         }

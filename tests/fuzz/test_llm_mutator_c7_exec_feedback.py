@@ -55,8 +55,8 @@ def test_calculate_reward_semantic_matrix():
     cases = {
         (False, 1.0): 1.0,  # clean cov-gain
         (False, 0.0): 0.5,  # clean no-cov (neutral)
-        (True, 0.0): 0.0,   # crasher, no cov-gain (C-7 lowest)
-        (True, 1.0): 0.5,   # G1: crasher that gained coverage still rewarded
+        (True, 0.0): 0.0,  # crasher, no cov-gain (C-7 lowest)
+        (True, 1.0): 0.5,  # G1: crasher that gained coverage still rewarded
     }
     m = _mutator()
     for (sem_err, cov_gain), expected in cases.items():
@@ -78,8 +78,8 @@ def test_e15_guard_crasher_with_cov_gain_not_zeroed():
     crasher_with_gain = m.calculate_reward(True, 1.0)
     clean_with_gain = m.calculate_reward(False, 1.0)
 
-    assert crasher_with_gain == 0.5        # not zeroed out
-    assert crasher_with_gain > 0.0         # positive feedback preserved
+    assert crasher_with_gain == 0.5  # not zeroed out
+    assert crasher_with_gain > 0.0  # positive feedback preserved
     assert crasher_with_gain < clean_with_gain == 1.0  # G1 ordering
 
 
@@ -125,8 +125,10 @@ def test_exec_error_reward_differs_from_clean_no_cov_regression():
     # And it collapses onto the static-IsValidSemantic-invalid penalty path.
     # G1: a crasher WITHOUT coverage collapses to the same penalty as a static-IsValidSemantic-invalid
     # mutant (both are pure semantic-error, reward 0.0); a crasher WITH coverage is rescued to 0.5.
-    assert exec_error_reward == m.calculate_reward(True, 0.0)          # same as static-invalid penalty
-    assert m.calculate_reward(True, 1.0) == 0.5                        # G1 rescue, strictly above 0.0
+    assert exec_error_reward == m.calculate_reward(
+        True, 0.0
+    )  # same as static-invalid penalty
+    assert m.calculate_reward(True, 1.0) == 0.5  # G1 rescue, strictly above 0.0
 
 
 def test_penalty_ordering():
@@ -161,7 +163,6 @@ def test_timeout_not_fed_into_update_reward():
     timeout branch (kill+respawn+continue, no update_reward). Kept as a contract
     placeholder here -- the authoritative check is the manual/integration note
     below, since driving the real worker needs dcov + Redis."""
-    pass
 
 
 # --------------------------------------------------------------------------- #

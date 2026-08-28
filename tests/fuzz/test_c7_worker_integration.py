@@ -30,8 +30,6 @@ case; ``statistics.median([1, 2, 3])`` is clean.
 
 from multiprocessing import Process, Queue
 
-import pytest
-
 from respfuzzer.lib.fuzz.fuzz_exp import continue_safe_execute, fuzz_single_seed
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -134,7 +132,7 @@ def test_worker_domain_exception_signal():
     )
     assert reply == ("done", False), (
         f"worker domain-exception signal wrong for median(None): got {reply!r}, ",
-        "expected ('done', False) -- in-body TypeError is not a semantic error"
+        "expected ('done', False) -- in-body TypeError is not a semantic error",
     )
 
 
@@ -156,7 +154,7 @@ def test_worker_construction_error_signal():
     )
     assert reply == ("done", True), (
         f"worker construction-error signal wrong for median(): got {reply!r}, ",
-        "expected ('done', True) -- binding-level TypeError is a semantic error"
+        "expected ('done', True) -- binding-level TypeError is a semantic error",
     )
 
 
@@ -282,8 +280,12 @@ def test_fuzz_single_seed_timeout_never_calls_update_reward(tmp_path, monkeypatc
     monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.LLMMutator", _FakeLLMMutator)
     monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.Queue", _FakeQueue)
     monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.Process", _FakeProcess)
-    monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.BitmapManager", _FakeBitmapManager)
-    monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.get_redis_client", lambda: _FakeRedis())
+    monkeypatch.setattr(
+        "respfuzzer.lib.fuzz.fuzz_exp.BitmapManager", _FakeBitmapManager
+    )
+    monkeypatch.setattr(
+        "respfuzzer.lib.fuzz.fuzz_exp.get_redis_client", lambda: _FakeRedis()
+    )
     # Keep the per-mutant mutants.data writes out of the real data dir.
     monkeypatch.setattr("respfuzzer.lib.fuzz.fuzz_exp.DATA_DIR", tmp_path)
 

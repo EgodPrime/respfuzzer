@@ -9,13 +9,14 @@ from multiprocessing import Process, Queue
 import dcov
 from dcov import BitmapManager
 from loguru import logger
+
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
 )
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.lib.fuzz.semantic_oracle import entered_function_body
 from respfuzzer.models import HasCode, Seed
-from respfuzzer.repos import get_seed_by_function_name, get_seeds
+from respfuzzer.repos import get_seeds
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -148,7 +149,9 @@ def fuzz_single_seed(
             if not getattr(Mutator, "last_valid", True):
                 continue
         except Exception as e:
-            logger.warning(f"Seed {seed.id} LLM mutate round {_} raised: {e}, skip this budget unit")
+            logger.warning(
+                f"Seed {seed.id} LLM mutate round {_} raised: {e}, skip this budget unit"
+            )
             continue
         with open(DATA_DIR / "mutants.data", "a+") as f:
             f.write(f"{mutant.model_dump_json()}\n")
@@ -181,14 +184,20 @@ def fuzz_single_seed(
         logger.info(
             f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
         )
-        runtime_exception = bool(reply[1]) if isinstance(reply, tuple) and len(reply) == 2 else False
+        runtime_exception = (
+            bool(reply[1]) if isinstance(reply, tuple) and len(reply) == 2 else False
+        )
         gain = 1.0 if cov_after > cov_before else 0.0
-        Mutator.update_reward(mutation_type, Mutator.calculate_reward(runtime_exception, gain))
+        Mutator.update_reward(
+            mutation_type, Mutator.calculate_reward(runtime_exception, gain)
+        )
         if cov_after > cov_before:
             logger.info(
                 f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
             )
-    logger.info(f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', lambda: {})()}")
+    logger.info(
+        f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', dict)()}"
+    )
 
     send.put(("exit", None))
     try:
@@ -297,9 +306,9 @@ def fuzz_dataset(
     # dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
     #     open(dataset_path, "r")
     # )
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    with open(dataset_path, encoding="utf-8") as f:
         seeds: list[dict] = json.load(f)
-    
+
     seeds = [Seed.model_validate(s) for s in seeds]
     calc_initial_seed_coverage_dataset(seeds)
     _fuzz_dataset(seeds)

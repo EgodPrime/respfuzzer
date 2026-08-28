@@ -2,11 +2,9 @@ import importlib
 import inspect
 from contextlib import contextmanager
 from functools import wraps
-from sys import path
 from types import BuiltinFunctionType, FunctionType, ModuleType
 
 from loguru import logger
-
 from respfuzzer.utils.config import get_config
 
 # Delay importing fuzzing functions to runtime to avoid importing heavy project
@@ -34,7 +32,7 @@ def instrument_function(func: FunctionType | BuiltinFunctionType):
         """
         res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
-        if not func_name in fuzzed_set:
+        if func_name not in fuzzed_set:
             # logger.debug(f"Want to fuzz {func_name}")
             fuzzed_set.add(func_name)
             try:
@@ -91,7 +89,7 @@ def instrument_function_f4a(func: FunctionType | BuiltinFunctionType):
         """
         res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
-        if not func_name in fuzzed_dict:
+        if func_name not in fuzzed_dict:
             fuzzed_dict[func_name] = 0
         if fuzzed_dict[func_name] < limit_per_function:
             logger.debug(f"Fuzz triggered for {func.__module__}.{func.__name__}")
@@ -276,7 +274,7 @@ def instrument_module(mod: ModuleType) -> None:
             ):  # Skip functions that does not belong to the top-level module
                 continue
             new_func = instrument_function(obj)
-            setattr(new_func, "original__func", obj)
+            new_func.original__func = obj
             try:
                 true_module = top_mod
                 for x in tokens[1:]:
@@ -316,7 +314,7 @@ def instrument_module_fcr(mod: ModuleType) -> None:
             if not tokens[0] == top_mod_name_fcr:
                 continue
             new_func = instrument_function_fcr(obj)
-            setattr(new_func, "original__func", obj)
+            new_func.original__func = obj
             try:
                 true_module = top_mod_fcr
                 for x in tokens[1:]:
@@ -379,4 +377,3 @@ def _record_covered(func, func_name, args, kwargs, *, do_fuzz=True):
         except Exception:
             # 仍记录覆盖，即使 fuzzing 子系统不可用。
             pass
-
