@@ -15,7 +15,15 @@ client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 class Fuzz4AllMutator:
     """
-    从Fuzz4All源码中抽离出来的单独使用的变异器类。
+    从Fuzz4All官方源码中抽离并适配的独立变异器类，用于 RespFuzzer RQ3 基线实验。
+    
+    说明：
+    - 基于官方 Fuzz4All 仓库（commit 0bf42fe）源码抽离：target.py、QISKIT/QISKIT.py、
+      config/targeted/qiskit_linear_function.yaml。本类不是官方系统，也不是完全自研，
+     而是“基于官方源码抽离 + 针对本项目 12 个 Python 库的种子适配”的独立实现。
+    - 每个方法的 docstring/注释均标注对应官方文件与行号；适配点（如 LLM 前缀、
+      无 prev_example 时回避 strategy 3、completions 接口等）见各方法内注释，
+      完整来源/适配清单见同目录 README.md。
     """
 
     def __init__(self, seed: Seed):

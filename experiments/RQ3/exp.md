@@ -13,7 +13,7 @@ cp ./DyFuzz-patch/* ./DyFuzz/
 
 ## Fuzz4All Mutation Setup
 
-We have read the Fuzz4All paper and its github repository carefully. Then we implement the Fuzz4All mutator isolatedly in `experiments/RQ3/miniFuzz4All`, which contains the nessary code to perform the Fuzz4All mutation strategy on RespFuzzer's seeds.
+We use the official Fuzz4All mutation strategy as a baseline. Rather than invoking the official system directly, we re-implement it as an isolated, adapted copy: `experiments/RQ3/miniFuzz4All` extracts the core mutator from the official Fuzz4All source (commit `0bf42fe`; see the per-method source/line annotations in `f4a_mutator.py`) and adapts it to run against RespFuzzer's seeds for the 12 Python libraries in this study. It is therefore an independent reproduction based on the official source, not the official system itself. See `miniFuzz4All/README.md` for the exact upstream commit, the methods extracted, and the adaptation points.
 
 ## dataset Setup
 
