@@ -82,7 +82,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
             match command:
                 case "execute":
                     runtime_exception = False
-                    target = _resolve_func(seed.func_name)
+                    target = _resolve_func(seed.func_path)
                     try:
                         exec(seed.function_call)
                     except Exception as e:
@@ -98,10 +98,10 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
                         send.put(("done", runtime_exception))
                 case "fuzz":
                     runtime_exception = False
-                    target = _resolve_func(seed.func_name)
+                    target = _resolve_func(seed.func_path)
                     try:
                         with instrument_function_via_path_ctx(
-                            seed.func_name, data_fuzz_per_seed
+                            seed.func_path, data_fuzz_per_seed
                         ):
                             exec(seed.function_call)
                     except Exception as e:
@@ -134,7 +134,7 @@ def fuzz_single_seed(
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
 
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}")
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -158,7 +158,7 @@ def fuzz_single_seed(
         cov_before = bm.count_bitmap_s()
         logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
         logger.info(
-            f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}"
+            f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_path}"
         )
         try:
             send.put(("fuzz", mutant))
@@ -231,7 +231,7 @@ def _fuzz_dataset(
     seeds: list[tuple[str, Seed]] = []
     shm_key_start = 4399
     for seed in dataset:
-        seeds.append((shm_key_start, seed.func_name, seed))
+        seeds.append((shm_key_start, seed.func_path, seed))
         shm_key_start += 1
 
     # 并行执行 fuzz_single_seed（使用线程池以避免多进程嵌套的 pickling 问题）
@@ -334,14 +334,14 @@ def fuzz_one_library(library_name: str) -> None:
                 seed,
                 sub_key,
             )
-            futures.append((fut, seed.func_name))
+            futures.append((fut, seed.func_path))
             sub_key += 1
-        for fut, func_name in futures:
+        for fut, func_path in futures:
             try:
                 fut.result()
             except Exception as e:
-                logger.exception(f"Fuzz task for {func_name} raised: {e}")
+                logger.exception(f"Fuzz task for {func_path} raised: {e}")
             finally:
                 logger.info(
-                    f"Current coverage after fuzzing {func_name}: {bm_parent.count_bitmap_s()} bits."
+                    f"Current coverage after fuzzing {func_path}: {bm_parent.count_bitmap_s()} bits."
                 )

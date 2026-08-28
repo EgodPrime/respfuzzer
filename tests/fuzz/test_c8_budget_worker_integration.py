@@ -14,10 +14,6 @@ Shared-memory indices are kept high (>=4999) to avoid colliding with the real
 parent bitmap (4398), real fuzz runs (4399+), or C-7 worker tests (4399/4499).
 """
 
-import os
-
-import pytest
-
 from respfuzzer.lib.fuzz.fuzz_exp import fuzz_single_seed
 from respfuzzer.models import Mutant, Seed
 
@@ -31,7 +27,7 @@ def _seed() -> Seed:
     return Seed(
         func_id=1,
         library_name="statistics",
-        func_name="statistics.median",
+        func_path="statistics.median",
         args=[],
         function_call="unused",
     )
@@ -42,7 +38,7 @@ def _mutant(code: str) -> Mutant:
         func_id=1,
         seed_id=1,
         library_name="statistics",
-        func_name="statistics.median",
+        func_path="statistics.median",
         args=[],
         function_call=code,
     )

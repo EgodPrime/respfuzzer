@@ -36,14 +36,14 @@ def get_data_for_view(
             with open(seed_data_file, 'r') as f:
                 seed_data = json.load(f)
             seed_data = [Seed.model_validate(sd) for sd in seed_data]
-            seed_data = {sd.func_name:sd for sd in seed_data}
+            seed_data = {sd.func_path: sd for sd in seed_data}
         except FileNotFoundError:
             seed_data = {}
 
         for function in function_data:
-            func_name = function.func_name
-            function_table[library_name][func_name] = function
-            seed_table[library_name][func_name] = seed_data.get(func_name, None)
+            func_path = function.func_path
+            function_table[library_name][func_path] = function
+            seed_table[library_name][func_path] = seed_data.get(func_path, None)
 
 
     # for library_name in library_names:
@@ -64,9 +64,9 @@ def get_data_for_view(
         udf_solved = 0
         bf_count = 0
         bf_solved = 0
-        for func_name in function_table[lib_name]:
-            function = function_table[lib_name][func_name]
-            seed = seed_table[lib_name][func_name]
+        for func_path in function_table[lib_name]:
+            function = function_table[lib_name][func_path]
+            seed = seed_table[lib_name][func_path]
             is_builtin = function.is_builtin
             if is_builtin:
                 bf_count += 1

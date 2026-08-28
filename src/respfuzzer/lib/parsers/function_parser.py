@@ -69,7 +69,7 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
         ret_type_str = "unknown"
 
     return Function(
-        func_name=name, real_path=real_path, source=source, args=arg_list,
+        func_path=name, real_path=real_path, source=source, args=arg_list,
         ret_type=ret_type_str,
         function_type="user_defined",
         docstring=inspect.getdoc(obj) or "",  # ED-14a：用户定义的 Python 函数用 getdoc 取文档
@@ -80,7 +80,7 @@ def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType, *, publ
     real_path = ".".join(dill.source._namespace(obj))
     name = public_name or real_path
     return Function(
-        func_name=name,
+        func_path=name,
         real_path=real_path,
         source=pyi_dict["source"],
         args=pyi_dict["args"],

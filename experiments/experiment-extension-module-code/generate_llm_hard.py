@@ -70,14 +70,16 @@ def read_c_source(source_file: str, source_dir: Path) -> str | None:
     full_path = source_dir / source_file
     if full_path.exists():
         try:
-            content = full_path.read_text(errors='ignore')
+            content = full_path.read_text(errors="ignore")
             return f"File: {source_file}\n\n{content[:10000]}"
         except Exception:
             pass
     return None
 
 
-def generate_sample_with_source(func_name: str, library_name: str, c_source: str | None) -> str | None:
+def generate_sample_with_source(
+    func_name: str, library_name: str, c_source: str | None
+) -> str | None:
     """Ask LLM to generate a sample program using the C/C++ source code context."""
     if c_source:
         prompt = f"""请给我生成一个 {library_name} 的 {func_name} API 的示例程序。
@@ -125,9 +127,7 @@ def generate_sample_with_source(func_name: str, library_name: str, c_source: str
                 return code.split("<code>")[1].split("</code>")[0]
             if "```" in code:
                 parts = code.split("```")
-                if len(parts) >= 3:
-                    return parts[1].strip()
-                elif len(parts) >= 2:
+                if len(parts) >= 3 or len(parts) >= 2:
                     return parts[1].strip()
             if code:
                 return code
@@ -147,7 +147,7 @@ def main():
         print(f"Error: {manifest_path} not found")
         sys.exit(1)
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         manifest = json.load(f)
 
     output_dir = Path(__file__).parent / "output" / "llm_hard"
@@ -158,19 +158,19 @@ def main():
     # Get source directories for all libraries
     print("Preparing source code for all libraries...")
     source_dirs = {}
-    for library_name in LIBRARIES.keys():
+    for library_name in LIBRARIES:
         source_dirs[library_name] = get_source_dir(library_name)
 
     results = []
     for i, item in enumerate(manifest):
-        func_name = item["func_name"]
+        func_name = item["func_path"]
         library_name = item["library_name"]
         source_file = item.get("source_file")
         func_name_short = func_name.split(".")[-1]
         filename = f"{library_name}_{func_name_short}.py"
         filepath = output_dir / filename
 
-        print(f"  [{i+1}/{len(manifest)}] {func_name}", end=" ... ")
+        print(f"  [{i + 1}/{len(manifest)}] {func_name}", end=" ... ")
 
         # Read C source from pre-stored path
         c_source = None
@@ -180,9 +180,9 @@ def main():
                 c_source = read_c_source(source_file, source_dir)
 
         if c_source:
-            print(f"[found C source] ", end="")
+            print("[found C source] ", end="")
         else:
-            print(f"[no C source] ", end="")
+            print("[no C source] ", end="")
 
         # Generate sample with C source context
         code = generate_sample_with_source(func_name, library_name, c_source)
@@ -211,7 +211,7 @@ def main():
     # Summary
     success_count = sum(1 for r in results if r["success"])
     has_source_count = sum(1 for r in results if r.get("has_c_source"))
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Summary: {success_count}/{len(results)} sample programs generated")
     print(f"         {has_source_count} functions had C/C++ source code found")
     print(f"Output directory: {output_dir}")

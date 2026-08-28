@@ -12,7 +12,6 @@ import psutil
 from dcov import BitmapManager
 from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
-
 from respfuzzer.lib.fuzz.fuzz_exp import (
     calc_initial_seed_coverage_dataset,
     continue_safe_execute,
@@ -84,7 +83,7 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
         batch = f4a_mutator.generate_n(batch_size)
         dt = time.time() - t0
         logger.info(
-            f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds."
+            f"Generated mutants {i + 1}-{i + batch_size} for seed {seed.id} in {dt:.2f} seconds."
         )
 
         for mutated_call in batch:
@@ -156,7 +155,7 @@ def _fuzz_dataset(seeds: list[Seed], command: str) -> None:
         fuzz_single_seed(seed, command)
         bm = BitmapManager(4398)
         p = bm.count_bitmap_s()
-        logger.info(f"Current coverage after fuzzing {seed.func_name}: {p} bits.")
+        logger.info(f"Current coverage after fuzzing {seed.func_path}: {p} bits.")
 
 
 def fuzz_dataset(dataset_path: str) -> None:
@@ -171,9 +170,9 @@ def fuzz_dataset(dataset_path: str) -> None:
 
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
 
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    with open(dataset_path, encoding="utf-8") as f:
         seeds: list[dict] = json.load(f)
-    
+
     seeds = [Seed.model_validate(s) for s in seeds]
     calc_initial_seed_coverage_dataset(seeds)
     _fuzz_dataset(seeds, "execute")
@@ -190,9 +189,7 @@ def fuzz_dataset_infinite(dataset_path: str) -> None:
 
     logger.info(f"Starting fuzzing for dataset: {dataset_path}")
 
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
-    )
+    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(open(dataset_path))
     calc_initial_seed_coverage_dataset(dataset)
     while True:
         try:

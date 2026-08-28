@@ -11,7 +11,7 @@ LLM的判断依据包含：
 
 1. 读取 replay_results.json 文件，获取所有的漏洞复现结果列表。该列表的每一项都包含`seed_id`、`random_state`、`result`（stderr描述）和`poc`（POC代码）等字段。
 2. 通过`get_seed`获取每个漏洞对应的`seed`对象。
-3. 通过`seed.func_name`获取函数的名称，然后通过 `get_function` 获取目标`function`对象，再通过`function.source`获取目标函数的源码`func_source`。
+3. 通过`seed.func_path`获取函数的名称，然后通过 `get_function` 获取目标`function`对象，再通过`function.source`获取目标函数的源码`func_source`。
 4. 构造 LLM 的输入提示（prompt），包括 POC 代码、stderr描述和目标函数源码`func_source`，以及任务描述（判断该stderr描述是否意味着一个崩溃或者潜在的安全漏洞）。
 5. 调用 LLM 接口，获取模型对每个漏洞的判断结果（是否为真实漏洞）、风险等级和判断的推理过程。
 6. 根据模型的判断结果，过滤掉假阳性漏洞，只保留真实漏洞。（这里如何尽可能减少LLM误判带来的损失呢？）
@@ -33,8 +33,7 @@ from copy import deepcopy
 
 import openai
 from loguru import logger
-from respfuzzer.repos import get_function_by_name
-from respfuzzer.repos import get_mutant_by_id
+from respfuzzer.repos import get_function_by_name, get_mutant_by_id
 
 client = openai.OpenAI(
     base_url="http://192.168.2.29:8023", api_key="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -209,7 +208,7 @@ IndexError: list index out of range
                 f"Failed to parse LLM response, retrying...\nResponse was:\n{response}"
             )
     logger.error(
-        f"Failed to parse LLM response after multiple attempts. Returning default values."
+        "Failed to parse LLM response after multiple attempts. Returning default values."
     )
 
     return False, 0, ""
@@ -231,7 +230,7 @@ def batch_judge(
 
 
 def load_replay_results(path: str) -> dict[str, list[dict[str, int | str]]]:
-    with open(path, "r") as f:
+    with open(path) as f:
         results = json.load(f)
     return results
 
@@ -252,7 +251,7 @@ def main() -> None:
                 pocs.append(result["poc"])
                 stderrs.append(result["result"])
                 continue
-            func_name = seed.func_name
+            func_name = seed.func_path
             function = get_function_by_name(func_name)
             if function is None:
                 logger.error(f"Function {func_name} not found.")

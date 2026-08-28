@@ -5,20 +5,19 @@ from concurrent.futures import ProcessPoolExecutor
 from types import BuiltinFunctionType, FunctionType, ModuleType
 from typing import Dict, Iterator, Set
 
-import dill
 from loguru import logger
 from respfuzzer.lib.parsers.function_parser import (
     from_builtin_function_type,
     from_function_type,
 )
+from respfuzzer.lib.realpath import find_real_path
 from respfuzzer.lib.parsers.pyi_parser import (
     _find_all_pyi_files,
-    make_pyi_key_from_module,
     build_name_index,
 
     parse_pyi_files,
 )
-from respfuzzer.models import Function
+from respfuzzer.models import Function, LibraryModule
 from respfuzzer.utils.paths import DATA_DIR
 
 logger.level("INFO")
@@ -35,6 +34,7 @@ class LibraryVisitor:
         self.pyi_cache: Dict[str, Dict] = {}
         self.name_index: Dict[str, str] = {}  # 裸函数名 -> 限定键（仅唯一裸名，C-10 v2）
         self._top_module = None  # 库顶层模块引用（builtin public_name 顶层映射用）
+        self._rp_cache: dict = {}  # id(obj) -> real_path 记忆化（§8.1）
 
     def visit(self) -> Iterator[Function]:
         """
@@ -88,8 +88,54 @@ class LibraryVisitor:
         # --- C-10 v2: 由 pyi_cache 派生唯一裸名索引（读端 builtin 限定键 miss 时兜底） ---
         self.name_index = build_name_index(self.pyi_cache)
 
+
+    def discover_public_modules(self) -> list[LibraryModule]:
+        """阶段A：沿『公开属性绑定链』发现全部 pub_mod（§8.2）。
+
+        返回 `LibraryModule(real_path, mod_path)` 列表，`is_public(mod_path)` 才登记；
+        物理私有但公开别名的模块（`import a.b._c as c`）经别名路径被收录。
+        """
+        try:
+            library = importlib.import_module(self.library_name)
+        except ModuleNotFoundError:
+            return []
+        acc: list[LibraryModule] = []
+        seen: set = set()
+        self._collect_pub_mods(library, self.library_name, library, acc, seen)
+        return acc
+
+    def _collect_pub_mods(
+        self,
+        mod: ModuleType,
+        mod_path: str,
+        root_mod: ModuleType,
+        acc: list[LibraryModule],
+        seen: set,
+    ) -> None:
+        if mod is None or id(mod) in seen:
+            return
+        seen.add(id(mod))
+        # 模块物理身份也走 find_real_path 单一入口（记忆化共享 + override 钩子兼容模块级镜像，
+        # 如 paddle）；模块物理身份恒等 __name__，故 dill 失败时以 __name__ 兜底。
+        rp = find_real_path(root_mod, mod, cache=self._rp_cache)
+        real = ".".join(rp) if rp else mod.__name__
+        rec = LibraryModule(real_path=real, mod_path=mod_path)
+        if rec.is_public:
+            acc.append(rec)
+        for name in dir(mod):
+            if name.startswith("_"):
+                continue  # 私有绑定名不沿其发现公开 surface；若经公开别名会在别处发现
+            try:
+                obj = getattr(mod, name)
+            except AttributeError:
+                continue
+            if isinstance(obj, ModuleType):
+                self._collect_pub_mods(
+                    obj, f"{mod_path}.{name}", root_mod, acc, seen
+                )
     def _visit(
-        self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set
+        self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set,
+        public_prefix: str | None = None
     ) -> Iterator[Function]:
         logger.debug(f"visit module {mod.__name__}")
         # Avoid visiting the same object multiple times.
@@ -99,9 +145,11 @@ class LibraryVisitor:
 
         # Visit all the attributes in the module.
         names = dir(mod)
-        # 判断当前模块是否处于私有命名空间（模块全名含以 "_" 开头的段，如 torch._C）：
-        # 该路径下仅收集 builtin（C 扩展绑定），FunctionType 不从中提取（保持口径 1：不要私有函数）。
-        in_private = any(seg.startswith("_") for seg in mod.__name__.split("."))
+        # 公开路径标签（func_path 在模块层的 tag）：缺省取物理 __name__；经公开别名递归时
+        # 由父层传入公开别名路径（如 a.b.c），使隐私判定按『公开路径』而非物理名（§8.2）。
+        public_prefix = public_prefix or mod.__name__
+        # 隐私判定：只看公开调用路径是否含私有段（物理私有但公开别名的模块不算私有）
+        in_private = any(seg.startswith("_") for seg in public_prefix.split("."))
 
         for name in names:
             # Try to get the attribute.
@@ -114,25 +162,31 @@ class LibraryVisitor:
             # Only support modules, functions, and built-in functions.
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
-            # 私有函数/私有 builtin（"_" 开头且非模块）一律跳过（口径 1）；私有子模块（如 torch._C）仍进入。
-            if name.startswith("_") and not isinstance(obj, ModuleType):
+            # 私有绑定名（函数/builtin/模块）一律不作为公开 surface 遍历（§8.2）：
+            # 模块若经公开别名（如 `import a.b._c as c`）会在公开名属性 `c` 下被发现再遍历；
+            # 否则不进公开候选池。此门同时避免私有路径先消耗 id 去重槽、短路公开别名访问。
+            if name.startswith("_"):
                 continue
 
-            real_path = dill.source._namespace(obj)
-            if real_path[0] != root_mod_name:
+            # 物理身份经 find_real_path 单一入口（§8.1）；归属过滤靠物理证据（real_path[0]），
+            # 不在该库前缀或无法解析（None）一律丢弃（B4 跨库 star 灌名）。
+            root_mod = self._top_module or ModuleType(root_mod_name)
+            rp = find_real_path(root_mod, obj, cache=self._rp_cache)
+            if rp is None or rp[0] != root_mod_name:
                 # skip if it does not belong to the library
                 continue
-            if real_path[-1] != name:
-                logger.debug(f"{mod.__name__}.{name} has real name {real_path[-1]}")
+            if rp[-1] != name:
+                logger.debug(f"{public_prefix}.{name} has real name {rp[-1]}")
 
             # The public-facing dotted name (how users actually call it)
-            public_name = f"{mod.__name__}.{name}"
+            public_name = f"{public_prefix}.{name}"
 
             # Check submodule firstly
             if isinstance(obj, ModuleType):
                 # Now we can recurse into the submodule
-                for function in self._visit(obj, root_mod_name, obj_has_been_seen):
-                    yield function
+                yield from self._visit(
+                    obj, root_mod_name, obj_has_been_seen, f"{public_prefix}.{name}"
+                )
             else:
 
                 if isinstance(obj, FunctionType) and not in_private:
@@ -143,7 +197,7 @@ class LibraryVisitor:
                 elif isinstance(obj, BuiltinFunctionType):
                     # --- C-10 v2: 限定键优先查询 stub；miss 时回落"整库唯一裸名"兜底。
                     # 歧义裸名（多个限定键同名）不入索引，强制走限定键，保留 C-10 防碰撞。
-                    prov_key = make_pyi_key_from_module(mod.__name__, name)
+                    prov_key = ".".join(rp)  # 物理身份键（§8.1，C-10 一元对齐）
                     entry = self.pyi_cache.get(prov_key)
                     if entry is None:
                         mapped_key = self.name_index.get(name)
@@ -165,10 +219,10 @@ class LibraryVisitor:
 
 def _deduplicate_functions(functions: list[Function]) -> list[Function]:
     """
-    基于 real_path 去重：同一 real_path 只保留 func_name 最短的条目。
+    基于 real_path 去重：同一 real_path 只保留 func_path 最短的条目。
     分段数相同时保留先出现的（不做替换）。
 
-    分段数计算：func_name 中 '.' 的数量 + 1。
+    分段数计算：func_path 中 '.' 的数量 + 1。
     例如 "scipy.integrate.solve_ivp" -> 3 段，
          "scipy.integrate.odepack.odeint" -> 4 段。
     """
@@ -180,7 +234,7 @@ def _deduplicate_functions(functions: list[Function]) -> list[Function]:
             # 没有 real_path 的条目直接跳过（旧数据兼容，不会被保留）
             continue
 
-        seg_count = func.func_name.count(".") + 1
+        seg_count = func.func_path.count(".") + 1
 
         if rp not in best:
             best[rp] = (func, seg_count)
@@ -204,7 +258,7 @@ def extract_functions_from_library(library_name: str) -> None:
         cnt += 1
     logger.info(f"Finished extracting {cnt} functions from library {library_name}")
 
-    # Deduplicate by real_path: keep shortest func_name per real_path
+    # Deduplicate by real_path: keep shortest func_path per real_path
     before = len(functions)
     functions = _deduplicate_functions(functions)
     after = len(functions)

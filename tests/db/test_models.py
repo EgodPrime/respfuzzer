@@ -3,7 +3,7 @@ from respfuzzer.models import Function
 
 def test_function_str():
     func = Function(
-        func_name="math.add",
+        func_path="math.add",
         source="def add(a, b): return a + b",
         args=[
             {"arg_name": "a", "type": "int", "pos_type": "positional"},

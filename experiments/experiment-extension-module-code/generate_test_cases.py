@@ -16,9 +16,9 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from respfuzzer.lib.library_visitor import LibraryVisitor
-from respfuzzer.lib.agentic_function_resolver import solve
 from loguru import logger
+from respfuzzer.lib.agentic_function_resolver import solve
+from respfuzzer.lib.library_visitor import LibraryVisitor
 
 logger.level("INFO")
 
@@ -78,11 +78,14 @@ def build_c_file_index(library_name: str, source_dir: Path) -> list[Path]:
         return C_FILE_INDEX[library_name]
 
     print(f"    Building C/C++ file index for {library_name}...")
-    c_extensions = ['.c', '.h', '.cpp', '.hpp']
+    c_extensions = [".c", ".h", ".cpp", ".hpp"]
     files = []
     for ext in c_extensions:
         for cfile in source_dir.rglob(f"*{ext}"):
-            if any(skip in str(cfile) for skip in ['test', 'bench', 'doc', 'examples', '.git']):
+            if any(
+                skip in str(cfile)
+                for skip in ["test", "bench", "doc", "examples", ".git"]
+            ):
                 continue
             files.append(cfile)
     C_FILE_INDEX[library_name] = files
@@ -90,7 +93,9 @@ def build_c_file_index(library_name: str, source_dir: Path) -> list[Path]:
     return files
 
 
-def find_c_source_for_function(func_name: str, source_dir: Path, library_name: str) -> Path | None:
+def find_c_source_for_function(
+    func_name: str, source_dir: Path, library_name: str
+) -> Path | None:
     """Search for C/C++ source code implementing the given function."""
     if source_dir is None or not source_dir.exists():
         return None
@@ -98,16 +103,16 @@ def find_c_source_for_function(func_name: str, source_dir: Path, library_name: s
     base_name = func_name.split(".")[-1]
 
     search_patterns = [
-        rf'(?i){base_name}',
-        rf'(?i)PyArray_{base_name}',
-        rf'(?i)array_{base_name}',
+        rf"(?i){base_name}",
+        rf"(?i)PyArray_{base_name}",
+        rf"(?i)array_{base_name}",
     ]
 
     files = build_c_file_index(library_name, source_dir)
 
     for cfile in files:
         try:
-            content = cfile.read_text(errors='ignore')
+            content = cfile.read_text(errors="ignore")
             for pattern in search_patterns:
                 if re.search(pattern, content):
                     return cfile.relative_to(source_dir)
@@ -119,20 +124,20 @@ def find_c_source_for_function(func_name: str, source_dir: Path, library_name: s
 
 def generate_for_function(function, output_dir: Path, source_file: Path = None) -> dict:
     """Generate test case for a single function using existing solve() logic."""
-    func_name_short = function.func_name.split(".")[-1]
+    func_name_short = function.func_path.split(".")[-1]
     filename = f"{function.library_name}_{func_name_short}.py"
     filepath = output_dir / filename
 
-    logger.info(f"Try solving {function.func_name} ...")
+    logger.info(f"Try solving {function.func_path} ...")
     code = None
     try:
         code = solve(function)
     except Exception as e:
-        logger.info(f"Failed to solve {function.func_name}: {e}")
+        logger.info(f"Failed to solve {function.func_path}: {e}")
 
     result = {
         "library_name": function.library_name,
-        "func_name": function.func_name,
+        "func_name": function.func_path,
         "success": code is not None,
         "source_file": str(source_file) if source_file else None,
         "output_file": str(filepath),
@@ -141,20 +146,22 @@ def generate_for_function(function, output_dir: Path, source_file: Path = None) 
     if code:
         with open(filepath, "w") as f:
             f.write(code)
-        logger.info(f"Seed found for {function.func_name}:\n{code}")
+        logger.info(f"Seed found for {function.func_path}:\n{code}")
         result["code"] = code
     else:
-        logger.info(f"Failed to solve {function.func_name}")
+        logger.info(f"Failed to solve {function.func_path}")
         result["code"] = None
 
     return result
 
 
-def generate_for_function_from_manifest(item: dict, output_dir: Path, source_file: Path, source_dir: Path) -> dict:
+def generate_for_function_from_manifest(
+    item: dict, output_dir: Path, source_file: Path, source_dir: Path
+) -> dict:
     """Generate test case for a function from manifest data."""
-    from respfuzzer.models import Function, Argument
+    from respfuzzer.models import Function
 
-    func_name = item["func_name"]
+    func_name = item["func_path"]
     library_name = item["library_name"]
     func_name_short = func_name.split(".")[-1]
     filename = f"{library_name}_{func_name_short}.py"
@@ -163,7 +170,7 @@ def generate_for_function_from_manifest(item: dict, output_dir: Path, source_fil
     logger.info(f"Try solving {func_name} ...")
 
     func = Function(
-        func_name=func_name,
+        func_path=func_name,
         library_name=library_name,
         source=str(source_file) if source_file else "unknown",
         args=item.get("args", []),
@@ -195,16 +202,26 @@ def generate_for_function_from_manifest(item: dict, output_dir: Path, source_fil
     return result
 
 
-def filter_functions_with_source(functions: list, source_dir: Path, library_name: str, min_needed: int = 5) -> list:
+def filter_functions_with_source(
+    functions: list, source_dir: Path, library_name: str, min_needed: int = 5
+) -> list:
     """Filter functions to only those with findable C/C++ source code.
 
     Stops early once min_needed functions with source are found.
     """
     functions_with_source = []
-    print(f"\n  Filtering {len(functions)} functions by source availability (stop at {min_needed})...")
+    print(
+        f"\n  Filtering {len(functions)} functions by source availability (stop at {min_needed})..."
+    )
     for i, func in enumerate(functions):
-        print(f"    [{i+1}/{len(functions)}] Checking {func.func_name} ... ", end="", flush=True)
-        source_file = find_c_source_for_function(func.func_name, source_dir, library_name)
+        print(
+            f"    [{i + 1}/{len(functions)}] Checking {func.func_path} ... ",
+            end="",
+            flush=True,
+        )
+        source_file = find_c_source_for_function(
+            func.func_path, source_dir, library_name
+        )
         if source_file:
             try:
                 rel_path = source_file.relative_to(source_dir)
@@ -227,7 +244,7 @@ def select_diverse_functions_with_source(functions_with_source: list, n: int) ->
 
     modules: dict[str, list] = {}
     for func, source_file in functions_with_source:
-        parts = func.func_name.split(".")
+        parts = func.func_path.split(".")
         if len(parts) >= 2:
             module = parts[1]
         else:
@@ -236,13 +253,13 @@ def select_diverse_functions_with_source(functions_with_source: list, n: int) ->
             modules[module] = []
         modules[module].append((func, source_file))
 
-    print(f"\n  Module distribution:")
+    print("\n  Module distribution:")
     for module, funcs in sorted(modules.items()):
         print(f"    {module}: {len(funcs)} functions")
 
     selected = []
     module_names = sorted(modules.keys())
-    module_indices = {m: 0 for m in module_names}
+    module_indices = dict.fromkeys(module_names, 0)
 
     while len(selected) < n:
         for module in module_names:
@@ -257,7 +274,7 @@ def select_diverse_functions_with_source(functions_with_source: list, n: int) ->
 
 def process_library(library_name: str, n_apis: int, output_dir: Path) -> list:
     """Process a single library: extract functions, filter by source, generate test cases."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Processing library: {library_name}")
 
     visitor = LibraryVisitor(library_name)
@@ -274,8 +291,12 @@ def process_library(library_name: str, n_apis: int, output_dir: Path) -> list:
         print(f"  Error: Could not get source directory for {library_name}")
         return []
 
-    functions_with_source = filter_functions_with_source(all_functions, source_dir, library_name, min_needed=n_apis)
-    print(f"\n  {len(functions_with_source)}/{len(all_functions)} functions have C/C++ source")
+    functions_with_source = filter_functions_with_source(
+        all_functions, source_dir, library_name, min_needed=n_apis
+    )
+    print(
+        f"\n  {len(functions_with_source)}/{len(all_functions)} functions have C/C++ source"
+    )
 
     if len(functions_with_source) == 0:
         print(f"  Warning: No functions with C/C++ source found for {library_name}")
@@ -285,7 +306,7 @@ def process_library(library_name: str, n_apis: int, output_dir: Path) -> list:
 
     print(f"\n  Selected {len(selected)} diverse functions with source:")
     for i, (func, source_file) in enumerate(selected):
-        print(f"    [{i+1}/{n_apis}] {func.func_name} (source: {source_file.name})")
+        print(f"    [{i + 1}/{n_apis}] {func.func_path} (source: {source_file.name})")
 
     print(f"\n  Generating test cases for {len(selected)} functions...")
 
@@ -296,7 +317,7 @@ def process_library(library_name: str, n_apis: int, output_dir: Path) -> list:
             executor.submit(generate_for_function, func, output_dir, source_file): func
             for func, source_file in selected
         }
-        print(f"  Waiting for results...")
+        print("  Waiting for results...")
         for i, future in enumerate(concurrent.futures.as_completed(futures)):
             func = futures[future]
             try:
@@ -304,16 +325,16 @@ def process_library(library_name: str, n_apis: int, output_dir: Path) -> list:
             except concurrent.futures.TimeoutError:
                 result = {
                     "library_name": func.library_name,
-                    "func_name": func.func_name,
+                    "func_name": func.func_path,
                     "success": False,
                     "source_file": None,
                     "output_file": None,
                     "code": None,
                 }
-                print(f"    [{i+1}/{len(selected)}] {func.func_name} ... TIMEOUT")
+                print(f"    [{i + 1}/{len(selected)}] {func.func_path} ... TIMEOUT")
             results.append(result)
             status = "OK" if result["success"] else "FAILED"
-            print(f"    [{i+1}/{len(selected)}] {func.func_name} ... {status}")
+            print(f"    [{i + 1}/{len(selected)}] {func.func_path} ... {status}")
 
     return results
 
@@ -326,7 +347,7 @@ def main():
         print(f"Error: {manifest_input} not found")
         sys.exit(1)
 
-    with open(manifest_input, "r") as f:
+    with open(manifest_input) as f:
         manifest = json.load(f)
 
     output_dir = base_dir / "output" / "respfuzz"
@@ -337,25 +358,27 @@ def main():
     # Prepare source directories for all libraries
     print("Preparing source code for all libraries...")
     source_dirs = {}
-    for library_name in LIBRARIES.keys():
+    for library_name in LIBRARIES:
         source_dirs[library_name] = get_source_dir(library_name)
 
     results = []
     for i, item in enumerate(manifest):
-        func_name = item["func_name"]
+        func_name = item["func_path"]
         library_name = item["library_name"]
         source_file = item.get("source_file")
 
-        print(f"  [{i+1}/{len(manifest)}] {func_name}", end=" ... ")
+        print(f"  [{i + 1}/{len(manifest)}] {func_name}", end=" ... ")
 
         if source_file and library_name in source_dirs and source_dirs[library_name]:
             source_dir = source_dirs[library_name]
             # Convert string source_file back to Path for generate_for_function
             source_path = Path(source_file) if source_file else None
-            print(f"[has C source] ", end="")
-            result = generate_for_function_from_manifest(item, output_dir, source_path, source_dir)
+            print("[has C source] ", end="")
+            result = generate_for_function_from_manifest(
+                item, output_dir, source_path, source_dir
+            )
         else:
-            print(f"[no C source] ", end="")
+            print("[no C source] ", end="")
             result = generate_for_function_from_manifest(item, output_dir, None, None)
 
         status = "OK" if result["success"] else "FAILED"
@@ -364,8 +387,10 @@ def main():
 
     # Summary
     success_count = sum(1 for r in results if r["success"])
-    print(f"\n{'='*60}")
-    print(f"OVERALL SUMMARY: {success_count}/{len(results)} test cases generated successfully")
+    print(f"\n{'=' * 60}")
+    print(
+        f"OVERALL SUMMARY: {success_count}/{len(results)} test cases generated successfully"
+    )
     print(f"Output directory: {output_dir}")
 
     # Write manifest

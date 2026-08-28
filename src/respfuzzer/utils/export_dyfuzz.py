@@ -43,7 +43,7 @@ def sample_apis(json_data: dict, total_samples: int = 200, min_n = 1):
 
 def save_to_data(seed: Seed, data: dict):
     # tokens = row[0].split('.')
-    library_name, api_name = seed.func_name.split(".", 1)
+    library_name, api_name = seed.func_path.split(".", 1)
     n = len(seed.args)
     v = {"pn": [n, n]}
     if library_name not in data:

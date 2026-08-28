@@ -16,7 +16,10 @@ def test_visit_ast():
 def test_visit_pandas():
     """Test basic functionality with pandas library (skipped if pandas not installed)"""
     import pytest
-    pytest.importorskip("pandas")  # 环境(本工作区 py3.14)未装 pandas 时跳过；安装后执行真实遍历
+
+    pytest.importorskip(
+        "pandas"
+    )  # 环境(本工作区 py3.14)未装 pandas 时跳过；安装后执行真实遍历
     visitor = LibraryVisitor("pandas")
     functions = list(visitor.visit())
     assert len(functions) > 0
@@ -67,7 +70,7 @@ def test__visit_submodule_name_exception():
     sub = BadModule("rootmod.sub")
     # expose submodule through root
     root.__all__ = ["sub"]
-    setattr(root, "sub", sub)
+    root.sub = sub
 
     # Accessing sub.__name__ raises in this BadModule; the implementation tries to
     # clone and access clone.__name__, but that may still raise. Treat this as a
@@ -89,7 +92,7 @@ def test__visit_function_module_none():
     # set function module to None to trigger the warning path
     func.__module__ = None
     mod.__all__ = ["func"]
-    setattr(mod, "func", func)
+    mod.func = func
 
     res = list(visitor._visit(mod, "myns", set()))
     # the function has __module__ None so it should be skipped -> no results
@@ -118,17 +121,20 @@ def test__visit_submodule_not_in_root():
     root = ModuleType("rootmod")
     sub = ModuleType("otherpkg.sub")
     root.__all__ = ["sub"]
-    setattr(root, "sub", sub)
+    root.sub = sub
 
     res = list(visitor._visit(root, "rootmod", set()))
     # submodule exists but its __name__ doesn't start with root_mod_name, so it should be ignored
     assert res == []
 
+
 def test_builtin_hits_qualified_key(monkeypatch):
     """缺口B完整链路：_visit 用限定键（当前遍历模块 __name__ + 函数名）命中 pyi_cache，
     产出 is_builtin==1 且 func_name 含模块前缀；换另一模块同名函数则 miss，证明键区分模块。"""
+
     def fake_namespace(obj):
         return ["mylib", "sub", "a", "load"]
+
     monkeypatch.setattr("dill.source._namespace", fake_namespace)
 
     pyi_dict = {
@@ -143,13 +149,13 @@ def test_builtin_hits_qualified_key(monkeypatch):
     visitor = LibraryVisitor("mylib")
     visitor.pyi_cache = {"mylib.sub.a.load": pyi_dict}
     mod = ModuleType("mylib.sub.a")
-    setattr(mod, "load", len)  # 真实 builtin
+    mod.load = len  # 真实 builtin
 
     res = list(visitor._visit(mod, "mylib", set()))
     assert len(res) == 1
     assert res[0].is_builtin == 1
-    assert res[0].func_name == "mylib.sub.a.load"
-    assert "mylib.sub" in res[0].func_name
+    assert res[0].func_path == "mylib.sub.a.load"
+    assert "mylib.sub" in res[0].func_path
 
     # miss：仅另一模块 mylib.sub.b 有同一函数名 load 的 stub → 本模块查不到，键区分模块
     visitor2 = LibraryVisitor("mylib")

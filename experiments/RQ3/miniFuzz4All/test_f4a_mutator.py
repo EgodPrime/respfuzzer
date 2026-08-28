@@ -8,7 +8,6 @@ import types
 # Import the module under test by file path so tests work without installing the package
 import f4a_mutator as fm
 import pytest
-
 from respfuzzer.models import Argument, Seed
 
 
@@ -17,7 +16,7 @@ class FakeSeed:
         # mimic the Seed attributes used by Fuzz4AllMutator
         self.function_call = 'foo()\n# inline comment\n"""block comment"""'
         self.library_name = "mylib"
-        self.func_name = "mylib.module.func"
+        self.func_path = "mylib.module.func"
 
 
 class DummyResponseChoice:
@@ -176,7 +175,7 @@ def test_generate_four_strategies_real_client(monkeypatch):
     seed = Seed(
         func_id=1,
         library_name="mylib",
-        func_name="mylib.module.func",
+        func_path="mylib.module.func",
         args=[Argument(arg_name="x", pos_type="positional")],
         function_call="func(1)",
     )
@@ -187,5 +186,5 @@ def test_generate_four_strategies_real_client(monkeypatch):
     for strat in (3, 0, 1, 2, 3):
         monkeypatch.setattr(fm.random, "randint", lambda a, b, s=strat: s)
         res = mut.generate()
-        print(f"{"="*30}\nStrategy {strat} produced\n{"="*30}\n{res}\n")
+        print(f"{'=' * 30}\nStrategy {strat} produced\n{'=' * 30}\n{res}\n")
         assert isinstance(res, str)

@@ -7,9 +7,7 @@ source_file paths to inject C/C++ source into the LLM prompt.
 Usage: uv run python scripts/generate_test_cases_with_source.py
 """
 
-import concurrent.futures
 import json
-import re
 import subprocess
 import sys
 import time
@@ -18,10 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from respfuzzer.lib.library_visitor import LibraryVisitor
-from respfuzzer.models import Function, ExecutionResultType
-from respfuzzer.utils.config import get_config
 from loguru import logger
+from respfuzzer.models import ExecutionResultType, Function
+from respfuzzer.utils.config import get_config
 
 logger.level("INFO")
 
@@ -83,7 +80,7 @@ def read_c_source(source_file: str, source_dir: Path) -> str | None:
     full_path = source_dir / source_file
     if full_path.exists():
         try:
-            content = full_path.read_text(errors='ignore')
+            content = full_path.read_text(errors="ignore")
             return f"File: {source_file}\n\n{content[:10000]}"
         except Exception:
             pass
@@ -93,12 +90,14 @@ def read_c_source(source_file: str, source_dir: Path) -> str | None:
 class SourceAttempter:
     """Attempter that includes C/C++ source code in the prompt."""
 
-    def generate(self, function: Function, history: list, c_source: str | None = None) -> str:
-        package_path, func_name = function.func_name.rsplit(".", 1)
+    def generate(
+        self, function: Function, history: list, c_source: str | None = None
+    ) -> str:
+        package_path, func_name = function.func_path.rsplit(".", 1)
 
         if c_source:
             prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -140,7 +139,7 @@ res = c(x, y)
 </C source code>"""
         else:
             prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -195,14 +194,14 @@ res = c(x, y)
                     return code.split("<code>")[1].split("</code>")[0]
                 if "```" in code:
                     parts = code.split("```")
-                    if len(parts) >= 3:
-                        return parts[1].strip()
-                    elif len(parts) >= 2:
+                    if len(parts) >= 3 or len(parts) >= 2:
                         return parts[1].strip()
                 raise ValueError("模型返回不包含 <code> 或 ``` 包裹的代码段")
             except Exception as e:
                 last_exc = e
-                logger.debug(f"SourceAttempter.generate attempt {attempt+1} failed: {e}")
+                logger.debug(
+                    f"SourceAttempter.generate attempt {attempt + 1} failed: {e}"
+                )
                 time.sleep(1 + attempt)
                 continue
         tb = traceback.format_exception_only(type(last_exc), last_exc)
@@ -213,7 +212,7 @@ class SourceJudger:
     """Judger that checks if generated code contains valid function call."""
 
     def judge(self, code: str, function: Function) -> dict:
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         prompt = (
             f"<function>\n{function.model_dump_json()}\n</function>\n"
             f"<code>\n{code}\n</code>\n"
@@ -259,7 +258,7 @@ class SourceJudger:
                     return {"valid": False, "reason": text}
             except Exception as e:
                 last_exc = e
-                logger.debug(f"Judger attempt {attempt+1} failed: {e}")
+                logger.debug(f"Judger attempt {attempt + 1} failed: {e}")
                 time.sleep(1 + attempt)
                 continue
         tb = traceback.format_exception_only(type(last_exc), last_exc)
@@ -270,8 +269,9 @@ class SourceExecutor:
     """Executor that runs generated code and checks for valid function call."""
 
     def execute(self, code: str, full_name: str) -> dict:
-        import tempfile
         import subprocess
+        import tempfile
+
         result_type = ExecutionResultType.CALLFAIL
         ret_code = 1
         stdout = ""
@@ -324,7 +324,9 @@ with instrument_function_via_path_check_ctx("{fn}") as f:
                     ret_code = 124
             except Exception as e:
                 result_type = ExecutionResultType.CALLFAIL
-                stderr = (stderr or "") + f"\nException when starting subprocess: {str(e)}\n"
+                stderr = (
+                    stderr or ""
+                ) + f"\nException when starting subprocess: {str(e)}\n"
             finally:
                 return {
                     "result_type": result_type,
@@ -362,7 +364,7 @@ class SourceReasoner:
                 raise ValueError("模型返回空的解释内容")
             except Exception as e:
                 last_exc = e
-                logger.debug(f"Reasoner attempt {attempt+1} failed: {e}")
+                logger.debug(f"Reasoner attempt {attempt + 1} failed: {e}")
                 time.sleep(1 + attempt)
                 continue
         tb = traceback.format_exception_only(type(last_exc), last_exc)
@@ -402,7 +404,10 @@ def solve_with_source(function: Function, c_source: str | None = None) -> str | 
             else:
                 logger.debug(f"Judger rejected the code: {judgment['reason']}")
                 history.append(
-                    {"role": "judger", "content": f"Judger rejected the code: {judgment['reason']}"}
+                    {
+                        "role": "judger",
+                        "content": f"Judger rejected the code: {judgment['reason']}",
+                    }
                 )
                 budget -= 1
                 if budget <= 0:
@@ -417,7 +422,7 @@ def solve_with_source(function: Function, c_source: str | None = None) -> str | 
                 break
             continue
 
-        result = executor.execute(code, function.func_name)
+        result = executor.execute(code, function.func_path)
 
         if result["result_type"] == ExecutionResultType.OK:
             solved = True
@@ -447,7 +452,7 @@ def solve_with_source(function: Function, c_source: str | None = None) -> str | 
 
 def process_function(item: dict, source_dirs: dict, output_dir: Path) -> dict:
     """Process a single function from the manifest."""
-    func_name = item["func_name"]
+    func_name = item["func_path"]
     library_name = item["library_name"]
     source_file = item.get("source_file")
     func_name_short = func_name.split(".")[-1]
@@ -463,7 +468,7 @@ def process_function(item: dict, source_dirs: dict, output_dir: Path) -> dict:
         c_source = read_c_source(source_file, source_dir)
 
     # Create a minimal Function object for solve_with_source
-    from respfuzzer.models import Function, Argument
+    from respfuzzer.models import Function
 
     args_list = item.get("args", [])
     # If args is empty list or not present, create empty Argument list
@@ -471,7 +476,7 @@ def process_function(item: dict, source_dirs: dict, output_dir: Path) -> dict:
         args_list = []
 
     func = Function(
-        func_name=func_name,
+        func_path=func_name,
         library_name=library_name,
         source=item.get("source_file", "unknown"),
         args=args_list,
@@ -510,7 +515,7 @@ def main():
         print(f"Error: {manifest_path} not found")
         sys.exit(1)
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         manifest = json.load(f)
 
     output_dir = Path(__file__).parent / "output" / "respfuzz_with_source"
@@ -521,23 +526,23 @@ def main():
     # Prepare source directories for all libraries
     print("Preparing source code for all libraries...")
     source_dirs = {}
-    for library_name in LIBRARIES.keys():
+    for library_name in LIBRARIES:
         source_dirs[library_name] = get_source_dir(library_name)
 
-    print(f"\nGenerating test cases with C/C++ source in prompt...")
+    print("\nGenerating test cases with C/C++ source in prompt...")
 
     results = []
     for i, item in enumerate(manifest):
-        func_name = item["func_name"]
+        func_name = item["func_path"]
         library_name = item["library_name"]
         source_file = item.get("source_file")
 
-        print(f"  [{i+1}/{len(manifest)}] {func_name}", end=" ... ")
+        print(f"  [{i + 1}/{len(manifest)}] {func_name}", end=" ... ")
 
         if source_file and library_name in source_dirs and source_dirs[library_name]:
-            print(f"[has C source] ", end="")
+            print("[has C source] ", end="")
         else:
-            print(f"[no C source] ", end="")
+            print("[no C source] ", end="")
 
         result = process_function(item, source_dirs, output_dir)
 
@@ -548,7 +553,7 @@ def main():
     # Summary
     success_count = sum(1 for r in results if r["success"])
     has_source_count = sum(1 for r in results if r.get("source_file"))
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Summary: {success_count}/{len(results)} test cases generated successfully")
     print(f"         {has_source_count} functions had C/C++ source code")
     print(f"Output directory: {output_dir}")

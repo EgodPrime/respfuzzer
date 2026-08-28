@@ -81,16 +81,16 @@ def _args(*types):
 
 
 def test_has_full_type_hints_computed():
-    full = Function(func_name="m.f", source="", args=_args("int", "str", "float"))
+    full = Function(func_path="m.f", source="", args=_args("int", "str", "float"))
     assert full.has_full_type_hints is True
 
-    has_unknown = Function(func_name="m.f", source="", args=_args("int", "unknown"))
+    has_unknown = Function(func_path="m.f", source="", args=_args("int", "unknown"))
     assert has_unknown.has_full_type_hints is False
 
-    has_empty = Function(func_name="m.f", source="", args=_args("", "int"))
+    has_empty = Function(func_path="m.f", source="", args=_args("", "int"))
     assert has_empty.has_full_type_hints is False
 
-    no_args = Function(func_name="m.f", source="", args=[])
+    no_args = Function(func_path="m.f", source="", args=[])
     assert no_args.has_full_type_hints is True  # 无参数视为满注解（真空集）
 
 
@@ -100,7 +100,7 @@ def test_has_full_type_hints_computed():
 def test_old_json_backward_compat():
     """旧 functions.json 记录（无 function_type/docstring）→ 默认 user_defined / ''，hints 派生。"""
     old = {
-        "func_name": "m.f",
+        "func_path": "m.f",
         "source": "def f(a): ...\n",
         "args": [{"arg_name": "a", "type": "int", "pos_type": "POSITIONAL_OR_KEYWORD"}],
     }

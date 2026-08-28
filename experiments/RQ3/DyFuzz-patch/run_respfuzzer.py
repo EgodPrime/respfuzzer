@@ -1,18 +1,13 @@
-import importlib
-import importlib.util
 import io
-import os
-import platform
-import signal, functools
-import sysconfig
-import sys
-import timeout
 import json
-from loguru import logger
-import time
-import dcov
-from dcov import BitmapManager
+import os
 import subprocess
+import sys
+import time
+
+import timeout
+from dcov import BitmapManager
+from loguru import logger
 
 # print(platform.system())
 
@@ -58,7 +53,6 @@ totalAPI = 0
 def gen_log(mod, api, n, s):
     # print(s)
     if s != 0 and s != 256:
-
         if not os.path.exists("error"):
             os.mkdir("error")
         if not os.path.exists("error/%s" % mod):
@@ -79,7 +73,7 @@ def gen_log(mod, api, n, s):
         else:
             number = 1
 
-        f1 = open("temp.py", "r")
+        f1 = open("temp.py")
         code = f1.read()
         f1.close()
 
@@ -127,7 +121,7 @@ def run_limit_n(mod, api, n, buget):
     timeout_cnt = 0
     for i in range(buget):
         # s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
-        
+
         try:
             p = subprocess.Popen(
                 ["python", "apifuzzer.py", mod, api, str(n)],
@@ -143,7 +137,7 @@ def run_limit_n(mod, api, n, buget):
             if timeout_cnt >= 5:
                 logger.warning("Too many timeouts, skipping this API.")
                 break
-            
+
         s = p.returncode
         totalAPI = totalAPI + 1
         # gen_log(mod, api, n, s)
@@ -168,11 +162,13 @@ open("log.txt", "a").write("\n")
 assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
 data_path = sys.argv[1]
 logger.info(f"Loading seeds from {data_path}...", flush=True)
-data = json.load(open(data_path, "r"))
+data = json.load(open(data_path))
 from respfuzzer.models import Seed
+
 seeds = [Seed.model_validate(seed_dict) for seed_dict in data]
 logger.info("num of seeds: %s" % len(seeds), flush=True)
 from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset
+
 bm = BitmapManager(4398)
 bm.clear_bitmap()
 bm.write()
@@ -180,7 +176,7 @@ calc_initial_seed_coverage_dataset(seeds)
 moddic = {}
 for seed in seeds:
     library_name = seed.library_name
-    func_name = seed.func_name.replace(library_name + ".", "")
+    func_name = seed.func_path.replace(library_name + ".", "")
     np = len(seed.args)
     if library_name not in moddic:
         moddic[library_name] = {}
@@ -213,10 +209,12 @@ for mod in list(moddic.keys()):
                 gen_log(mod, api, n, s)
                 totalAPI = totalAPI + 1
             else:
-                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2/2)} times")
-                run_limit_n(mod, api, n, int(1e2/2))
+                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2 / 2)} times")
+                run_limit_n(mod, api, n, int(1e2 / 2))
             logger.info(f"Fuzz {mod}.{api} {n} done")
-            logger.info(f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits")
+            logger.info(
+                f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits"
+            )
 
     # print(mcount, mod,api,moddic[mod][api]["pn"])
     # stest(stresslist,mod,api,moddic[mod][api]["pn"][1])

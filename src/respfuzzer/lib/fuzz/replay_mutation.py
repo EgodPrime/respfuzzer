@@ -15,7 +15,7 @@ def replay_mutation_one(mutant_id: int, random_state: int):
 
     # logger.info(f"Mutant {mutant_id} function call: {mutant.function_call}")
 
-    func_path = mutant.func_name
+    func_path = mutant.func_path
     with instrument_function_via_path_replay_ctx(func_path):
         set_random_state(random_state)
         exec(mutant.function_call)

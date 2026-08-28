@@ -110,7 +110,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant:
             res = _invoke_with_timeout(
                 mutate_chain,
                 input_dict={
-                    "func_name": seed.func_name,
+                    "func_name": seed.func_path,  # 模板标签 func_name=<导出路径>
                     "func_call": seed.function_call,
                     "mutation_instruction": str(rng) + prompt,
                 },
@@ -132,7 +132,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant:
         func_id=seed.func_id,
         seed_id=seed.id,
         library_name=seed.library_name,
-        func_name=seed.func_name,
+        func_path=seed.func_path,
         args=seed.args,
         function_call=mutated_code,
     )
@@ -155,7 +155,7 @@ def is_valid_semantic(mutant: Mutant) -> Mutant | None:
         compile(tree, "<mutant>", "exec")
         # 2) structural check: code must contain a call to the target function
         #    (paper: "contains valid function calls to the target function")
-        target = mutant.func_name.rsplit(".", 1)[-1]
+        target = mutant.func_path.rsplit(".", 1)[-1]
         if not _contains_target_call(target, tree):
             return None
         return mutant
@@ -318,7 +318,7 @@ class LLMMutator:
             func_id=self.seed.func_id,
             seed_id=self.seed.id,
             library_name=self.seed.library_name,
-            func_name=self.seed.func_name,
+            func_path=self.seed.func_path,
             args=self.seed.args,
             function_call="",
         )

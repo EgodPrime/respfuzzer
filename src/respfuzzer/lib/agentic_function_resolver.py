@@ -26,9 +26,9 @@ class Attempter:
         Raises:
             Exception: If code generation fails or response format is invalid.
         """
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -41,7 +41,7 @@ class Attempter:
 例子：
 <function>
 {{
-    func_name: "a.b.c",
+    func_path: "a.b.c",
     ...  // 其他字段省略
 }}
 </function>
@@ -67,9 +67,9 @@ res = c(x, y)
         if cfg.get("use_docs", True) is False:
             from inspect import _ParameterKind
 
-            func_name = function.func_name
+            func_path = function.func_path
             func_args = function.args
-            func_sig = f"def {func_name}("
+            func_sig = f"def {func_path}("
             if func_args:
                 for i, arg in enumerate(func_args):
                     if i > 0:
@@ -86,20 +86,20 @@ res = c(x, y)
                         func_sig += "**" + arg.arg_name
             func_sig += "): ..."
             prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
 2. 不要生成```
 3. 不要生成`code`以外的任何内容
 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
-5. 生成的`code`以"from {package_path} import {func_name}"开头
-6. 生成的`code`中函数调用形式为"{func_name}(...)"
+5. 生成的`code`以"from {package_path} import {func_path}"开头
+6. 生成的`code`中函数调用形式为"{func_path}(...)"
 
 例子：
 <function>
 {{
-    func_name: "a.b.c",
+    func_path: "a.b.c",
     ...  // 其他字段省略
 }}
 </function>
@@ -310,7 +310,7 @@ class Judger:
     """
 
     def judge(self, code: str, function: Function) -> dict:
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         prompt = (
             f"<function>\n{function.model_dump_json()}\n</function>\n"
             f"<code>\n{code}\n</code>\n"
@@ -425,7 +425,7 @@ def solve(function: Function) -> Optional[str]:
                 break
             continue
 
-        result = executor.execute(code, function.func_name)
+        result = executor.execute(code, function.func_path)
 
         if result["result_type"] == ExecutionResultType.OK:
             solved = True
@@ -455,21 +455,21 @@ def solve(function: Function) -> Optional[str]:
 
 
 def solve_function(function: Function) -> Optional[Seed]:
-    logger.info(f"Try solving {function.func_name} ...")
+    logger.info(f"Try solving {function.func_path} ...")
     code = None
     try:
         code = solve(function)
         seed = Seed(
             func_id=function.id,
             library_name=function.library_name,
-            func_name=function.func_name,
+            func_path=function.func_path,
             args=function.args,
             function_call=code,
         )
-        logger.success(f"Seed found for {function.func_name}:\n{code}")
+        logger.success(f"Seed found for {function.func_path}:\n{code}")
         return seed
     except Exception as e:
-        logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
+        logger.info(f"Failed to solve {function.func_path}:\n{str(e)}")
 
 
 def solve_library_functions(library_name: str) -> None:

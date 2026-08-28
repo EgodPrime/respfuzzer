@@ -62,7 +62,7 @@ def _mutant(function_call: str) -> Mutant:
         func_id=1,
         seed_id=1,
         library_name="statistics",
-        func_name="statistics.median",
+        func_path="statistics.median",
         args=[],
         function_call=function_call,
     )
@@ -72,7 +72,7 @@ def _seed(function_call: str) -> Seed:
     return Seed(
         func_id=1,
         library_name="statistics",
-        func_name="statistics.median",
+        func_path="statistics.median",
         args=[],
         function_call=function_call,
     )

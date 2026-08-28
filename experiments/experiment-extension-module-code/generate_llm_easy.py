@@ -10,7 +10,6 @@ Usage: uv run python scripts/generate_llm_easy.py
 import json
 import sys
 import time
-import traceback
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -55,9 +54,7 @@ def generate_sample_for_function(func_name: str, library_name: str) -> str | Non
                 return code.split("<code>")[1].split("</code>")[0]
             if "```" in code:
                 parts = code.split("```")
-                if len(parts) >= 3:
-                    return parts[1].strip()
-                elif len(parts) >= 2:
+                if len(parts) >= 3 or len(parts) >= 2:
                     return parts[1].strip()
             if code:
                 return code
@@ -77,7 +74,7 @@ def main():
         print(f"Error: {manifest_path} not found")
         sys.exit(1)
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         manifest = json.load(f)
 
     output_dir = Path(__file__).parent / "output" / "llm_easy"
@@ -87,13 +84,13 @@ def main():
 
     results = []
     for i, item in enumerate(manifest):
-        func_name = item["func_name"]
+        func_name = item["func_path"]
         library_name = item["library_name"]
         func_name_short = func_name.split(".")[-1]
         filename = f"{library_name}_{func_name_short}.py"
         filepath = output_dir / filename
 
-        print(f"  [{i+1}/{len(manifest)}] {func_name}", end=" ... ")
+        print(f"  [{i + 1}/{len(manifest)}] {func_name}", end=" ... ")
 
         code = generate_sample_for_function(func_name, library_name)
 
@@ -117,7 +114,7 @@ def main():
 
     # Summary
     success_count = sum(1 for r in results if r["success"])
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Summary: {success_count}/{len(results)} sample programs generated")
     print(f"Output directory: {output_dir}")
 

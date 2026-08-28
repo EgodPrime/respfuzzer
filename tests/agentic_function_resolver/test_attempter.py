@@ -1,13 +1,14 @@
 from unittest import mock
 
 import pytest
+
 from respfuzzer.lib.agentic_function_resolver import Attempter
 from respfuzzer.models import Function
 
 
 class MockFunction(Function):
     def __init__(self):
-        super().__init__(func_name="example.func", source="mock", args=[])
+        super().__init__(func_path="example.func", source="mock", args=[])
 
 
 def test_generate_extracts_code_tag_and_returns_inner_content():
@@ -25,7 +26,7 @@ def test_generate_extracts_code_tag_and_returns_inner_content():
     ):
         code = at.generate(MockFunction(), [])
 
-    assert "print('ok')" == code
+    assert code == "print('ok')"
 
 
 def test_generate_accepts_triple_backticks_fallback():
@@ -47,9 +48,11 @@ def test_generate_accepts_triple_backticks_fallback():
 def test_generate_raises_after_retries_on_errors():
     at = Attempter()
 
-    with mock.patch(
-        "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
-        side_effect=Exception("boom"),
+    with (
+        mock.patch(
+            "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",
+            side_effect=Exception("boom"),
+        ),
+        pytest.raises(Exception),
     ):
-        with pytest.raises(Exception):
-            at.generate(MockFunction(), [])
+        at.generate(MockFunction(), [])

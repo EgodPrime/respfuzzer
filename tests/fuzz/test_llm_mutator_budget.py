@@ -43,7 +43,7 @@ def _seed() -> Seed:
     return Seed(
         func_id=1,
         library_name="numpy",
-        func_name="numpy.asarray",
+        func_path="numpy.asarray",
         args=[],
         function_call=_SEED_FUNCTION_CALL,
     )
@@ -55,7 +55,7 @@ def _mutant(function_call: str) -> Mutant:
         func_id=1,
         seed_id=1,
         library_name="numpy",
-        func_name="numpy.asarray",
+        func_path="numpy.asarray",
         args=[],
         function_call=function_call,
     )

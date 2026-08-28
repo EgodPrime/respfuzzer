@@ -1,10 +1,9 @@
 import json
 import sys
-import fire
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Process, Queue
 
-import dcov
+import fire
 from dcov import BitmapManager
 from loguru import logger
 from respfuzzer.lib.fuzz.fuzz_exp import continue_safe_execute
@@ -70,7 +69,7 @@ def fuzz_single_seed(
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
 
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}")
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -83,7 +82,7 @@ def fuzz_single_seed(
         # NL / NL,NP: skip LLM mutation, execute seed directly once
         cov_before = bm.count_bitmap_s()
         logger.debug(f"Seed {seed.id} coverage before execution: {cov_before}")
-        logger.info(f"Start fuzzing seed {seed.id}: {seed.func_name}")
+        logger.info(f"Start fuzzing seed {seed.id}: {seed.func_path}")
         try:
             send.put(("fuzz" if not no_data_fuzz else "execute", seed))
             reply = recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
@@ -124,7 +123,7 @@ def fuzz_single_seed(
             cov_before = bm.count_bitmap_s()
             logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
             logger.info(
-                f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}"
+                f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_path}"
             )
             try:
                 send.put(("fuzz" if not no_data_fuzz else "execute", mutant))
@@ -150,12 +149,18 @@ def fuzz_single_seed(
             logger.info(
                 f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
             )
-            runtime_exception = bool(reply[1]) if isinstance(reply, tuple) and len(reply) == 2 else False
+            runtime_exception = (
+                bool(reply[1])
+                if isinstance(reply, tuple) and len(reply) == 2
+                else False
+            )
             gain = 1.0 if cov_after > cov_before else 0.0
             if no_semantic_filter:
                 # NSF ON: semantic term disabled (coverage-only ablation) -- runtime_exception must NOT be
                 # passed as has_semantic_error here, or the NSF ablation would still penalize via the term.
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, gain))
+                Mutator.update_reward(
+                    mutation_type, Mutator.calculate_reward(False, gain)
+                )
                 if cov_after > cov_before:
                     logger.info(
                         f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
@@ -174,7 +179,9 @@ def fuzz_single_seed(
                     logger.info(
                         f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
                     )
-    logger.info(f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', lambda: {})()}")
+    logger.info(
+        f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', dict)()}"
+    )
 
     send.put(("exit", None))
     try:
@@ -213,7 +220,7 @@ def _fuzz_dataset(
     seeds: list[tuple[int, str, Seed]] = []
     shm_key_start = 4399
     for seed in dataset:
-        seeds.append((shm_key_start, seed.func_name, seed))
+        seeds.append((shm_key_start, seed.func_path, seed))
         shm_key_start += 1
 
     if not seeds:
@@ -274,9 +281,7 @@ def calc_initial_seed_coverage_dataset(
             else:
                 process.join()
             send, recv = Queue(), Queue()
-            process = Process(
-                target=continue_safe_execute, args=(send, recv, 4398)
-            )
+            process = Process(target=continue_safe_execute, args=(send, recv, 4398))
             process.start()
             continue
     send.put(("exit", None))
@@ -312,12 +317,18 @@ def fuzz_dataset(
 
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
 
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    with open(dataset_path, encoding="utf-8") as f:
         seeds_raw: list[dict] = json.load(f)
 
     seeds = [Seed.model_validate(s) for s in seeds_raw]
     calc_initial_seed_coverage_dataset(seeds)
-    _fuzz_dataset(seeds, no_llm=no_llm, no_data_fuzz=no_data_fuzz, no_semantic_filter=no_semantic_filter, no_cov_feedback=no_cov_feedback)
+    _fuzz_dataset(
+        seeds,
+        no_llm=no_llm,
+        no_data_fuzz=no_data_fuzz,
+        no_semantic_filter=no_semantic_filter,
+        no_cov_feedback=no_cov_feedback,
+    )
 
 
 def fuzz_one_library(
@@ -355,7 +366,7 @@ def fuzz_one_library(
                 no_semantic_filter=no_semantic_filter,
                 no_cov_feedback=no_cov_feedback,
             )
-            futures.append((fut, seed.func_name))
+            futures.append((fut, seed.func_path))
             sub_key += 1
         for fut, func_name in futures:
             try:

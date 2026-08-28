@@ -3,7 +3,6 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 import openai
-
 from respfuzzer.models import Seed
 from respfuzzer.utils.config import get_config
 
@@ -16,7 +15,7 @@ client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 class Fuzz4AllMutator:
     """
     从Fuzz4All官方源码中抽离并适配的独立变异器类，用于 RespFuzzer RQ3 基线实验。
-    
+
     说明：
     - 基于官方 Fuzz4All 仓库（commit 0bf42fe）源码抽离：target.py、QISKIT/QISKIT.py、
       config/targeted/qiskit_linear_function.yaml。本类不是官方系统，也不是完全自研，
@@ -31,18 +30,18 @@ class Fuzz4AllMutator:
         self.current_code: str = seed.function_call
         self.p_strategy: int = cfg.get("p_strategy", 2)  # Fuzz4All默认值为2
         self.library_name = seed.library_name
-        self.package_path, self.func_name = seed.func_name.rsplit(".", 1)
+        self.package_path, self.func_path = seed.func_path.rsplit(".", 1)
 
         self.prompt_used = {
             # https://github.com/fuzz4all/fuzz4all/blob/main/config/targeted/qiskit_linear_function.yaml
             # commit: 0bf42fe
             # Lines: 52
-            "begin": f"from {self.package_path} import {self.func_name}\n",
+            "begin": f"from {self.package_path} import {self.func_path}\n",
             # https://github.com/fuzz4all/fuzz4all/blob/main/config/targeted/qiskit_linear_function.yaml
             # commit: 0bf42fe
             # Lines: 50
             "separator": '"""Create function call in %s in Python that uses the %s API"""'
-            % (self.library_name, seed.func_name),
+            % (self.library_name, seed.func_path),
         }
 
         # https://github.com/fuzz4all/fuzz4all/blob/main/Fuzz4All/target/target.py

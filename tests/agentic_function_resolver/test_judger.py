@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+
 from respfuzzer.lib.agentic_function_resolver import Judger
 from respfuzzer.models import Argument, Function
 
@@ -8,7 +9,7 @@ from respfuzzer.models import Argument, Function
 class MockFunction(Function):
     def __init__(self):
         super().__init__(
-            func_name="example.module.func",
+            func_path="example.module.func",
             source="mock",
             args=[Argument(arg_name="x", type="int", pos_type="POSITIONAL_OR_KEYWORD")],
         )

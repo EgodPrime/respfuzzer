@@ -35,7 +35,7 @@ def _seed() -> Seed:
     return Seed(
         func_id=1,
         library_name="numpy",
-        func_name="numpy.asarray",
+        func_path="numpy.asarray",
         args=[],
         function_call="import numpy\nresult = numpy.asarray([1])\n",
     )

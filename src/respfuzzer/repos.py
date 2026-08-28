@@ -33,7 +33,7 @@ def get_function_by_name(function_name: str) -> Optional[Function]:
     Retrieve a function by its name.
 
     Args:
-        function_name (str): The full function name (library_name.func_name).
+        function_name (str): The full function name (library_name.func_path).
     Returns:
         Function | None: The Function object if found, else None.
     """
@@ -41,7 +41,7 @@ def get_function_by_name(function_name: str) -> Optional[Function]:
     library_name = function_name.split(".")[0]
     if library_name not in functions_cache:
         functions_cache[library_name] = {
-            func.func_name: func for func in get_functions(library_name)
+            func.func_path: func for func in get_functions(library_name)
         }
 
     return functions_cache[library_name].get(function_name, None)
@@ -84,7 +84,7 @@ def get_seed_by_function_name(function_name: str) -> Seed | None:
     Retrieve a seed by its function name.
 
     Args:
-        function_name (str): The full function name (library_name.func_name).
+        function_name (str): The full function name (library_name.func_path).
     Returns:
         Seed | None: The Seed object if found, else None.
     """
@@ -92,7 +92,7 @@ def get_seed_by_function_name(function_name: str) -> Seed | None:
     library_name = function_name.split(".")[0]
     if library_name not in seeds_cache:
         seeds_cache[library_name] = {
-            seed.func_name: seed for seed in get_seeds(library_name)
+            seed.func_path: seed for seed in get_seeds(library_name)
         }
 
     return seeds_cache[library_name].get(function_name, None)

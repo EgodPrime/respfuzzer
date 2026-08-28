@@ -19,7 +19,7 @@ def _mutant(func_name: str, function_call: str) -> Mutant:
         func_id=1,
         seed_id=1,
         library_name="numpy",
-        func_name=func_name,
+        func_path=func_name,
         args=[],
         function_call=function_call,
     )
@@ -48,18 +48,25 @@ def test_valid_syntax_but_no_target_call_returns_none():
 
 def test_call_to_different_function_returns_none():
     # calls asarray2 (suffix mismatch) and numpy.mean, never the target asarray
-    m = _mutant("asarray", "import numpy\nresult = numpy.asarray2([1])\na = numpy.mean([1])\n")
+    m = _mutant(
+        "asarray", "import numpy\nresult = numpy.asarray2([1])\na = numpy.mean([1])\n"
+    )
     assert is_valid_semantic(m) is None
 
 
 def test_target_present_among_other_calls_is_valid():
     # associated-call-expansion style: target call present among other calls
-    m = _mutant("asarray", "import numpy\ny = numpy.cumsum(numpy.asarray([1,2,3]))\nz = numpy.mean([1])\n")
+    m = _mutant(
+        "asarray",
+        "import numpy\ny = numpy.cumsum(numpy.asarray([1,2,3]))\nz = numpy.mean([1])\n",
+    )
     assert is_valid_semantic(m) is not None
 
 
 def test_deep_qualified_target_name():
-    m = _mutant("numpy.linalg.norm", "import numpy.linalg\nresult = numpy.linalg.norm([3, 4])\n")
+    m = _mutant(
+        "numpy.linalg.norm", "import numpy.linalg\nresult = numpy.linalg.norm([3, 4])\n"
+    )
     assert is_valid_semantic(m) is not None
 
 
@@ -76,5 +83,6 @@ def test_target_as_name_but_not_called_returns_none():
 
 def test_contains_target_call_helper_qualified():
     import ast
+
     tree = ast.parse("numpy.linalg.norm([3,4])", mode="exec")
     assert _contains_target_call("norm", tree) is True
