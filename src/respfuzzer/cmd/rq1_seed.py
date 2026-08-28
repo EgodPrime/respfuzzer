@@ -58,6 +58,12 @@ def main() -> None:
         action="store_true",
         help="RAG 正式运行：allow_fake=False，[embedding] 未配置则显式报错",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=32,
+        help="LLM 并发上限（服务并发 32）；线程池并行处理函数，保序落盘",
+    )
     args = parser.parse_args()
 
     if args.ed4_sample:
@@ -76,6 +82,7 @@ def main() -> None:
         outdir=args.outdir,
         limit=args.limit,
         allow_fake_embedding=not args.no_fake_embedding,
+        concurrency=args.concurrency,
     )
     rows = merge_results(args.outdir, args.mode, args.library)
     print(f"RQ1 {args.mode} 完成 → {out}（{len(rows)} 候选行已落盘）")

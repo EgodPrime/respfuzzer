@@ -8,7 +8,8 @@ response 无 usage（部分端点/错误）时优雅计 0，不抛（ut-F5-4）�
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from respfuzzer.utils.llm_helper import SimpleLLMClient
@@ -33,24 +34,26 @@ class UsageCounter:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
-
+    _lock: Any = field(default_factory=threading.Lock, repr=False, compare=False, init=False)
     def record(self, response: Any) -> None:
         """累计一次 response：calls+1；usage 缺失/异常时 token 记 0（不抛）。"""
-        self.calls += 1
-        usage = getattr(response, "usage", None)
-        if usage is None:
-            return
-        self.prompt_tokens += _safe_int(usage, "prompt_tokens")
-        self.completion_tokens += _safe_int(usage, "completion_tokens")
-        self.total_tokens += _safe_int(usage, "total_tokens")
+        with self._lock:
+            self.calls += 1
+            usage = getattr(response, "usage", None)
+            if usage is None:
+                return
+            self.prompt_tokens += _safe_int(usage, "prompt_tokens")
+            self.completion_tokens += _safe_int(usage, "completion_tokens")
+            self.total_tokens += _safe_int(usage, "total_tokens")
 
     def as_dict(self) -> dict[str, int]:
-        return {
-            "calls": self.calls,
-            "prompt_tokens": self.prompt_tokens,
-            "completion_tokens": self.completion_tokens,
-            "total_tokens": self.total_tokens,
-        }
+        with self._lock:
+            return {
+                "calls": self.calls,
+                "prompt_tokens": self.prompt_tokens,
+                "completion_tokens": self.completion_tokens,
+                "total_tokens": self.total_tokens,
+            }
 
 
 class CountingLLM:

@@ -16,6 +16,7 @@ ours 的资源计数：agentic 使用模块级 openai client，driver 以计数 
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -137,6 +138,7 @@ def run_experiment(
     functions=None,
     allow_fake_embedding: bool = True,
     embedding_provider=None,  # rag 模式注入 provider（mock/测试用；缺省走 config）
+    concurrency: int = 1,
     now: str | None = None,
 ) -> Path:
     """执行 runs 次重复 run；返回输出根目录 runs/RQ1/<mode>/<library>。"""
@@ -194,10 +196,25 @@ def run_experiment(
             order = shuffled(list(functions), rng)
             if limit is not None:
                 order = order[:limit]
+            # 本 run 起始计数快照——usage 按 run 内增量记录（ED-9 每 run 独立）
+            run_start = counter.as_dict()
 
             with open(run_dir / "results.jsonl", "w", encoding="utf-8") as fh:
-                for function_ in order:
-                    fresult = _run_one(function_, mode, k, executor, llm, index)
+                # 并发执行函数（ED-4 concurrency 实践）；保序收集后统一落盘
+                completed: list[tuple[Function, FunctionRun]] = []
+                if concurrency > 1:
+                    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                        futs = [
+                            pool.submit(_run_one, f, mode, k, executor, llm, index)
+                            for f in order
+                        ]
+                        done = [fut.result() for fut in futs]  # 阻塞取全部，保序
+                    completed = list(zip(order, done))
+                else:
+                    completed = [
+                        (f, _run_one(f, mode, k, executor, llm, index)) for f in order
+                    ]
+                for function_, fresult in completed:
                     for c in fresult.candidates:
                         fh.write(
                             json.dumps(
@@ -208,7 +225,8 @@ def run_experiment(
                         )
 
             # run 函数跑完后回填资源计数并重写 manifest（ED-9 每 run 必吐）
-            manifest["usage"] = counter.as_dict()
+            now_usage = counter.as_dict()
+            manifest["usage"] = {k: now_usage[k] - run_start[k] for k in now_usage}
             write_manifest(manifest, run_dir / "manifest.json")
     finally:
         if original_client is not None:

@@ -74,3 +74,43 @@ def test_usage_populated_after_run(tmp_path):
     man = json.loads((run_dir / "manifest.json").read_text())
     assert man["usage"]["calls"] == 2  # 2 函数 × 1 候选覆盖
     assert man["usage"]["total_tokens"] == 30  # 2 × 15
+
+
+def test_usage_per_run_incremental(tmp_path):
+    """ED-9：多 run 时每个 manifest.usage 是该 run 的增量，而非跨 run 累计。"""
+    funcs = [
+        Function(
+            func_path=f"lib.f{i}",
+            library_name="lib",
+            id=i + 1,
+            source=f"def f{i}(): pass",
+            args=[],
+        )
+        for i in range(2)
+    ]
+    counter = UsageCounter()
+    responses = [_response("<code>x=1</code>") for _ in range(4)]  # 2 runs × 2 funcs
+    llm = _counting_llm(counter, responses)
+
+    class FakeExecutor:
+        def covered(self, function, code):
+            return True
+
+    run_experiment(
+        "normal",
+        "lib",
+        runs=2,
+        k=3,
+        base_seed=1,
+        outdir=tmp_path / "inc",
+        llm=llm,
+        executor=FakeExecutor(),
+        functions=funcs,
+        now="2026-08-29T00:00:00",
+    )
+    dirs = sorted((tmp_path / "inc" / "normal" / "lib").glob("r*_s*"))
+    assert len(dirs) == 2
+    usages = [
+        json.loads((d / "manifest.json").read_text())["usage"]["calls"] for d in dirs
+    ]
+    assert usages == [2, 2]  # 每 run 独立；若累计 bug → [2, 4]
