@@ -10,6 +10,8 @@ P5 顶层 __init__.pyi 键、PC pandas 无关的两子模块同名端到端。
 from types import ModuleType
 from unittest.mock import Mock, patch
 
+import pytest
+
 from respfuzzer.lib.library_visitor import LibraryVisitor
 from respfuzzer.lib.parsers.pyi_parser import (
     _parse_pyi_file,
@@ -36,7 +38,7 @@ def _parse_pyi(cache, root_path, library_name, file_path, content):
         )
 
 
-# ===== P1 / PA：make_pyi_key 纯函数 + 空 root/lib 退化 =====
+# ===== P1 / PA：make_pyi_key 纯函数 + 空 root/lib 拒绝 =====
 def test_make_pyi_key_basic():
     """P1 纯函数拼接：顶层 __init__.pyi -> 库名.函数名；子模块文件 -> 库名.模块点分路径.函数名。"""
     assert make_pyi_key("/root/lib", "lib", "/root/lib/__init__.pyi", "f") == "lib.f"
@@ -47,10 +49,13 @@ def test_make_pyi_key_basic():
     assert make_pyi_key("/root/lib", "lib", "/root/lib/a/b/c.pyi", "g") == "lib.a.b.c.g"
 
 
-def test_empty_root_degenerates_bare_key():
-    """PA 空 root 或空 library_name 时 make_pyi_key 退化为裸函数名；_pyi_module_from_path 空守卫不抛。"""
-    assert make_pyi_key("", "lib", "/path/test.pyi", "f") == "f"
-    assert make_pyi_key("/root", "", "/root/a.pyi", "f") == "f"
+def test_empty_root_library_raises():
+    """PA 彻底关闭：空 root/library 时 make_pyi_key 抛 ValueError（不再产出裸函数名键）。
+    _pyi_module_from_path 空守卫仍不抛（缺口 A/F 保留）。"""
+    with pytest.raises(ValueError):
+        make_pyi_key("", "lib", "/path/test.pyi", "f")
+    with pytest.raises(ValueError):
+        make_pyi_key("/root", "", "/root/a.pyi", "f")
     # 空守卫：不产 ../ 链、不抛异常（缺口 A/F）
     assert _pyi_module_from_path("", "/path/test.pyi") == ""
     assert _pyi_module_from_path("/root", "") == ""
@@ -92,8 +97,8 @@ def test_read_gets_correct_stub(monkeypatch):
     )
     obj = len
     mod = ModuleType("mylib.sub.a")
-    mod.__all__ = ["load"]
-    mod.load = obj
+    mod.__dict__["__all__"] = ["load"]
+    mod.__dict__["load"] = obj
     monkeypatch.setattr(
         "dill.source._namespace", lambda _o: ["mylib", "sub", "a", "load"]
     )
@@ -165,8 +170,8 @@ def test_pandas_free_two_module_collision(tmp_path, monkeypatch):
     assert cache["mylib.sub.b.load"]["args"][0].type == "str"
     obj = len
     mod = ModuleType("mylib.sub.a")
-    mod.__all__ = ["load"]
-    mod.load = obj
+    mod.__dict__["__all__"] = ["load"]
+    mod.__dict__["load"] = obj
     monkeypatch.setattr(
         "dill.source._namespace", lambda _o: ["mylib", "sub", "a", "load"]
     )
@@ -226,9 +231,9 @@ def test_private_namespace_builtin_top_level_name(monkeypatch):
     cache = {"torch._C._VariableFunctions.abs": _pyi_entry()}
     obj = len
     mod = ModuleType("torch._C._VariableFunctions")  # 模块名含 ._ -> 私有命名空间
-    mod.abs = obj
+    mod.__dict__["abs"] = obj
     top = ModuleType("torch")
-    top.abs = obj  # 顶层 re-export 同一对象
+    top.__dict__["abs"] = obj  # 顶层 re-export 同一对象
     monkeypatch.setattr(
         "dill.source._namespace",
         lambda _o: ["torch", "_C", "_VariableFunctions", "abs"],
@@ -246,7 +251,7 @@ def test_private_namespace_builtin_not_top_level_skipped(monkeypatch):
     cache = {"torch._C._aoti.alloc": _pyi_entry()}
     obj = len
     mod = ModuleType("torch._C._aoti")
-    mod.alloc = obj
+    mod.__dict__["alloc"] = obj
     monkeypatch.setattr(
         "dill.source._namespace", lambda _o: ["torch", "_C", "_aoti", "alloc"]
     )
@@ -261,8 +266,8 @@ def test_private_namespace_skips_function_type(monkeypatch):
     cache = {"torch._C.abs": _pyi_entry()}
     obj = len
     mod = ModuleType("torch._C")
-    mod.abs = obj
-    mod.helper = lambda x: x  # 内部 Python 函数
+    mod.__dict__["abs"] = obj
+    mod.__dict__["helper"] = lambda x: x  # 内部 Python 函数
 
     def _ns(o):
         return ["torch", "_C", "abs"] if o is obj else ["torch", "_C", "helper"]
@@ -281,7 +286,7 @@ def test_unique_bare_name_fallback(monkeypatch):
     cache = {"mylib.deffile.load": _pyi_entry(name="load")}
     obj = len
     mod = ModuleType("mylib.sub")
-    mod.load = obj
+    mod.__dict__["load"] = obj
     monkeypatch.setattr("dill.source._namespace", lambda _o: ["mylib", "sub", "load"])
     visitor = LibraryVisitor("mylib")
     visitor.pyi_cache = cache
@@ -300,7 +305,7 @@ def test_ambiguous_bare_name_no_fallback(monkeypatch):
     }
     obj = len
     mod = ModuleType("mylib.sub")
-    mod.load = obj
+    mod.__dict__["load"] = obj
     monkeypatch.setattr("dill.source._namespace", lambda _o: ["mylib", "sub", "load"])
     visitor = LibraryVisitor("mylib")
     visitor.pyi_cache = cache

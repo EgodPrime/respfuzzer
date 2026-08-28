@@ -72,9 +72,14 @@ def build_name_index(
 
 
 def make_pyi_key(root_path: str, library_name: str, file_path: str, func_name: str) -> str:
-    """写端出口：构造完全限定缓存键 <库名>.<模块点分路径>.<函数名>（C-10）。"""
+    '''写端出口：构造完全限定缓存键 <库名>.<模块点分路径>.<函数名>（C-10）。
+    root_path/library_name 必传：空参将抛 ValueError（彻底关闭「未限定函数名键」路径，
+    避免不同模块同名函数退化为裸名键冲突）；file_path 空时退化为 <库名>.<函数名>（顶层键，仍有前缀）。'''
     if not root_path or not library_name:
-        return func_name  # 空 root/库名退化为裸函数名（无限定信息）
+        raise ValueError(
+            "make_pyi_key 需非空 root_path 与 library_name：空参将产出裸函数名键，",
+            "导致不同模块同名函数冲突（评审『未限定函数名缓存』彻底关闭）",
+        )
     mod = _pyi_module_from_path(root_path, file_path)
     if not mod:
         return f"{library_name}.{func_name}"  # 顶层 __init__.pyi -> <库名>.<函数名>
@@ -84,8 +89,8 @@ def _parse_pyi_file(
     file_path: str,
     pyi_cache: Dict[str, Dict],
     *,
-    root_path: str = "",
-    library_name: str = "",
+    root_path: str,
+    library_name: str,
 ) -> None:
     """
     解析 .pyi 文件，提取其中的函数
@@ -217,8 +222,8 @@ def _parse_pyi_file(
 
 def parse_pyi_files(
     file_path: str,
-    root_path: str = "",
-    library_name: str = "",
+    root_path: str,
+    library_name: str,
 ) -> dict:
     tmp_cache = {}
     _parse_pyi_file(file_path, tmp_cache, root_path=root_path, library_name=library_name)

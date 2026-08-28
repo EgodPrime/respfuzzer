@@ -23,13 +23,16 @@ def another_func(c: List[int]) -> None:...
     # Test the function
     pyi_cache = {}
     with patch("builtins.open", mock_open):
-        _parse_pyi_file("/path/to/test.pyi", pyi_cache)
+        _parse_pyi_file(
+            "/root/lib/test.pyi", pyi_cache,
+            root_path="/root/lib", library_name="lib",
+        )
 
-    assert "test_func" in pyi_cache
-    assert "another_func" in pyi_cache
+    assert "lib.test.test_func" in pyi_cache
+    assert "lib.test.another_func" in pyi_cache
 
     # Check test_func
-    test_func = pyi_cache["test_func"]
+    test_func = pyi_cache["lib.test.test_func"]
     assert test_func["name"] == "test_func"
     assert test_func["source"] == "def test_func(a: int, b: str) -> bool:..."
     assert len(test_func["args"]) == 2
@@ -40,7 +43,7 @@ def another_func(c: List[int]) -> None:...
     assert test_func["ret_type_str"] == "bool"
 
     # Check another_func
-    another_func = pyi_cache["another_func"]
+    another_func = pyi_cache["lib.test.another_func"]
     assert another_func["name"] == "another_func"
     assert another_func["source"] == "def another_func(c: List[int]) -> None:..."
     assert len(another_func["args"]) == 1
@@ -68,11 +71,14 @@ def plain(x):...
 
     pyi_cache = {}
     with patch("builtins.open", mock_open):
-        _parse_pyi_file("/some/path/test.pyi", pyi_cache)
+        _parse_pyi_file(
+            "/root/lib/x.pyi", pyi_cache,
+            root_path="/root/lib", library_name="lib",
+        )
 
     # pos_only should be parsed
-    assert "pos_only" in pyi_cache
-    info = pyi_cache["pos_only"]
+    assert "lib.x.pos_only" in pyi_cache
+    info = pyi_cache["lib.x.pos_only"]
     assert info["ret_type_str"] == "int"
     # Check parameter kinds
     kinds = [a.pos_type for a in info["args"]]
@@ -85,8 +91,8 @@ def plain(x):...
     assert _ParameterKind.VAR_KEYWORD.name in kinds
 
     # plain should also be present and have unknown return
-    assert "plain" in pyi_cache
-    assert pyi_cache["plain"]["ret_type_str"] == "unknown"
+    assert "lib.x.plain" in pyi_cache
+    assert pyi_cache["lib.x.plain"]["ret_type_str"] == "unknown"
 
 
 def test_find_all_pyi_files_walk_and_visited(monkeypatch):

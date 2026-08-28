@@ -130,9 +130,11 @@ def test_from_function_type_no_default_empty(mock_signature, mock_getsource):
 # ===========================================================================
 
 
-def _parse_pyi(content, *, root_path="", library_name="", file_path="/path/test.pyi"):
-    """用伪文件跑 _parse_pyi_file，返回 pyi_cache。
-    默认 root/lib 为空 → make_pyi_key 退化，键为裸函数名（用例6-9 依赖此）；调用方传 root/lib 时走限定键。"""
+def _parse_pyi(content, *, root_path="/root/mylib", library_name="mylib", file_path="/root/mylib/mod.pyi"):
+    """用伪文件跑 _parse_pyi_file，返回 pyi_cache（键为限定名）。
+
+    C-10 彻底关闭裸名键：root_path/library_name 必传且非空（make_pyi_key 空参已改抛 ValueError）。
+    默认布局 => 模块=mod => 键 mylifd前"mylib.mod.<name>"；传 __init__.pyi 走顶层键"mylib.<name>"。"""
     cache = {}
     with patch("builtins.open", Mock(return_value=_mock_file(content))):
         _parse_pyi_file(
@@ -148,7 +150,7 @@ def test_pyi_positional_defaults_aligned_right():
     cache = _parse_pyi(
         "def pos_only(a: int, /, b: str, *args: int, c: float, d: int = 1, **kwargs) -> bool: ..."
     )
-    args = cache["pos_only"]["args"]
+    args = cache["mylib.mod.pos_only"]["args"]
     by_name = {a.arg_name: a for a in args}
     assert by_name["a"].default_value == ""
     assert by_name["b"].default_value == ""
@@ -160,7 +162,7 @@ def test_pyi_positional_defaults_aligned_right():
     # 补充：真正的位置形参默认（node.args.defaults 右对齐）——pos_only 的 d 在 *args 后实为 kwonly，
     # 故此处再验证纯位置参数场景：def pd(x:int=5, y:str='z') → x=="5"、y=="'z'"
     cache2 = _parse_pyi("def pd(x: int = 5, y: str = 'z') -> None: ...")
-    args2 = {a.arg_name: a for a in cache2["pd"]["args"]}
+    args2 = {a.arg_name: a for a in cache2["mylib.mod.pd"]["args"]}
     assert args2["x"].default_value == "5"
     assert args2["y"].default_value == "'z'"
 
@@ -170,7 +172,7 @@ def test_pyi_positional_defaults_aligned_right():
 def test_pyi_kwonly_defaults():
     """def f(*, x:int=3, y:str)：x.default_value=="3"，y 无默认==""。"""
     cache = _parse_pyi("def kw_f(*, x: int = 3, y: str) -> None: ...")
-    args = cache["kw_f"]["args"]
+    args = cache["mylib.mod.kw_f"]["args"]
     by_name = {a.arg_name: a for a in args}
     assert by_name["x"].default_value == "3"
     assert by_name["y"].default_value == ""
@@ -180,7 +182,7 @@ def test_pyi_kwonly_defaults():
 def test_pyi_vararg_kwarg_never_default():
     """def f(*a, **k)：*a 与 **k 均无默认 → default_value==""."""
     cache = _parse_pyi("def var_f(*a: int, **k: str) -> None: ...")
-    args = cache["var_f"]["args"]
+    args = cache["mylib.mod.var_f"]["args"]
     by_name = {a.arg_name: a for a in args}
     assert by_name["a"].default_value == ""
     assert by_name["k"].default_value == ""
@@ -190,7 +192,7 @@ def test_pyi_vararg_kwarg_never_default():
 def test_pyi_default_none_vs_no_default():
     """def f(a, b=None)：a 无默认==""，b 默认 None=ast.unparse(Constant(None))=="None"。"""
     cache = _parse_pyi("def none_f(a, b=None) -> None: ...")
-    args = cache["none_f"]["args"]
+    args = cache["mylib.mod.none_f"]["args"]
     by_name = {a.arg_name: a for a in args}
     assert by_name["a"].default_value == ""
     assert by_name["b"].default_value == "None"
