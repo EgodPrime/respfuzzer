@@ -59,6 +59,7 @@ bash scripts/install_lut.sh
 ```bash
 cp config.toml.default config.toml
 # Edit config.toml to set your model API key and other settings
+# The template defaults to model "Qwen3.6-35B-A3B" (see the [llm]/[llm_mutator] sections).
 vim config.toml
 ```
 
@@ -70,7 +71,9 @@ The framework uses `config.toml` for configuration. Key settings include:
 > used by Reflective Seed Generation
 - `base_url`: Base URL for the model API.
 - `api_key`: API key for authentication.
-- `model_name`: Name of the model to use.
+- `model_name`: Name of the model to use (default `Qwen3.6-35B-A3B`).
+
+The paper reports three final models: **Llama3.1-8B-Instruct**, **Qwen3.6-35B-A3B**, and **gpt-oss-120b**. Reproduce each by replacing `model_name` accordingly (the same applies to the `[llm_mutator]` section); record the checkpoint version as noted in E-20.
 
 ### Database Configuration
 - `db_name`: Name of the SQLite database file.
