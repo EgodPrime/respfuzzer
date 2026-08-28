@@ -104,3 +104,49 @@ def test_G4_signature_resolved_field():
     assert f2.has_full_type_hints is False  # 失败占位不算满注解
 
     assert f.has_full_type_hints is True  # 已解析零参函数仍是满注解（无参数可注解）
+
+
+def _pyi_entry_c(name="c"):
+    from respfuzzer.models import Argument
+
+    return {
+        "name": name,
+        "source": "def c(x: int) -> int: ...",
+        "args": [Argument(arg_name="x", type="int", pos_type="POSITIONAL_OR_KEYWORD")],
+        "ret_type_str": "int",
+        "file_path": "",
+    }
+
+
+def test_G5_build_name_index_runtime_ambiguous_excluded():
+    """裸名兜底把「运行时同名异身份」并入歧义判定：stub 侧唯一但运行时同名异身份 → 不入索引。"""
+    from respfuzzer.lib.parsers.pyi_parser import build_name_index
+
+    cache = {"a.b1.c": _pyi_entry_c()}
+    # 无运行时歧义：裸名唯一 → 入索引（旧语义保留）
+    assert build_name_index(cache) == {"c": "a.b1.c"}
+    # 运行时 a.b1.c 与 a.b2.c 同名异身份 → c 被剔除（宁缺勿错配）
+    assert build_name_index(cache, ambiguous_bare_names={"c"}) == {}
+
+
+def test_G6_bare_fallback_refuses_cross_identity():
+    """resolve 层：运行时同名异身份剔除后，b2.c 不再错拿 b1 的 stub，落 inspect 兜底。"""
+    from respfuzzer.lib.parsers.pyi_parser import build_name_index
+    from respfuzzer.lib.signature import resolve_builtin_signature
+
+    cache = {"a.b1.c": _pyi_entry_c()}
+    # 对照：无运行时歧义剔除 → b2.c 会错拿 b1 的 stub（旧漏洞）
+    idx_raw = build_name_index(cache)
+    fn = resolve_builtin_signature(
+        len, ("a", "b2", "c"), pyi_cache=cache, name_index=idx_raw,
+        public_name="a.b2.c",
+    )
+    assert fn.args[0].arg_name == "x"  # 错拿 b1 stub（x:int）
+
+    # 修复：运行时同名异身份纳入歧义 → b2.c 不兜底 → inspect(len) 得 (obj, /)
+    idx = build_name_index(cache, ambiguous_bare_names={"c"})
+    fn2 = resolve_builtin_signature(
+        len, ("a", "b2", "c"), pyi_cache=cache, name_index=idx,
+        public_name="a.b2.c",
+    )
+    assert fn2.args[0].arg_name == "obj"  # 未错配，宁缺勿错配

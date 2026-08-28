@@ -41,20 +41,31 @@ def make_pyi_key_from_module(module_name: str, func_name: str) -> str:
 
 
 
-def build_name_index(pyi_cache: Dict[str, Dict]) -> Dict[str, str]:
-    """由 pyi_cache 派生「裸函数名 -> 限定键」索引：仅当某裸名在整库 pyi 中唯一时登记。
+def build_name_index(
+    pyi_cache: Dict[str, Dict],
+    *,
+    ambiguous_bare_names: set[str] | None = None,
+) -> Dict[str, str]:
+    '''由 pyi_cache 派生「裸函数名 -> 限定键」索引：仅当某裸名在整库 pyi 中唯一时登记。
 
     C-10 v2：读端限定键 miss 时用唯一裸名兜底，恢复 re-export/镜像布局库
     （torch / paddle）的 builtin 提取；同名歧义（多个限定键共用同一裸名）不入索引，
     强制走限定键以保留 C-10 的防碰撞语义。
-    """
+
+    C-10 分桶落地：`ambiguous_bare_names` 额外剔除「stub 侧唯一但运行时同名异身份」的裸名
+    （如 torch.nn.functional.interpolate 与 torch.ao.nn.quantized.functional.interpolate）——
+    该情形裸名兜底会令 stub 缺失方错拿另一物理身份的 stub，故宁缺勿错配：落入
+    inspect/docstring/False，而不做跨身份匹配。'''
     counts: Dict[str, int] = {}
     for key, entry in pyi_cache.items():
         nm = entry.get("name") or key.rsplit(".", 1)[-1]
         counts[nm] = counts.get(nm, 0) + 1
+    ambiguous = set(ambiguous_bare_names or ())
     index: Dict[str, str] = {}
     for key, entry in pyi_cache.items():
         nm = entry.get("name") or key.rsplit(".", 1)[-1]
+        if nm in ambiguous:
+            continue  # 运行时同名异身份：跨身份勿错配，宁可不兜底
         if counts[nm] == 1:
             index[nm] = key
     return index

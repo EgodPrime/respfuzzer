@@ -55,6 +55,12 @@ class LibraryVisitor:
         self.find_all_pyi_functions()
         self._top_module = library  # 顶层模块引用：builtin 私有路径映射到顶层公开名用
 
+        # C-10 分桶落地：裸名兜底把「运行时同名异身份」并入歧义判定——重查 name_index，
+        # 剔除 stub 侧唯一但运行时 ≥2 个不同 real_path 的同名裸名，防读端错配（宁缺勿错配）。
+        self.name_index = build_name_index(
+            self.pyi_cache,
+            ambiguous_bare_names=self._runtime_bare_collisions(library),
+        )
         obj_has_been_seen = set()
         self._builtin_resolve_cache = {}  # 每次 visit 重置：跨库/重复提取不串缓存
         for function in self._visit(library, self.library_name, obj_has_been_seen):
@@ -89,6 +95,40 @@ class LibraryVisitor:
 
         # --- C-10 v2: 由 pyi_cache 派生唯一裸名索引（读端 builtin 限定键 miss 时兜底） ---
         self.name_index = build_name_index(self.pyi_cache)
+
+    def _runtime_bare_collisions(self, root_mod: ModuleType) -> set[str]:
+        '''预收集「运行时同名异身份」裸名集：≥2 个不同物理 real_path 的公开 native 函数同名。
+
+        口径与 _visit 一致（公开绑定、跳过 _ 前缀、物理子模块递归、归属=find_real_path 同库）；
+        只做枚举 + find_real_path（记忆化共享 _rp_cache，后续 _visit 直接复用），不做签名解析。
+        供裸名兜底的歧义判定：stub 侧唯一但运行时同名异身份的裸名不再兜底（宁缺勿错配）。'''
+        seen_mod: set = set()
+        by_real: dict[str, set] = {}
+
+        def rec(m: ModuleType) -> None:
+            if id(m) in seen_mod:
+                return
+            seen_mod.add(id(m))
+            for name in dir(m):
+                if name.startswith("_"):
+                    continue
+                try:
+                    obj = getattr(m, name)
+                except Exception:
+                    continue
+                if isinstance(obj, ModuleType):
+                    if obj.__name__.startswith(root_mod.__name__ + "."):
+                        rec(obj)
+                    continue
+                if not isinstance(obj, (FunctionType, BuiltinFunctionType)):
+                    continue
+                rp = find_real_path(root_mod, obj, cache=self._rp_cache)
+                if rp is None or rp[0] != self.library_name:
+                    continue
+                by_real.setdefault(rp[-1], set()).add(tuple(rp))
+
+        rec(root_mod)
+        return {nm for nm, rps in by_real.items() if len(rps) >= 2}
 
 
     def discover_public_modules(self) -> list[LibraryModule]:
