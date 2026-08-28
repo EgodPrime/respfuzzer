@@ -333,6 +333,10 @@ def instrument_function_fcr(func: FunctionType | BuiltinFunctionType):
     """
     Return a instrumented version of `func`, which should fuzz the current call
     before return.
+
+    E-15：若调用进入目标函数体后在无效输入上被函数正确拒绝（领域级异常，其帧在
+    栈），仍记为 covered（调用有效），但不触发 fuzz_function；仅绑定/构造级错误
+    （未进函数体）不覆盖。异常继续上抛以保留原控制流。
     """
 
     @wraps(func)
@@ -345,26 +349,34 @@ def instrument_function_fcr(func: FunctionType | BuiltinFunctionType):
         Returns:
             The result of the original function.
         """
-        res = func(*args, **kwargs)
         func_name = f"{func.__module__}.{func.__name__}"
-        if func_name not in covered_functions:
-            # Record coverage and also emit a simple printed record so callers
-            # can redirect stdout/stderr to capture a human-readable log.
-            covered_functions.add(func_name)
-            try:
-                # Print the fully-qualified function name. The orchestrator
-                # will redirect stdout/stderr to a per-seed log file. Use
-                # flush=True so the log is written immediately.
-                print(func_name, flush=True)
-            except Exception:
-                pass
-            try:
-                from respfuzzer.lib.fuzz.fuzz_function import fuzz_function
+        try:
+            res = func(*args, **kwargs)
+            _record_covered(func, func_name, args, kwargs)
+            return res
+        except Exception as e:
+            # E-15：领域级异常（进了函数体）仍记覆盖但不触发 fuzz；构造级不覆盖。
+            from respfuzzer.lib.fuzz.semantic_oracle import entered_function_body
 
-                fuzz_function(func, *args, **kwargs)
-            except Exception:
-                # We still record coverage even if fuzzing isn't available.
-                pass
-        return res
+            if entered_function_body(func, e):
+                _record_covered(func, func_name, args, kwargs, do_fuzz=False)
+            raise
 
     return wrapper
+
+
+def _record_covered(func, func_name, args, kwargs, *, do_fuzz=True):
+    """记录覆盖并打印 fqname（供日志正则提取）。do_fuzz=True 时才触发 fuzz_function。"""
+    if func_name in covered_functions:
+        return
+    covered_functions.add(func_name)
+    print(func_name, flush=True)
+    if do_fuzz:
+        try:
+            from respfuzzer.lib.fuzz.fuzz_function import fuzz_function
+
+            fuzz_function(func, *args, **kwargs)
+        except Exception:
+            # 仍记录覆盖，即使 fuzzing 子系统不可用。
+            pass
+

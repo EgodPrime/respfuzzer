@@ -236,7 +236,7 @@ class LLMMutator:
         当存在语义错误时，不会进行传统变异，覆盖率奖励一定为0
         仅当不存在语义错误时，才会进行传统变异，从而有覆盖率奖励，此时奖励会变成1，从而使得1*0.1+0.9*0.5=0.55略有提升
         Arguments:
-            has_semantic_error: 是否存在语义错误（含静态 IsValidSemantic 无效与动态运行时异常）
+            has_semantic_error: 是否存在语义错误（静态 IsValidSemantic 无效 / 动态运行时「构造级」异常；领域级异常不算语义错误，见 E-15）
             coverage_gain: 覆盖率增益 (0~1)
         """
         # 基础权重分配

@@ -1,3 +1,4 @@
+import importlib
 import io
 import json
 import os
@@ -12,12 +13,31 @@ from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
 )
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
+from respfuzzer.lib.fuzz.semantic_oracle import entered_function_body
 from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos import get_seed_by_function_name, get_seeds
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
+
+
+def _resolve_func(full_func_path: str):
+    """按点分路径解析目标函数对象；任一步失败返回 None。
+
+    供 E-15 在 worker 内解析目标函数以做帧判断——需在插桩前取得原函数，
+    才能捕获其 ``__code__`` 用于比对异常回溯栈。"""
+    mods = full_func_path.split(".")
+    try:
+        mod = importlib.import_module(mods[0])
+    except Exception:
+        return None
+    parent = mod
+    for name in mods[1:-1]:
+        parent = getattr(parent, name, None)
+        if parent is None:
+            return None
+    return getattr(parent, mods[-1], None)
 
 
 def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
@@ -61,22 +81,36 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
             match command:
                 case "execute":
                     runtime_exception = False
+                    target = _resolve_func(seed.func_name)
                     try:
                         exec(seed.function_call)
-                    except Exception:
-                        runtime_exception = True
+                    except Exception as e:
+                        # E-15：仅构造级错误（未进目标函数体）算语义错误；
+                        # 领域级异常（进了函数体=预期行为）不算。
+                        runtime_exception = (
+                            not entered_function_body(target, e)
+                            if target is not None
+                            else True
+                        )
                     finally:
                         bm_child.write()
                         send.put(("done", runtime_exception))
                 case "fuzz":
                     runtime_exception = False
+                    target = _resolve_func(seed.func_name)
                     try:
                         with instrument_function_via_path_ctx(
                             seed.func_name, data_fuzz_per_seed
                         ):
                             exec(seed.function_call)
-                    except Exception:
-                        runtime_exception = True
+                    except Exception as e:
+                        # E-15：仅构造级错误（未进目标函数体）算语义错误；
+                        # 领域级异常（进了函数体=预期行为）不算。
+                        runtime_exception = (
+                            not entered_function_body(target, e)
+                            if target is not None
+                            else True
+                        )
                     finally:
                         bm_child.write()
                         send.put(("done", runtime_exception))

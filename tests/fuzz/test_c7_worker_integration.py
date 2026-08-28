@@ -42,6 +42,7 @@ from respfuzzer.utils.redis_util import get_redis_client
 # is the reserved parent bitmap; we avoid it entirely.
 WORKER_PROC_RAISING = 4399
 WORKER_PROC_CLEAN = 4499
+WORKER_PROC_CONSTRUCTION = 4899
 
 WORKER_REPLY_TIMEOUT = 20.0
 CLEANUP_TIMEOUT = 10.0
@@ -115,13 +116,12 @@ def _run_real_worker(send, recv, process_index, command, payload):
 # --------------------------------------------------------------------------- #
 
 
-def test_worker_exception_signal():
-    """A mutant whose function_call raises at exec time under instrumentation
-    must be signalled back by the REAL worker as ``("done", True)``.
-
-    ``statistics.median(None)`` -> ``sorted(None)`` -> TypeError, raised inside
-    the ``instrument_function_via_path_ctx`` body, so the worker's fuzz-case
-    ``except Exception`` sets ``runtime_exception=True``."""
+def test_worker_domain_exception_signal():
+    """A mutant whose call *enters* the target function body and raises there
+    (domain-level / expected behavior on invalid input) must now be signalled
+    back by the REAL worker as ``("done", False)`` -- E-15: the TypeError from
+    ``statistics.median(None)`` is raised *inside* ``median`` (its frame is on
+    the traceback), so it is NOT treated as a semantic/construction error."""
     send, recv = Queue(), Queue()
     mutant = _mutant("import statistics\nstatistics.median(None)\n")
 
@@ -132,9 +132,31 @@ def test_worker_exception_signal():
     assert process.exitcode in (0, None), (
         f"worker crashed (exitcode={process.exitcode}); child_pid={child_pid}"
     )
+    assert reply == ("done", False), (
+        f"worker domain-exception signal wrong for median(None): got {reply!r}, ",
+        "expected ('done', False) -- in-body TypeError is not a semantic error"
+    )
+
+
+def test_worker_construction_error_signal():
+    """A mutant whose call fails at *binding* without entering the function body
+    (missing required argument) is a construction-level semantic error and must
+    be signalled ``("done", True)``.  ``statistics.median()`` -> TypeError
+    "missing 1 required positional argument", so median's frame is never created
+    and the call is a binding failure, not an in-body domain exception."""
+    send, recv = Queue(), Queue()
+    mutant = _mutant("import statistics\nstatistics.median()\n")
+
+    reply, process, child_pid = _run_real_worker(
+        send, recv, WORKER_PROC_CONSTRUCTION, "fuzz", mutant
+    )
+
+    assert process.exitcode in (0, None), (
+        f"worker crashed (exitcode={process.exitcode}); child_pid={child_pid}"
+    )
     assert reply == ("done", True), (
-        f"worker exception signal wrong for crashing mutant: got {reply!r}, "
-        "expected ('done', True)"
+        f"worker construction-error signal wrong for median(): got {reply!r}, ",
+        "expected ('done', True) -- binding-level TypeError is a semantic error"
     )
 
 
