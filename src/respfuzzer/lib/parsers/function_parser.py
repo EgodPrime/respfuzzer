@@ -68,7 +68,12 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
     else:
         ret_type_str = "unknown"
 
-    return Function(func_name=name, real_path=real_path, source=source, args=arg_list, ret_type=ret_type_str)
+    return Function(
+        func_name=name, real_path=real_path, source=source, args=arg_list,
+        ret_type=ret_type_str,
+        function_type="user_defined",
+        docstring=inspect.getdoc(obj) or "",  # ED-14a：用户定义的 Python 函数用 getdoc 取文档
+    )
 
 
 def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType, *, public_name: str | None = None) -> Function:
@@ -81,4 +86,6 @@ def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType, *, publ
         args=pyi_dict["args"],
         ret_type=pyi_dict["ret_type_str"],
         is_builtin=1,
+        function_type="built_in",  # ED-14a：扩展模块 Python 层入口
+        docstring=obj.__doc__ or "",  # ED-14a：built-in 用底层 __doc__（或 pyi stub）作文档
     )

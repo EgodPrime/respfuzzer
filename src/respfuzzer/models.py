@@ -2,7 +2,7 @@ import uuid
 from enum import IntEnum
 from typing import Protocol
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class Argument(BaseModel):
@@ -21,6 +21,15 @@ class Function(BaseModel):
     args: list[Argument]
     ret_type: str = "unknown"
     is_builtin: int = 0
+    # --- ED-14a 分层元数据 ---
+    function_type: str = "user_defined"  # 'user_defined' | 'built_in'；提取时由 is_builtin 映射
+    docstring: str = ""                  # 可空；ED-14a 方案B：进入 RQ1 seed prompt
+
+    @computed_field
+    @property
+    def has_full_type_hints(self) -> bool:
+        """全 Argument.type 均非 'unknown'/'' 才算满类型注解（ED-14a，由 args 派生）。"""
+        return all(a.type not in ("unknown", "") for a in self.args)
 
     def __repr__(self):
         """
