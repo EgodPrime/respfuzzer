@@ -89,12 +89,18 @@ def _parse_doc_param(tok: str, kw_only: bool):
         return None  # 裸 *：仅由调用方置 kw_only，不算参数
     if tok.startswith("**"):
         return (
-            "VAR_KEYWORD", tok[2:].strip(), "unknown", "",
+            "VAR_KEYWORD",
+            tok[2:].strip(),
+            "unknown",
+            "",
             _ParameterKind.VAR_KEYWORD.name,
         )
     if tok.startswith("*") and len(tok) > 1:
         return (
-            "VAR_POSITIONAL", tok[1:].strip(), "unknown", "",
+            "VAR_POSITIONAL",
+            tok[1:].strip(),
+            "unknown",
+            "",
             _ParameterKind.VAR_POSITIONAL.name,
         )
 
@@ -103,7 +109,7 @@ def _parse_doc_param(tok: str, kw_only: bool):
     default = eq[1].strip() if len(eq) > 1 else ""
 
     nt = _split_top_level(name_type, sep=":")
-    name = nt[0].strip().strip(".,;");
+    name = nt[0].strip().strip(".,;")
     type_ = nt[1].strip() if len(nt) > 1 else "unknown"
 
     pos_type = (
@@ -168,10 +174,17 @@ def _signature_from_inspect(obj: Any):
     args: list[Argument] = []
     for k, v in sig.parameters.items():
         arg_type = (
-            str(v.annotation)[8:-2] if v.annotation is not Parameter.empty else "unknown"
+            str(v.annotation)[8:-2]
+            if v.annotation is not Parameter.empty
+            else "unknown"
         )
         args.append(
-            Argument(arg_name=k, type=arg_type, pos_type=v.kind.name, default_value=_default_to_str(v.default))
+            Argument(
+                arg_name=k,
+                type=arg_type,
+                pos_type=v.kind.name,
+                default_value=_default_to_str(v.default),
+            )
         )
     ret_type = (
         str(sig.return_annotation)[8:-2]
@@ -206,7 +219,7 @@ def _arg_sig(a: Argument) -> str:
 
 
 SUPPLEMENTAL_STUBS: list[dict] = []
-  # supplemental-stub 注入（§8.3 E5）：{library_name, key(物理身份键), entry} 前置查询
+# supplemental-stub 注入（§8.3 E5）：{library_name, key(物理身份键), entry} 前置查询
 
 
 def resolve_builtin_signature(

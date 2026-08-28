@@ -219,6 +219,29 @@ def test_C6_dill_failure_falls_through(monkeypatch):
     assert find_real_path(math, math.sin) is None  # dill 失败且无 override → None
 
 
+def test_classify_real_path_buckets(monkeypatch):
+    """classify_real_path 三态分桶（§10.1）：native/foreign/unresolved 显式区分。"""
+    from respfuzzer.lib.realpath import classify_real_path
+
+    import math
+    # native：dill[0] ∈ root 前缀
+    b, p = classify_real_path(math, math.sin)
+    assert b == "native" and p == ("math", "sin")
+    # foreign：dill[0] 属他库（numpy.dot 之于 math root）→ 合法丢弃桶
+    numpy = pytest.importorskip("numpy")
+    b2, p2 = classify_real_path(math, numpy.dot)
+    assert b2 == "foreign" and p2[0] == "numpy"
+    # unresolved：强制 dill 返回空 → 真不可解
+    import respfuzzer.lib.realpath as rp
+
+    def _empty(*_a, **_k):
+        return []
+
+    monkeypatch.setattr(rp.dill.source, "_namespace", _empty)
+    b3, p3 = classify_real_path(ModuleType("mylib"), object())
+    assert b3 == "unresolved" and p3 is None
+
+
 def test_F4_old_data_func_name_compat():
     """F4 旧数据兼容：老 data JSON 用 `func_name` 键，新模型读取需映射到 func_path。"""
     from respfuzzer.models import Function, Seed

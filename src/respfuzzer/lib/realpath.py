@@ -33,42 +33,45 @@ def _root_prefixes(root_mod: ModuleType) -> tuple[str, ...]:
     return (name, *aliases)
 
 
-def find_real_path(
+def classify_real_path(
     root_mod: ModuleType,
     obj: Any,
     func_path: str = "",
-    cache: dict[int, tuple[str, ...] | None] | None = None,
-) -> tuple[str, ...] | None:
-    """对象 → 物理身份 real_path（§8.1 策略分级）。
+    cache: dict[int, tuple[Any, ...]] | None = None,
+):
+    """对象 → (bucket, real_path)：把身份解析结局显式分桶（§10.1 find_real_path 分桶实证）。
 
-    返回身份元组（如 ('torch','_C','_linalg','linalg_norm')）；无法解析返回 None。
-    依「身份恒可得」保证，None 是异常信号而非常态 → 调用方上报/硬失败，绝不静默。
-
-    分级：
-      1. 记忆化（id(obj) 缓存，大库性能）
-      2. dill 权威：dill.source._namespace(obj)，root 前缀一致即认
-      3. 库特殊机制：REALPATH_OVERRIDES 逐库外挂钩子（paddle 镜像等）
-    不提供 func_path 重建兜底：归属过滤必须靠物理证据，重建会放行跨库 star 灌入的伪路径（B4）。
+    bucket ∈ {'native', 'foreign', 'unresolved'}：
+      native    ：dill 给出本库前缀命名空间（或 override 命中）→ 身份可收；
+      foreign   ：dill 给出有效命名空间但 [0] 属他库（star / 别名泄漏，如 spacy→weasel/thinc、
+                  requests→urllib、torch→typing）→ 归属过滤应丢弃，且可与 unresolved 区分；
+      unresolved：dill 失败 / 空且 override 无 → 真不可解（异常信号，属异常而非常态）。
+    返回 (bucket, path_tuple|None)。
     """
+    prefixes = _root_prefixes(root_mod)
+
     if cache is not None and id(obj) in cache:
         return cache[id(obj)]
 
-    def _finish(result: tuple[str, ...] | None) -> tuple[str, ...] | None:
+    def _fin(bucket: str, path):
         if cache is not None:
-            cache[id(obj)] = result
-        return result
+            cache[id(obj)] = (bucket, path)
+        return (bucket, path)
 
-    prefixes = _root_prefixes(root_mod)
-
-    # 2. dill 权威
+    # dill 权威：native 直接返回；foreign/unresolved 先留底给 override 决定，最后按 dill 分桶
     try:
         ns = dill.source._namespace(obj)
         if ns and ns[0] in prefixes:
-            return _finish(tuple(ns))
-    except Exception as exc:  # 设计上 dill 失败应落到下层兜底，不静默吞掉语义
+            return _fin("native", tuple(ns))
+        if ns:
+            dill_verdict: tuple[Any, ...] = ("foreign", tuple(ns))  # 保留其 ns 供监管
+        else:
+            dill_verdict = ("unresolved", None)
+    except Exception as exc:  # 设计上 dill 失败落到下层兜底，不静默吞掉语义
         logger.debug(f"dill._namespace failed for {obj!r}: {exc}")
+        dill_verdict = ("unresolved", None)
 
-    # 3. 库特殊机制
+    # 库特殊机制 override（§8.1 逃逸口：paddle 镜像等；优先于 dill 的 foreign/unresolved 判定）
     override = REALPATH_OVERRIDES.get(root_mod.__name__)
     if override is not None:
         try:
@@ -76,6 +79,23 @@ def find_real_path(
         except Exception:
             res = None
         if res:
-            return _finish(tuple(res))
+            return _fin("native", tuple(res))
 
-    return _finish(None)
+    # 无 override：按 dill 结局分桶返回——foreign=归他库（合法丢弃），unresolved=真不可解
+    bucket, path = dill_verdict
+    return _fin(bucket, path)
+
+
+def find_real_path(
+    root_mod: ModuleType,
+    obj: Any,
+    func_path: str = "",
+    cache: dict[int, tuple[Any, ...]] | None = None,
+) -> tuple[str, ...] | None:
+    """对象 → 物理身份 real_path（§8.1）：classify_real_path 的 native-only 薄封装。
+
+    仅当判定归属本库（native）才返回身份元组；foreign（归他库）与真不可解统一返回 None。
+    调用方需要区分 foreign / unresolved 时使用 `classify_real_path`。
+    """
+    bucket, path = classify_real_path(root_mod, obj, func_path, cache)
+    return path if bucket == "native" else None
