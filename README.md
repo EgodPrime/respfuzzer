@@ -8,7 +8,7 @@
  - Reflective Seed Generation
    - src/respfuzzer/lib/library_visitor.py
    - src/respfuzzer/lib/agentic_function_resolver.py
- - Semantic-Guided Mutation
+ - Semantic-Driven Mutation
    - src/respfuzzer/lib/fuzz/instrument.py
    - src/respfuzzer/lib/mutator.py
    - src/respfuzzer/lib/llm_mutator.py
@@ -75,8 +75,10 @@ The framework uses `config.toml` for configuration. Key settings include:
 
 The paper reports three final models: **Llama3.1-8B-Instruct**, **Qwen3.6-35B-A3B**, and **gpt-oss-120b**. Reproduce each by replacing `model_name` accordingly (the same applies to the `[llm_mutator]` section); record the checkpoint version as noted in E-20.
 
-### Database Configuration
-- `db_name`: Name of the SQLite database file.
+### Data Storage
+Data is stored as JSON files under the directory selected by the `RESPFUZZER_DATA_DIR` environment variable (default `data/`). No SQL database is used.
+- `RESPFUZZER_DATA_DIR`: root directory for the extracted functions and seeds (default `data/`).
+
 
 ### Redis Configuration
 - `host`: Redis server host.
@@ -97,7 +99,7 @@ The paper reports three final models: **Llama3.1-8B-Instruct**, **Qwen3.6-35B-A3
 reflective_seeder extract_functions numpy
 ```
 
-There will be a new SQLite database file (`<db_name>.db` where `<db_name>` is set in `config.toml`) created in the `run_data` folder containing the extracted functions.
+Extracted functions are written to `<RESPFUZZER_DATA_DIR>/<library>_functions.json` (and seeds to `<library>_seeds.json`); no SQL database is created.
 
 ### Generate Function Calls
 ```bash
@@ -127,5 +129,14 @@ fuzz fuzz_library numpy
 | spaCy | Natural Language Processing | Python + C extension | https://spacy.io/ |
 | PyTorch | Deep Learning | Python + C extension | https://pytorch.org/ |
 | PaddlePaddle | Deep Learning | Python + C extension | https://www.paddlepaddle.org.cn/ |
+## Baselines
 
+For RQ3 comparisons, this repository includes a re-implementation of the **Fuzz4All** mutation
+baseline under `experiments/RQ3/miniFuzz4All/`. It is **not** the official Fuzz4All system,
+and it is not a from-scratch reimplementation either: it is an isolated, adapted copy
+extracted from the official Fuzz4All source (commit `0bf42fe`) and adapted to run against
+RespFuzzer's seeds for the 12 libraries in this study. The exact upstream commit, the methods
+extracted, and every intentional adaptation point are documented in
+`experiments/RQ3/miniFuzz4All/README.md` (which also carries the fidelity contract used to
+verify it against the official logic).
 

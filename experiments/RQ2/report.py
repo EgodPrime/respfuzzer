@@ -86,7 +86,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     prefix = sys.argv[1]
-    db_names = {
+    data_dirs = {
         "Full": f"{prefix}_111",
         "W/O RCM": f"{prefix}_110",
         "W/O SCE": f"{prefix}_101",
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     }
 
     data_results = {}
-    for label, db_file in db_names.items():
-        data_results[label] = get_data_for_view(db_file)
+    for label, data_dir in data_dirs.items():
+        data_results[label] = get_data_for_view(data_dir)
 
     print_table(data_results)
