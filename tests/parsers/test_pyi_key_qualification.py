@@ -293,7 +293,7 @@ def test_unique_bare_name_fallback(monkeypatch):
 
 
 def test_ambiguous_bare_name_no_fallback(monkeypatch):
-    """C-10 v2：裸名歧义不兜底，限定键 miss 则丢弃（保留 C-10 防碰撞）。"""
+    """C-10 v2：裸名歧义不入索引 → 限定键 miss 不误用任一歧义 stub，落 inspect 签名闭合兜底（§8.3 E2），不再静默丢弃。"""
     cache = {
         "mylib.sub.a.load": _pyi_entry(name="load"),
         "mylib.sub.b.load": _pyi_entry(name="load"),
@@ -306,4 +306,6 @@ def test_ambiguous_bare_name_no_fallback(monkeypatch):
     visitor.pyi_cache = cache
     visitor.name_index = build_name_index(cache)  # load 歧义 -> 空
     assert "load" not in visitor.name_index
-    assert list(visitor._visit(mod, "mylib", set())) == []
+    funcs = list(visitor._visit(mod, "mylib", set()))
+    assert len(funcs) == 1  # inspect 兜底收集，而非误用歧义 stub
+    assert funcs[0].args[0].arg_name == "obj"  # inspect(len)->(obj, /)，未取自任一歧义 stub

@@ -7,10 +7,10 @@ from typing import Dict, Iterator, Set
 
 from loguru import logger
 from respfuzzer.lib.parsers.function_parser import (
-    from_builtin_function_type,
     from_function_type,
 )
 from respfuzzer.lib.realpath import find_real_path
+from respfuzzer.lib.signature import resolve_builtin_signature
 from respfuzzer.lib.parsers.pyi_parser import (
     _find_all_pyi_files,
     build_name_index,
@@ -35,6 +35,7 @@ class LibraryVisitor:
         self.name_index: Dict[str, str] = {}  # 裸函数名 -> 限定键（仅唯一裸名，C-10 v2）
         self._top_module = None  # 库顶层模块引用（builtin public_name 顶层映射用）
         self._rp_cache: dict = {}  # id(obj) -> real_path 记忆化（§8.1）
+        self.fail_closed: bool = False  # builtin 签名三源全缺时抛错中止（§8.3 E4，默认关）
 
     def visit(self) -> Iterator[Function]:
         """
@@ -195,25 +196,20 @@ class LibraryVisitor:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
-                    # --- C-10 v2: 限定键优先查询 stub；miss 时回落"整库唯一裸名"兜底。
-                    # 歧义裸名（多个限定键同名）不入索引，强制走限定键，保留 C-10 防碰撞。
-                    prov_key = ".".join(rp)  # 物理身份键（§8.1，C-10 一元对齐）
-                    entry = self.pyi_cache.get(prov_key)
-                    if entry is None:
-                        mapped_key = self.name_index.get(name)
-                        if mapped_key:
-                            entry = self.pyi_cache.get(mapped_key)
-                    if entry is not None:
-                        # 私有命名空间内（如 torch._C）：仅当 obj 在库顶层被公开 re-export 时收，
-                        # 且 public_name 用顶层公开名（避免把私有内部绑定/私有路径名混入候选池）。
-                        if in_private:
-                            top_attr = getattr(self._top_module, name, None)
-                            if top_attr is not obj:
-                                continue
-                            public_name = f"{root_mod_name}.{name}"
-                        function = from_builtin_function_type(
-                            entry, obj, public_name=public_name
-                        )
+                    # 私有命名空间内仅当 obj 在库顶层被公开 re-export 时收（口径1，v2 保留）。
+                    # 隐私判给公开路径 in_private；public_name 用顶层公开名。
+                    if in_private:
+                        top_attr = getattr(self._top_module, name, None)
+                        if top_attr is not obj:
+                            continue
+                        public_name = f"{root_mod_name}.{name}"
+                    # 三阶签名闭合（§8 阶段3 / §8.3 E）：stub(物理身份键) → inspect →
+                    # docstring 解析 → fail-closed（默认关，避免打断缺 stub 库的全量提取）。
+                    function = resolve_builtin_signature(
+                        obj, rp, pyi_cache=self.pyi_cache, name_index=self.name_index,
+                        public_name=public_name, fail_closed=self.fail_closed,
+                    )
+                    if function is not None:
                         yield function
 
 

@@ -129,8 +129,7 @@ def test__visit_submodule_not_in_root():
 
 
 def test_builtin_hits_qualified_key(monkeypatch):
-    """缺口B完整链路：_visit 用限定键（当前遍历模块 __name__ + 函数名）命中 pyi_cache，
-    产出 is_builtin==1 且 func_name 含模块前缀；换另一模块同名函数则 miss，证明键区分模块。"""
+    """缺口B完整链路：_visit 按物理身份键命中所属模块 stub（is_builtin==1）；换另一模块同名 stub 则 miss（键区分模块）→ 落 inspect 签名闭合兜底（§8.3 E2），而非误用他模块 stub。"""
 
     def fake_namespace(obj):
         return ["mylib", "sub", "a", "load"]
@@ -157,8 +156,10 @@ def test_builtin_hits_qualified_key(monkeypatch):
     assert res[0].func_path == "mylib.sub.a.load"
     assert "mylib.sub" in res[0].func_path
 
-    # miss：仅另一模块 mylib.sub.b 有同一函数名 load 的 stub → 本模块查不到，键区分模块
+    # miss：本模块无 stub，但属他模块 mylib.sub.b 有同名 load → 键区分模块（不误用他模块 stub）
+    # 签名闭合：miss 不再静默丢弃，落 inspect 兜底（len 得 (obj, /)）→ 仍收集
     visitor2 = LibraryVisitor("mylib")
     visitor2.pyi_cache = {"mylib.sub.b.load": pyi_dict}
     res2 = list(visitor2._visit(mod, "mylib", set()))
-    assert res2 == []
+    assert len(res2) == 1  # inspect 兜底收集
+    assert res2[0].args[0].arg_name == "obj"  # inspect(len) -> (obj, /)，未误用 mylib.sub.b 的 stub
