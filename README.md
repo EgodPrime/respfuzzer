@@ -72,9 +72,25 @@ The framework uses `config.toml` for configuration. Key settings include:
 > used by Reflective Seed Generation
 - `base_url`: Base URL for the model API.
 - `api_key`: API key for authentication.
-- `model_name`: Name of the model to use (default `Qwen3.6-35B-A3B`).
+- `model_name`: Served model id on the API server (default `Qwen3.6-35B-A3B`; must match the checkpoint one serves, see below).
 
-The paper reports three final models: **Llama3.1-8B-Instruct**, **Qwen3.6-35B-A3B**, and **gpt-oss-120b**. Reproduce each by replacing `model_name` accordingly (the same applies to the `[llm_mutator]` section); record the checkpoint version as noted in E-20.
+The paper reports three final models; the exact (quantized) checkpoints used are:
+
+| Paper name | Exact checkpoint (ModelScope) | Notes |
+|---|---|---|
+| `Llama3.1-8B-Instruct` | `RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8` | FP8 (W8A8) quantization of `meta-llama/Meta-Llama-3.1-8B-Instruct`; llama3.1 license |
+| `Qwen3.6-35B-A3B` | `Qwen/Qwen3.6-35B-A3B-FP8` | Official Qwen3.6-35B-A3B (35B MoE, 3B active) quantized to FP8 (block-128); Apache-2.0 |
+| `gpt-oss-120b` | `openai-mirror/gpt-oss-120b` | == `openai/gpt-oss-120b`; 117B MoE (5.1B active), MXFP4; uses the harmony format; Apache-2.0 |
+
+All three checkpoints are served via **SGLang** (version `0.5.6.post3.dev9187+g21c88f862`). Reproduce each by serving its checkpoint and setting `model_name` in both `[llm]` and `[llm_mutator]` to the served model id.
+
+> **TODO** 具体部署脚本（三模型的 SGLang serve 命令）待补充：
+>
+> ```bash
+> # TODO(respfuzzer): 三模型 SGLang 0.5.6.post3.dev9187+g21c88f862 部署脚本
+> # 为 Llama3.1-8B-Instruct-FP8 / Qwen3.6-35B-A3B-FP8 / gpt-oss-120b 各准备一条
+> # python -m sglang.launch_server --model-path ... 命令（待补充）
+> ```
 
 ### Data Storage
 Data is stored as JSON files under the directory selected by the `RESPFUZZER_DATA_DIR` environment variable (default `data/`). No SQL database is used.
