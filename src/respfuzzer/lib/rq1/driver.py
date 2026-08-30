@@ -154,6 +154,11 @@ def run_experiment(
         executor = RQ1Executor()
     if functions is None:
         functions = list(get_functions(library)) if library else []
+    # ED-4 固定批采样（跨 run/所有模式同一函数集，配对口径）：base_seed 洗牌取前 limit。
+    # 每 run 内仍按 run_seed 洗牌顺序（run 级可复现，ED-4「共享批」对齐）。
+    if limit is not None and functions:
+        sample_rng = seed_run(base_seed)
+        functions = shuffled(functions, sample_rng)[:limit]
     outdir = Path(outdir)
 
     # ours 资源计数 proxy；rag 每库索引
@@ -194,8 +199,7 @@ def run_experiment(
 
             rng = seed_run(run_seed)
             order = shuffled(list(functions), rng)
-            if limit is not None:
-                order = order[:limit]
+            # run 函数集=库级固定批；此处仅按 run_seed 洗牌顺序（run_start 见下）
             # 本 run 起始计数快照——usage 按 run 内增量记录（ED-9 每 run 独立）
             run_start = counter.as_dict()
 

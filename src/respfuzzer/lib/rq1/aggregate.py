@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from pathlib import Path
+
 from respfuzzer.lib.rq1.driver import merge_results
 
 _RUN_ID_RE = re.compile(r"^.*_r(\d+)_s(\d+)$")
@@ -60,10 +62,18 @@ def function_covered(
 
 
 def build_wide(outdir: str, modes: list[str], library: str | None) -> WideTable:
-    """读各 mode 的合并结果，构建 function×run×mode 宽表。"""
+    """读各 mode 的合并结果，构建 function×run×mode 宽表。
+    library=None 时聚合该 mode 下全部库目录（RQ1 全库汇总）。"""
     per_mode: dict[str, dict[tuple[str, int], int]] = {}
     for mode in modes:
-        rows = merge_results(outdir, mode, library)
+        if library is not None:
+            rows = merge_results(outdir, mode, library)
+        else:
+            rows = []
+            base = Path(outdir) / mode
+            if base.is_dir():
+                for libdir in sorted(p for p in base.iterdir() if p.is_dir()):
+                    rows.extend(merge_results(outdir, mode, libdir.name))
         per_mode[mode] = function_covered(rows, mode)
     funcs = sorted({f for m in per_mode.values() for f, _ in m})
     runs = sorted({r for m in per_mode.values() for _, r in m})

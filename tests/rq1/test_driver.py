@@ -145,6 +145,21 @@ def test_f1_artifact_files_exist(tmp_path):
     assert "usage" in man  # F5 交叉：每 run 资源计数落盘
 
 
+
+def test_f1_limit_fixed_batch_across_runs(tmp_path):
+    """ED-4 固定批采样：limit 批跨 run 保持同一函数集（配对口径，
+    非每 run 重新采样——回归：此前按 run_seed 洗牌截断导致 5 run 子集漂移）。"""
+    out, _, _ = _run(tmp_path, runs=3, limit=3, seed=11)
+    per_run = []
+    for d in sorted(out.glob("r*_s*")):
+        funcs = {
+            json.loads(l)["func_path"]
+            for l in (d / "results.jsonl").read_text().splitlines()
+        }
+        per_run.append(funcs)
+    assert [len(s) for s in per_run] == [3, 3, 3]
+    assert all(s == per_run[0] for s in per_run)  # 跨 run 同一函数集
+
 def test_f1_rag_requires_library(tmp_path):
     """rag 模式未指定 library → 显式报错（每库一索引）。"""
     import pytest
