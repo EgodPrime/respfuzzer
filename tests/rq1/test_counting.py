@@ -112,3 +112,29 @@ def test_f5_return_content():
     """chat 返回 content 字符串。"""
     llm, _ = _make_llm(responses=[_response(content="the-code")])
     assert llm.chat([{"role": "user", "content": "a"}]) == "the-code"
+
+
+def test_f5_retry_transient_error():
+    """LLM 服务瞬时异常自动重试（≤2 次）：前 2 次抛错、第 3 次成功，计数仅记 1。"""
+    from types import SimpleNamespace
+
+    fail = [2, 2]  # 前 2 次抛
+    calls = [0]
+    response = _response(content="retry-ok")
+
+    class _FlakyCompletions:
+        def create(self, **kwargs):
+            calls[0] += 1
+            if fail.pop(0) if fail else 0:
+                raise TimeoutError("模拟服务瞬时超时")
+            return response
+
+    client = SimpleLLMClient(api_key="k", base_url="http://x", model_name="m")
+    client.client = cast(
+        Any,
+        SimpleNamespace(chat=SimpleNamespace(completions=_FlakyCompletions())),
+    )
+    llm = CountingLLM(client)
+    assert llm.chat([{"role": "user", "content": "a"}]) == "retry-ok"
+    assert calls[0] == 3  # 2 次重试 + 1 成功
+    assert llm.counter.calls == 1  # 仅成功计入

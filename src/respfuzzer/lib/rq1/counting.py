@@ -9,6 +9,7 @@ response 无 usage（部分端点/错误）时优雅计 0，不抛（ut-F5-4）�
 from __future__ import annotations
 
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -68,16 +69,25 @@ class CountingLLM:
         self.counter = counter or UsageCounter()
 
     def chat(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
-        """单次聊天：注入默认 temperature=0.7，计数后返回 content。"""
+        """单次聊天：注入默认 temperature=0.7、瞬时异常自动重试（≤2 次），计数后返回 content。"""
         if "temperature" not in kwargs:
             kwargs["temperature"] = _RQ1_TEMPERATURE
-        response = self._client.client.chat.completions.create(
-            model=str(self._client.model_name or ""),
-            messages=cast(Any, messages),
-            stream=False,
-            **kwargs,
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-        )
+        attempts = 0
+        while True:
+            try:
+                response = self._client.client.chat.completions.create(
+                    model=str(self._client.model_name or ""),
+                    messages=cast(Any, messages),
+                    stream=False,
+                    **kwargs,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+                break
+            except Exception:
+                attempts += 1
+                if attempts > 2:
+                    raise
+                time.sleep(1.0)
         self.counter.record(response)
         content = response.choices[0].message.content
         if content is None:
