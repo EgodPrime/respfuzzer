@@ -14,7 +14,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -24,6 +27,25 @@ from typing import Any
 from respfuzzer.lib.fuzz.llm_mutator import is_valid_semantic
 from respfuzzer.models import Function, Mutant
 
+
+def _kill_process_group(proc: Any) -> None:
+    """超时强制清理：SIGKILL 整个进程组（start_new_session 下含孙进程），再 reap 防僵尸。
+
+    ``proc.kill()`` 只杀直接子进程——seed 内 Popen 派生的孙进程持有管道会逃逸并
+    拖垮整 run（paddle ours 卡死根因之一）；按进程组整组强杀才是闭环超时控制。
+    """
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        pgid = os.getpgid(proc.pid)
+        if pgid and pgid > 1:
+            os.killpg(pgid, signal.SIGKILL)
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        proc.wait(timeout=5)
 # 子进程判定脚本：读入 {func_path, code}，解析目标函数对象、执行、
 # 用 ED-15 预言机判定 covered，以单行 JSON 输出结果（哨兵行便于提取）。
 _SUBPROCESS_SNIPPET = """\
@@ -87,25 +109,33 @@ class RQ1Executor:
             fh.write(_SUBPROCESS_SNIPPET)
             script_path = Path(fh.name)
         try:
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 [self._python, str(script_path)],
-                input=payload,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                capture_output=True,
-                timeout=self.timeout,
+                start_new_session=True,  # 独立进程组：超时由 _kill_process_group 整组强杀（防孙进程逃逸）
             )
-        except subprocess.TimeoutExpired:
-            return {"covered": False, "result_type": "TIMEOUT", "error": "timeout"}
-        finally:
+        except OSError as e:
             script_path.unlink(missing_ok=True)
+            return {"covered": False, "result_type": "ABNORMAL", "error": f"spawn failed: {e}"}
+        try:
+            out, err = proc.communicate(input=payload, timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            _kill_process_group(proc)
+            script_path.unlink(missing_ok=True)
+            return {"covered": False, "result_type": "TIMEOUT", "error": "timeout"}
+        script_path.unlink(missing_ok=True)
 
         if proc.returncode != 0:  # 子进程崩（含 seed 内 os._exit 等极端情况）
             return {
                 "covered": False,
                 "result_type": "ABNORMAL",
-                "error": f"subprocess rc={proc.returncode}: {(proc.stderr or '')[-400:]}",
+                "error": f"subprocess rc={proc.returncode}: {(err or '')[-400:]}",
             }
-        result = self._parse_result(proc.stdout)
+        result = self._parse_result(out or "")
+
         result["result_type"] = "OK" if result.get("covered") else "CALLFAIL"
         return result
 

@@ -1,4 +1,6 @@
 import json
+import os
+import signal
 import subprocess
 import tempfile
 import time
@@ -8,6 +10,7 @@ from typing import List, Optional
 
 import openai
 from loguru import logger
+
 from respfuzzer.models import ExecutionResultType, Function, Seed
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
@@ -174,6 +177,27 @@ res = c(x, y)
         raise RuntimeError(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
 
 
+
+
+def _kill_process_group(proc) -> None:
+    """超时强制清理：SIGKILL 整个进程组（start_new_session 下含孙进程），再 reap 防僵尸。
+
+    ``proc.kill()`` 只杀直接子进程——生成的代码里 Popen 派生的孙进程会逃逸并
+    拖垮整 run（paddle ours 卡死根因）；按进程组整组强杀才是闭环超时控制。"""
+    try:
+        pgid = os.getpgid(proc.pid)
+        if pgid and pgid > 1:
+            os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        proc.wait(timeout=5)
 class QueitExecutor:
     def gen_code(self, code: str, full_name: str) -> str:
         """
@@ -204,6 +228,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         stdout = ""
         stderr = ""
         proc = None
+        result_type = ExecutionResultType.CALLFAIL  # 预初始化：任何路径都确定赋值，杜绝 possibly-unbound
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
@@ -235,7 +260,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                     result_type = ExecutionResultType.TIMEOUT
                     try:
                         if proc is not None:
-                            proc.kill()
+                            _kill_process_group(proc)  # 整组强杀（防孙进程逃逸）
                             out, err = proc.communicate(timeout=1)
                             stdout = (stdout or "") + (out or "")
                             stderr = (stderr or "") + (err or "")
@@ -468,10 +493,10 @@ def solve_function(function: Function) -> Optional[Seed]:
         code = solve(function)
         seed = Seed(
             func_id=function.id,
-            library_name=function.library_name,
+            library_name=function.library_name or "",  # Function.library_name 可空 → Seed 需 str
             func_path=function.func_path,
             args=function.args,
-            function_call=code,
+            function_call=code or "",  # None（solve 失败）→ 空串：Seed.function_call 为 str 类型
         )
         logger.success(f"Seed found for {function.func_path}:\n{code}")
         return seed

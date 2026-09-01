@@ -88,3 +88,33 @@ def test_executor_result_schema():
     res = executor.execute(_func(), "from math import sqrt\nx = sqrt(4.0)")
     for key in ("covered", "result_type", "error"):
         assert key in res, f"缺少结果键: {key}"
+
+
+
+def test_executor_killpg_terminates_grandchild(tmp_path):
+    """孙进程逃逸回归：seed 内 Popen('sleep 300') 派生孙进程，超时时
+    killpg 整组强杀（proc.kill 只杀直接子进程会逃逸拖垮 run）。"""
+    import os
+    import time
+
+    import pytest
+
+    pidfile = tmp_path / "gc.pid"
+    code = (
+        "import subprocess, time\n"
+        f"g = subprocess.Popen(['sleep', '300']); open(r'{pidfile}', 'w').write(str(g.pid))\n"
+        "time.sleep(300)"
+    )
+    fast = RQ1Executor(timeout=0.5)
+    t0 = time.monotonic()
+    res = fast.execute(_func(func_path="time.sleep"), code)
+    elapsed = time.monotonic() - t0
+    assert res["result_type"] == "TIMEOUT"
+    assert elapsed < 15, f"超时强制清理过慢: {elapsed:.1f}s"
+    # 孙进程应已被 killpg 整组强杀（无逃逸残留）
+    try:
+        pid = int(pidfile.read_text())
+    except (FileNotFoundError, ValueError):
+        return  # 记录文件未写出（极罕见竞态），不强断言
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
