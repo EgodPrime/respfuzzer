@@ -175,3 +175,14 @@ def test_f1_rag_requires_library(tmp_path):
             functions=_funcs(),
             allow_fake_embedding=True,
         )
+
+
+
+def test_target_importable_shortcut():
+    """ours 短路探测：运行时不可导入目标（pyi 私有路径）→ False，
+    占位 covered=False 与对照 CALLFAIL 对齐（paddle.amp.* 类省巨额无效 solve）。"""
+    from respfuzzer.lib.rq1.driver import _target_module_importable
+
+    assert _target_module_importable("numpy.linalg.norm") is True
+    assert _target_module_importable("nonexistent_mod.foo") is False
+    assert _target_module_importable("paddle.amp.core.libpaddle.pir.ops.repeat_interleave_grad") is False

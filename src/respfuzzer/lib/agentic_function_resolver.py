@@ -4,6 +4,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
@@ -232,7 +233,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
-            command = ["python3", f.name]
+            command = [sys.executable, f.name]  # 用 venv 解释器（系统 python3 缺本项目依赖 → 首函数必败）
             try:
                 # 启动子进程
                 proc = subprocess.Popen(

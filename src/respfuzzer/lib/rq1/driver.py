@@ -16,6 +16,7 @@ ours 的资源计数：agentic 使用模块级 openai client，driver 以计数 
 from __future__ import annotations
 
 import json
+import importlib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,18 @@ def _default_llm(counter: UsageCounter | None = None) -> CountingLLM:
     return CountingLLM(SimpleLLMClient(**cfg), counter=counter)
 
 
+
+def _target_module_importable(func_path: str) -> bool:
+    """运行时探测目标模块链最深层是否可导入（C-10 pyi 提取含运行时不可见
+    私有路径，如 paddle.amp.*——对照 executor import 失败快速 CALLFAIL，
+    而 ours solve 会白耗 budget×LLM；此处短路对齐、省无效成本）。"""
+    pkg = func_path.rsplit(".", 1)[0]
+    try:
+        importlib.import_module(pkg)  # sys.modules 缓存，顶层只加载一次
+        return True
+    except Exception:
+        return False
+
 def _run_one(
     function: Function,
     mode: str,
@@ -81,6 +94,13 @@ def _run_one(
 ) -> FunctionRun:
     """对单函数执行一次 run（ours=自省 / 对照=pass@k）。"""
     if mode == "ours":
+        if not _target_module_importable(function.func_path):
+            # 运行时不可导入目标（pyi 私有路径）：与对照 CALLFAIL 一致短路
+            # 占位 False，免 solve 白耗 budget×LLM（paddle.amp.* 等）
+            return FunctionRun(
+                function.func_path, function.library_name or "", False,
+                [CandidateRecord(1, "", False)],
+            )
         code = agentic.solve(function, budget=k)
         if code is None:
             # ours 失败不静默剔除：落盘一行 covered=False（空 code 标记），
