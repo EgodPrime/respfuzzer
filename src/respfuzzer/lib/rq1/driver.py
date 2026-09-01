@@ -83,8 +83,11 @@ def _run_one(
     if mode == "ours":
         code = agentic.solve(function, budget=k)
         if code is None:
+            # ours 失败不静默剔除：落盘一行 covered=False（空 code 标记），
+            # 保证配对完整性与 FC 口径不偏置（此前空 candidates → 函数被 removed 抬升覆盖）
             return FunctionRun(
-                function.func_path, function.library_name or "", False, []
+                function.func_path, function.library_name or "", False,
+                [CandidateRecord(1, "", False)],
             )
         covered = bool(executor.covered(function, code))
         return FunctionRun(
