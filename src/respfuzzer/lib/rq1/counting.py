@@ -78,7 +78,7 @@ class CountingLLM:
                 response = self._client.client.chat.completions.create(
                     model=str(self._client.model_name or ""),
                     messages=cast(Any, messages),
-                    stream=False,
+                    timeout=180.0,  # 单请求硬超时（防服务长沉默无限挂；正常响应毫秒级）
                     **kwargs,
                     extra_body={"chat_template_kwargs": {"enable_thinking": False}},
                 )

@@ -21,7 +21,8 @@ client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
 class SimpleLLMClient:
     def __init__(self, **cfg):
         self.client = openai.OpenAI(
-            api_key=cfg.get("api_key"), base_url=cfg.get("base_url")
+            api_key=cfg.get("api_key"), base_url=cfg.get("base_url"),
+            timeout=float(cfg.get("timeout", 180)),  # 硬超时护栏：防服务长沉默无限挂（r5 教训）
         )
         self.model_name = cfg.get("model_name")
         self.temperature = cfg.get("temperature", 0.7)
