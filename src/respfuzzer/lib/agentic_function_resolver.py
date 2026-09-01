@@ -16,7 +16,11 @@ from respfuzzer.utils.paths import DATA_DIR
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
 
-client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
+client = openai.Client(
+    api_key=llm_cfg["api_key"],
+    base_url=llm_cfg["base_url"],
+    timeout=180,  # 硬超时护栏：防服务长沉默无限挂（paddle ours 教训；正常响应毫秒级）
+)
 
 
 class Attempter:
