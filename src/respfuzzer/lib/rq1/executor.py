@@ -51,7 +51,10 @@ def _kill_process_group(proc: Any) -> None:
 # 子进程判定脚本：读入 {func_path, code}，解析目标函数对象、执行、
 # 用 ED-15 预言机判定 covered，以单行 JSON 输出结果（哨兵行便于提取）。
 _SUBPROCESS_SNIPPET = """\
-import importlib, json, sys
+import os, sys
+# 剔脚本自身目录（tempfile /tmp）出 sys.path——防 /tmp 内同名 .so 污染 import（numpy.so 教训）
+sys.path = [p for p in sys.path if os.path.abspath(p) != os.path.dirname(os.path.abspath(__file__))]
+import importlib, json
 
 def _resolve(func_path):
     pkg, name = func_path.rsplit(".", 1)

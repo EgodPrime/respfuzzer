@@ -215,6 +215,9 @@ class QueitExecutor:
         # ident code with 4 spaces
         indented_code = "\n    ".join(code.split("\n"))
         res = f"""
+import os, sys
+# 剔脚本自身目录（tempfile /tmp）出 sys.path——防 /tmp 同名 .so 污染 import（numpy.so 教训）
+sys.path = [p for p in sys.path if os.path.abspath(p) != os.path.dirname(os.path.abspath(__file__))]
 from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ctx
 
 with instrument_function_via_path_check_ctx("{full_name}") as f:
