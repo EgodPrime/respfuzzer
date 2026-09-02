@@ -46,6 +46,8 @@ def _kill_process_group(proc: Any) -> None:
         except ProcessLookupError:
             pass
         proc.wait(timeout=5)
+
+
 # 子进程判定脚本：读入 {func_path, code}，解析目标函数对象、执行、
 # 用 ED-15 预言机判定 covered，以单行 JSON 输出结果（哨兵行便于提取）。
 _SUBPROCESS_SNIPPET = """\
@@ -119,7 +121,11 @@ class RQ1Executor:
             )
         except OSError as e:
             script_path.unlink(missing_ok=True)
-            return {"covered": False, "result_type": "ABNORMAL", "error": f"spawn failed: {e}"}
+            return {
+                "covered": False,
+                "result_type": "ABNORMAL",
+                "error": f"spawn failed: {e}",
+            }
         try:
             out, err = proc.communicate(input=payload, timeout=self.timeout)
         except subprocess.TimeoutExpired:

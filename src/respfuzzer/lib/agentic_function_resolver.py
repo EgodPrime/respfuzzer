@@ -72,7 +72,7 @@ res = c(x, y)
 </history>
 """
 
-        if cfg.get("use_docs", True) is False:
+        if cfg.get("use_docs", True) == False:  # 显式 False 走简版签名 prompt（None/缺省 → 完整文档版）
             from inspect import _ParameterKind
 
             func_path = function.func_path
@@ -147,7 +147,7 @@ res = c(x, y)
                     temperature=0.7,  # RQ1 F4：显式采样温度（pass@k 候选多样性源）
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
-                        "reasoning": {"enabled": False}
+                        "reasoning": {"enabled": False},
                     },
                 )
                 code = response.choices[0].message.content
@@ -169,15 +169,13 @@ res = c(x, y)
                 raise ValueError("模型返回不包含 <code> 或 ``` 包裹的代码段")
             except Exception as e:
                 last_exc = e
-                logger.debug(f"Attempter.generate attempt {attempt+1} failed: {e}")
+                logger.debug(f"Attempter.generate attempt {attempt + 1} failed: {e}")
                 # transient wait before retry
                 time.sleep(1 + attempt)
                 continue
         # after retries, raise a clear exception with traceback
         tb = traceback.format_exception_only(type(last_exc), last_exc)
         raise RuntimeError(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
-
-
 
 
 def _kill_process_group(proc) -> None:
@@ -199,6 +197,8 @@ def _kill_process_group(proc) -> None:
         except ProcessLookupError:
             pass
         proc.wait(timeout=5)
+
+
 class QueitExecutor:
     def gen_code(self, code: str, full_name: str) -> str:
         """
@@ -229,11 +229,16 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         stdout = ""
         stderr = ""
         proc = None
-        result_type = ExecutionResultType.CALLFAIL  # 预初始化：任何路径都确定赋值，杜绝 possibly-unbound
+        result_type = (
+            ExecutionResultType.CALLFAIL
+        )  # 预初始化：任何路径都确定赋值，杜绝 possibly-unbound
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
-            command = [sys.executable, f.name]  # 用 venv 解释器（系统 python3 缺本项目依赖 → 首函数必败）
+            command = [
+                sys.executable,
+                f.name,
+            ]  # 用 venv 解释器（系统 python3 缺本项目依赖 → 首函数必败）
             try:
                 # 启动子进程
                 proc = subprocess.Popen(
@@ -313,7 +318,7 @@ class Reasoner:
                     temperature=0.7,  # RQ1 F4
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
-                        "reasoning": {"enabled": False}
+                        "reasoning": {"enabled": False},
                     },
                 )
                 explanation = response.choices[0].message.content
@@ -328,7 +333,7 @@ class Reasoner:
                 raise ValueError("模型返回空的解释内容")
             except Exception as e:
                 last_exc = e
-                logger.debug(f"Reasoner.explain attempt {attempt+1} failed: {e}")
+                logger.debug(f"Reasoner.explain attempt {attempt + 1} failed: {e}")
                 time.sleep(1 + attempt)
                 continue
         tb = traceback.format_exception_only(type(last_exc), last_exc)
@@ -368,7 +373,7 @@ class Judger:
                     temperature=0.7,  # RQ1 F4
                     extra_body={
                         "chat_template_kwargs": {"enable_thinking": False},
-                        "reasoning": {"enabled": False}
+                        "reasoning": {"enabled": False},
                     },
                 )
 
@@ -399,7 +404,7 @@ class Judger:
                     return {"valid": False, "reason": text}
             except Exception as e:
                 last_exc = e
-                logger.debug(f"Judger.judge attempt {attempt+1} failed: {e}")
+                logger.debug(f"Judger.judge attempt {attempt + 1} failed: {e}")
                 time.sleep(1 + attempt)
                 continue
 
@@ -464,7 +469,7 @@ def solve(function: Function, budget: int = 10) -> Optional[str]:
             solved = True
             break
         else:
-            if cfg.get("use_reasoner", True) is False:
+            if cfg.get("use_reasoner", True) == False:  # 显式 False 禁用 reasoner（缺省默认开）
                 break
 
             try:
@@ -494,10 +499,12 @@ def solve_function(function: Function) -> Optional[Seed]:
         code = solve(function)
         seed = Seed(
             func_id=function.id,
-            library_name=function.library_name or "",  # Function.library_name 可空 → Seed 需 str
+            library_name=function.library_name
+            or "",  # Function.library_name 可空 → Seed 需 str
             func_path=function.func_path,
             args=function.args,
-            function_call=code or "",  # None（solve 失败）→ 空串：Seed.function_call 为 str 类型
+            function_call=code
+            or "",  # None（solve 失败）→ 空串：Seed.function_call 为 str 类型
         )
         logger.success(f"Seed found for {function.func_path}:\n{code}")
         return seed
