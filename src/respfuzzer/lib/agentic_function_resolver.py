@@ -416,7 +416,7 @@ class Judger:
         raise RuntimeError(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
-def solve(function: Function, budget: int = 10) -> Optional[str]:
+def solve(function: Function, budget: int = 10, covered_checker=None) -> Optional[str]:
     attempter = Attempter()
     judger = Judger()
     executor = QueitExecutor()
@@ -470,14 +470,18 @@ def solve(function: Function, budget: int = 10) -> Optional[str]:
         result = executor.execute(code, function.func_path)
 
         # 成功判据与最终 covered 口径（RQ1Executor/ED-15）对称：
-        # - OK：调用目标且无异常；
-        # - ABNORMAL 且 ret_code!=3：已调用目标但抛领域异常（ED-15 领域级=覆盖），
-        #   不再丢弃（此前误丢导致 nltk/pandas/spacy 等重库 ours FC 被系统性压低）；
+        # - OK：调用目标且无异常 → 直接 solved；
+        # - ABNORMAL 且 ret_code!=3：已调用目标但抛异常。交给 covered_checker
+        #   （RQ1Executor.covered / ED-15 oracle）精确判定：领域级=True→solved；
+        #   构造级=False→继续 RCM 反馈环纠错（不提前停，保留纠错到无异常的机会）；
+        #   covered_checker=None（legacy 直调）→ 保持 ABNORMAL 即 solved 的兼容语义；
         # - ret_code==3（未调用目标）/TIMEOUT/CALLFAIL：进入 RCM 反馈环纠错。
         _rt = result["result_type"]
         _rc = result.get("ret_code")
         if _rt == ExecutionResultType.OK or (
-            _rt == ExecutionResultType.ABNORMAL and _rc != 3
+            _rt == ExecutionResultType.ABNORMAL
+            and _rc != 3
+            and (covered_checker is None or covered_checker(function, code))
         ):
             solved = True
             break

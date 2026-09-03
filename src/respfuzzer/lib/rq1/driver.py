@@ -101,7 +101,9 @@ def _run_one(
                 function.func_path, function.library_name or "", False,
                 [CandidateRecord(1, "", False)],
             )
-        code = agentic.solve(function, budget=k)
+        code = agentic.solve(
+            function, budget=k, covered_checker=executor.covered
+        )  # 领域异常 code 交 ED-15 oracle 精判：领域级=收、构造级=继续反馈纠错
         if code is None:
             # ours 失败不静默剔除：落盘一行 covered=False（空 code 标记），
             # 保证配对完整性与 FC 口径不偏置（此前空 candidates → 函数被 removed 抬升覆盖）
