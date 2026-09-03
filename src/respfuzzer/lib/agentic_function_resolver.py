@@ -6,6 +6,8 @@ import tempfile
 import time
 import sys
 import traceback
+import shutil
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Optional
 
@@ -177,6 +179,13 @@ res = c(x, y)
         tb = traceback.format_exception_only(type(last_exc), last_exc)
         raise RuntimeError(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
 
+def _run_data_root() -> Path:
+    """子进程沙箱根目录（run_data/）：seed 相对路径产物统一落这里，不污染项目根。"""
+    root = Path(os.environ.get("RESPFUZZER_RUN_DATA", "run_data")).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
 
 def _kill_process_group(proc) -> None:
     """超时强制清理：SIGKILL 整个进程组（start_new_session 下含孙进程），再 reap 防僵尸。
@@ -236,6 +245,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         result_type = (
             ExecutionResultType.CALLFAIL
         )  # 预初始化：任何路径都确定赋值，杜绝 possibly-unbound
+        sandbox = Path(tempfile.mkdtemp(prefix="fz-", dir=_run_data_root()))  # 沙箱 cwd（run_data/）
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
@@ -253,6 +263,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                     text=True,  # 读取为字符串
                     shell=False,
                     start_new_session=True,
+                    cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
                 )
 
                 # 读取输出（捕获所有）
@@ -288,6 +299,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                 )
                 ret_code = 1
             finally:
+                shutil.rmtree(sandbox, ignore_errors=True)  # 沙箱产物即删
                 result = {
                     "result_type": result_type,
                     "ret_code": ret_code,

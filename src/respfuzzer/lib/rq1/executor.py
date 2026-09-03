@@ -17,12 +17,22 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+
+
+def _sandbox_dir() -> Path:
+    """子进程一次性工作沙箱（run_data/ 下的临时目录）——
+    seed 相对路径写入全部落沙箱，执行完即删；
+    此前 cwd=项目根，seed 产物（numpy.so、paddle/ 等）污染项目根并遮蔽真实包。"""
+    root = Path(os.environ.get("RESPFUZZER_RUN_DATA", "run_data")).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="fz-", dir=root))
 
 from respfuzzer.lib.fuzz.llm_mutator import is_valid_semantic
 from respfuzzer.models import Function, Mutant
@@ -113,6 +123,7 @@ class RQ1Executor:
         ) as fh:
             fh.write(_SUBPROCESS_SNIPPET)
             script_path = Path(fh.name)
+        sandbox = _sandbox_dir()
         try:
             proc = subprocess.Popen(
                 [self._python, str(script_path)],
@@ -120,9 +131,11 @@ class RQ1Executor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
                 start_new_session=True,  # 独立进程组：超时由 _kill_process_group 整组强杀（防孙进程逃逸）
             )
         except OSError as e:
+            shutil.rmtree(sandbox, ignore_errors=True)
             script_path.unlink(missing_ok=True)
             return {
                 "covered": False,
@@ -133,8 +146,10 @@ class RQ1Executor:
             out, err = proc.communicate(input=payload, timeout=self.timeout)
         except subprocess.TimeoutExpired:
             _kill_process_group(proc)
+            shutil.rmtree(sandbox, ignore_errors=True)
             script_path.unlink(missing_ok=True)
             return {"covered": False, "result_type": "TIMEOUT", "error": "timeout"}
+        shutil.rmtree(sandbox, ignore_errors=True)
         script_path.unlink(missing_ok=True)
 
         if proc.returncode != 0:  # 子进程崩（含 seed 内 os._exit 等极端情况）
