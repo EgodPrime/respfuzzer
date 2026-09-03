@@ -210,7 +210,7 @@ class QueitExecutor:
         >>> with instrument_function_via_path_check_ctx("a.b.c") as f:
             code
             if not f.called:
-                raise Exception(f"未包含对{full_name}的有效调用")
+                sys.exit(3)  # 未调用目标→rc=3（solve 反馈纠错）；已调用但抛领域异常→rc!=3（判覆盖）
         """
         # ident code with 4 spaces
         indented_code = "\n    ".join(code.split("\n"))
@@ -223,7 +223,8 @@ from respfuzzer.lib.fuzz.instrument import instrument_function_via_path_check_ct
 with instrument_function_via_path_check_ctx("{full_name}") as f:
     {indented_code}
     if not f.called:
-        raise Exception(f"未包含对{full_name}的有效调用")
+        sys.exit(3)  # 未调用目标：特殊退出码 3（solve 据此区分「没调用对」→反馈纠错；
+                      #  已调用但抛领域异常的 rc!=3 → 与 ED-15 covered 口径对称，不再误丢）
 """
         return res
 
@@ -468,7 +469,16 @@ def solve(function: Function, budget: int = 10) -> Optional[str]:
 
         result = executor.execute(code, function.func_path)
 
-        if result["result_type"] == ExecutionResultType.OK:
+        # 成功判据与最终 covered 口径（RQ1Executor/ED-15）对称：
+        # - OK：调用目标且无异常；
+        # - ABNORMAL 且 ret_code!=3：已调用目标但抛领域异常（ED-15 领域级=覆盖），
+        #   不再丢弃（此前误丢导致 nltk/pandas/spacy 等重库 ours FC 被系统性压低）；
+        # - ret_code==3（未调用目标）/TIMEOUT/CALLFAIL：进入 RCM 反馈环纠错。
+        _rt = result["result_type"]
+        _rc = result.get("ret_code")
+        if _rt == ExecutionResultType.OK or (
+            _rt == ExecutionResultType.ABNORMAL and _rc != 3
+        ):
             solved = True
             break
         else:
