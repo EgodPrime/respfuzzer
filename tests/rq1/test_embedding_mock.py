@@ -135,6 +135,7 @@ def test_driver_rag_end_to_end_with_mock(server, tmp_path):
         functions=funcs,
         embedding_provider=_provider(server),
         now="2026-08-29T00:00:00",
+        warmup=False,  # 测试零网络 fake
     )
     assert check_artifacts(str(tmp_path), "rag", "lib") == []
     rows = merge_results(str(tmp_path), "rag", "lib")

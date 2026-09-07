@@ -66,6 +66,34 @@ class _CountingClient:
         self.chat = _CountingChat(raw.chat, counter)
 
 
+
+def _warmup_llm(mode: str, llm, n: int = 8) -> None:
+    """LLM 冷启动预热：sglang 首次处理长 prompt / 并发批时慢或超时，
+    导致每个 run 的 r1 系统性偏低（ours 长反馈环首轮被冷启动超时破坏，
+    对照独立 pass@k 影响小）。正式数据前先发 n 个并发轻量请求热服务。"""
+    from concurrent.futures import ThreadPoolExecutor
+    if mode == "ours":
+        from respfuzzer.lib import agentic_function_resolver as agentic
+        def _one(_):
+            try:
+                agentic.client.chat.completions.create(
+                    model=agentic.llm_cfg.get("model_name"),
+                    messages=[{"role": "user", "content": "return 1"}],
+                    max_tokens=4,
+                    temperature=0.0,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+                )
+            except Exception:
+                pass
+    else:
+        def _one(_):
+            try:
+                llm.chat([{"role": "user", "content": "return 1"}], max_tokens=4)
+            except Exception:
+                pass
+    with ThreadPoolExecutor(max_workers=n) as pool:
+        list(pool.map(_one, range(n)))
+
 def _default_llm(counter: UsageCounter | None = None) -> CountingLLM:
     """从 config [llm] 构建计数 LLM（注入计数 counter；api_key/base_url 来自 config）。"""
     cfg = dict(get_config("llm") or {})
@@ -165,6 +193,7 @@ def run_experiment(
     embedding_provider=None,  # rag 模式注入 provider（mock/测试用；缺省走 config）
     concurrency: int = 1,
     now: str | None = None,
+    warmup: bool = True,  # 默认预热 LLM（消冷启动 r1 偏低）；测试注入零网络 fake 时禁用
 ) -> Path:
     """执行 runs 次重复 run；返回输出根目录 runs/RQ1/<mode>/<library>。"""
     if mode == "rag" and library is None:
@@ -197,6 +226,11 @@ def run_experiment(
             library, provider=embedding_provider,
             allow_fake=allow_fake_embedding, functions=functions,
         )
+
+
+    if warmup:
+        # LLM 冷启动预热：消除 r1 系统性偏低（sglang 首次长 prompt/并发批慢或超时）
+        _warmup_llm(mode, llm)
 
     try:
         for run_index in range(1, runs + 1):

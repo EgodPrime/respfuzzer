@@ -56,6 +56,7 @@ def _gen(tmp_path, mode: str) -> None:
         functions=_funcs(),
         now="2026-08-29T00:00:00",
         allow_fake_embedding=True,
+        warmup=False,  # 测试零网络 fake
     )
 
 

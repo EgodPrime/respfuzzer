@@ -164,6 +164,7 @@ def test_aggregate_end_to_end_driver_rows(tmp_path):
             functions=funcs,
             now="2026-08-29T00:00:00",
             allow_fake_embedding=True,
+            warmup=False,  # 测试零网络 fake
         )
     wide = agg.build_wide(str(tmp_path), ["normal", "prompted"], "lib")
     assert wide.modes == ["normal", "prompted"]

@@ -75,6 +75,7 @@ def _run(
         executor=ex,
         functions=_funcs(),
         now="2026-08-29T00:00:00",
+        warmup=False,  # 测试注入零网络 fake，禁用 LLM 预热
     )
     return out, llm, ex
 

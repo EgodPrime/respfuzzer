@@ -69,6 +69,7 @@ def test_usage_populated_after_run(tmp_path):
         executor=FakeExecutor(),
         functions=funcs,
         now="2026-08-29T00:00:00",
+        warmup=False,  # 零网络 fake：预热会耗尽响应队列
     )
     run_dir = next((tmp_path / "normal" / "lib").glob("r*_s*"))
     man = json.loads((run_dir / "manifest.json").read_text())
@@ -107,6 +108,7 @@ def test_usage_per_run_incremental(tmp_path):
         executor=FakeExecutor(),
         functions=funcs,
         now="2026-08-29T00:00:00",
+        warmup=False,  # 零网络 fake
     )
     dirs = sorted((tmp_path / "inc" / "normal" / "lib").glob("r*_s*"))
     assert len(dirs) == 2
