@@ -22,10 +22,15 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
 
+
+# 代码执行全局串行锁：LLM 请求并发，但子进程代码执行一次只允许一个并行。
+# 多线程并发 fork 大库（torch/pandas/paddle 各 ~1-2GB）会瞬间峰值超 15GB → OOM/段错误。
+from respfuzzer.lib.exec_lock import EXEC_LOCK as _EXEC_LOCK
 def _sandbox_dir() -> Path:
     """子进程一次性工作沙箱（run_data/ 下的临时目录）——
     seed 相对路径写入全部落沙箱，执行完即删；
@@ -124,33 +129,34 @@ class RQ1Executor:
             fh.write(_SUBPROCESS_SNIPPET)
             script_path = Path(fh.name)
         sandbox = _sandbox_dir()
-        try:
-            proc = subprocess.Popen(
-                [self._python, str(script_path)],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
-                start_new_session=True,  # 独立进程组：超时由 _kill_process_group 整组强杀（防孙进程逃逸）
-            )
-        except OSError as e:
+        with _EXEC_LOCK:  # 子进程代码执行全局串行（LLM 请求并发不受影响）
+            try:
+                proc = subprocess.Popen(
+                    [self._python, str(script_path)],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
+                    start_new_session=True,  # 独立进程组：超时 killpg 整组强杀（防孙进程逃逸）
+                )
+            except OSError as e:
+                shutil.rmtree(sandbox, ignore_errors=True)
+                script_path.unlink(missing_ok=True)
+                return {
+                    "covered": False,
+                    "result_type": "ABNORMAL",
+                    "error": f"spawn failed: {e}",
+                }
+            try:
+                out, err = proc.communicate(input=payload, timeout=self.timeout)
+            except subprocess.TimeoutExpired:
+                _kill_process_group(proc)
+                shutil.rmtree(sandbox, ignore_errors=True)
+                script_path.unlink(missing_ok=True)
+                return {"covered": False, "result_type": "TIMEOUT", "error": "timeout"}
             shutil.rmtree(sandbox, ignore_errors=True)
             script_path.unlink(missing_ok=True)
-            return {
-                "covered": False,
-                "result_type": "ABNORMAL",
-                "error": f"spawn failed: {e}",
-            }
-        try:
-            out, err = proc.communicate(input=payload, timeout=self.timeout)
-        except subprocess.TimeoutExpired:
-            _kill_process_group(proc)
-            shutil.rmtree(sandbox, ignore_errors=True)
-            script_path.unlink(missing_ok=True)
-            return {"covered": False, "result_type": "TIMEOUT", "error": "timeout"}
-        shutil.rmtree(sandbox, ignore_errors=True)
-        script_path.unlink(missing_ok=True)
 
         if proc.returncode != 0:  # 子进程崩（含 seed 内 os._exit 等极端情况）
             return {

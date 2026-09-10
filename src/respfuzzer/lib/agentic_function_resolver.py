@@ -18,6 +18,7 @@ from respfuzzer.models import ExecutionResultType, Function, Seed
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import DATA_DIR
+from respfuzzer.lib.exec_lock import EXEC_LOCK
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -253,59 +254,59 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                 sys.executable,
                 f.name,
             ]  # 用 venv 解释器（系统 python3 缺本项目依赖 → 首函数必败）
-            try:
-                # 启动子进程
-                proc = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    stdin=subprocess.PIPE,
-                    text=True,  # 读取为字符串
-                    shell=False,
-                    start_new_session=True,
-                    cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
-                )
-
-                # 读取输出（捕获所有）
+            with EXEC_LOCK:  # 子进程代码执行全局串行（LLM 请求并发不受影响）
                 try:
-                    stdout, stderr = proc.communicate(
-                        input="\n" * 24, timeout=10
-                    )  # 10秒超时
-                    ret_code = proc.returncode
-                    if ret_code != 0:
-                        result_type = ExecutionResultType.ABNORMAL
-                    else:
-                        result_type = ExecutionResultType.OK
-                except subprocess.TimeoutExpired as e:
-                    # try to kill and collect any remaining output
-                    result_type = ExecutionResultType.TIMEOUT
+                    # 启动子进程
+                    proc = subprocess.Popen(
+                        command,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        stdin=subprocess.PIPE,
+                        text=True,  # 读取为字符串
+                        shell=False,
+                        start_new_session=True,
+                        cwd=str(sandbox),  # 沙箱 cwd：seed 相对路径产物不落项目根
+                    )
+
+                    # 读取输出（捕获所有）
                     try:
-                        if proc is not None:
-                            _kill_process_group(proc)  # 整组强杀（防孙进程逃逸）
-                            out, err = proc.communicate(timeout=1)
-                            stdout = (stdout or "") + (out or "")
-                            stderr = (stderr or "") + (err or "")
-                    except Exception:
-                        # ignore further errors while cleaning up
-                        pass
-                    stderr = (stderr or "") + f"\nTimeoutExpired: {str(e)}"
-                    ret_code = 124
-            except Exception as e:
-                result_type = ExecutionResultType.CALLFAIL
-                stderr = (
-                    (stderr or "")
-                    + f"\nException when starting subprocess: {str(e)}\n"
-                    + traceback.format_exc()
-                )
-                ret_code = 1
-            finally:
-                shutil.rmtree(sandbox, ignore_errors=True)  # 沙箱产物即删
-                result = {
-                    "result_type": result_type,
-                    "ret_code": ret_code,
-                    "stdout": stdout,
-                    "stderr": stderr,
-                }
+                        stdout, stderr = proc.communicate(
+                            input="\n" * 24, timeout=10
+                        )  # 10秒超时
+                        ret_code = proc.returncode
+                        if ret_code != 0:
+                            result_type = ExecutionResultType.ABNORMAL
+                        else:
+                            result_type = ExecutionResultType.OK
+                    except subprocess.TimeoutExpired as e:
+                        # try to kill and collect any remaining output
+                        result_type = ExecutionResultType.TIMEOUT
+                        try:
+                            if proc is not None:
+                                _kill_process_group(proc)  # 整组强杀（防孙进程逃逸）
+                                out, err = proc.communicate(timeout=1)
+                                stdout = (stdout or "") + (out or "")
+                                stderr = (stderr or "") + (err or "")
+                        except Exception:
+                            pass  # ignore further errors while cleaning up
+                        stderr = (stderr or "") + f"\nTimeoutExpired: {str(e)}"
+                        ret_code = 124
+                except Exception as e:
+                    result_type = ExecutionResultType.CALLFAIL
+                    stderr = (
+                        (stderr or "")
+                        + f"\nException when starting subprocess: {str(e)}\n"
+                        + traceback.format_exc()
+                    )
+                    ret_code = 1
+                finally:
+                    shutil.rmtree(sandbox, ignore_errors=True)  # 沙箱产物即删
+            result = {
+                "result_type": result_type,
+                "ret_code": ret_code,
+                "stdout": stdout,
+                "stderr": stderr,
+            }
             return result
 
 
