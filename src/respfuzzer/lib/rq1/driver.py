@@ -25,6 +25,7 @@ import logging
 
 import respfuzzer.lib.agentic_function_resolver as agentic
 from respfuzzer.lib.rq1.counting import CountingLLM, UsageCounter
+from respfuzzer.lib.exec_lock import EXEC_LOCK
 from respfuzzer.lib.rq1.executor import RQ1Executor
 from respfuzzer.lib.rq1.extended import source_slice_for
 from respfuzzer.lib.rq1.manifest import (
@@ -104,13 +105,23 @@ def _default_llm(counter: UsageCounter | None = None) -> CountingLLM:
 def _target_module_importable(func_path: str) -> bool:
     """运行时探测目标模块链最深层是否可导入（C-10 pyi 提取含运行时不可见
     私有路径，如 paddle.amp.*——对照 executor import 失败快速 CALLFAIL，
-    而 ours solve 会白耗 budget×LLM；此处短路对齐、省无效成本）。"""
+    而 ours solve 会白耗 budget×LLM；此处短路对齐、省无效成本）。
+
+    并发冷启动 bug 修复：大库（torch/pandas/paddle，~1-2GB）首次 import 顶层包
+    耗时~1s，多线程同时 `import_module('torch.子模块')` 会互相竞争 → 抛异常 → 误判
+    False → _run_one 短路 covered=False（torch ours 全 0 根因）。
+    故：import_module 加共享锁（EXEC_LOCK）保证一次只加载一个包，且先加载顶层包。"""
+    parts = func_path.split(".")
     pkg = func_path.rsplit(".", 1)[0]
-    try:
-        importlib.import_module(pkg)  # sys.modules 缓存，顶层只加载一次
-        return True
-    except Exception:
-        return False
+    with EXEC_LOCK:  # 串行化模块加载，防并发竞争/部分初始化
+        try:
+            # 先加载顶层包（大库冷启动慢，串行加载避免并发竞争）
+            importlib.import_module(parts[0])
+            # 再加载目标模块链（此时已缓存，秒回）
+            importlib.import_module(pkg)
+            return True
+        except Exception:
+            return False
 
 def _run_one(
     function: Function,
