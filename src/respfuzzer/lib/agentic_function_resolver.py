@@ -48,6 +48,8 @@ class Attempter:
 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
 5. 生成的`code`以"from {package_path} import {func_name}"开头
 6. 生成的`code`中函数调用形式为"{func_name}(...)"
+7. 运行环境是纯 CPU 机器，**严禁使用 .cuda() / device='cuda' / GPU 相关操作**（会 AssertionError 崩溃）；
+   只能用 CPU 张量/操作（如 torch 用默认 CPU 设备）
 
 例子：
 <function>
@@ -106,6 +108,8 @@ res = c(x, y)
 4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
 5. 生成的`code`以"from {package_path} import {func_path}"开头
 6. 生成的`code`中函数调用形式为"{func_path}(...)"
+7. 运行环境是纯 CPU 机器，**严禁使用 .cuda() / device='cuda' / GPU 相关操作**（会 AssertionError 崩溃）；
+   只能用 CPU 张量/操作（如 torch 用默认 CPU 设备）
 
 例子：
 <function>
