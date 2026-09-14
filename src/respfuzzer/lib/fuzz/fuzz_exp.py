@@ -10,6 +10,7 @@ import dcov
 from dcov import BitmapManager
 from loguru import logger
 
+from respfuzzer.lib.exec_lock import EXEC_LOCK, EXEC_SEM
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
 )
@@ -18,7 +19,7 @@ from respfuzzer.lib.fuzz.semantic_oracle import entered_function_body
 from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos import get_seeds
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.paths import DATA_DIR
+from respfuzzer.utils.paths import DATA_DIR, RUNDATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
 
@@ -41,6 +42,16 @@ def _resolve_func(full_func_path: str):
     return getattr(parent, mods[-1], None)
 
 
+
+def _worker_sandbox_dir(process_index: int) -> str:
+    """fuzz 常驻 worker 的专属工作目录（run_data/fuzz_worker/<idx>）——
+    seed 相对路径产物统一落 run_data/，不污染项目根（RQ1 修复链移植）。
+    常驻 worker 不做即删（生命周期跨整个 seed），目录复用。"""
+    d = RUNDATA_DIR / "fuzz_worker" / str(process_index)
+    d.mkdir(parents=True, exist_ok=True)
+    return str(d)
+
+
 def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
     """
     该函数被父进程以子进程的形式创建，从父进程不断获取指令和需要执行的 Seed，并安全执行。
@@ -49,6 +60,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
       - "exit" : 退出子进程。
     """
     os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
+    os.chdir(_worker_sandbox_dir(process_index))  # 沙箱 cwd：seed 相对路径产物落 run_data/（RQ1 修复链移植）
     fake_stdout = io.StringIO()
     fake_stderr = io.StringIO()
     sys.stdout = fake_stdout
@@ -139,8 +151,14 @@ def fuzz_single_seed(
     bm.sync_from(4398)
     bm.write()
     send, recv = Queue(), Queue()
-    process = Process(target=continue_safe_execute, args=(send, recv, process_index))
-    process.start()
+    # 并发安全（RQ1 修复链移植）：fork 瞬间持 EXEC_LOCK（防 copy-on-write 峰值叠加），
+    # 常驻子进程存活期持 EXEC_SEM（限同时存活的执行子进程数，默认 4，防大库 OOM）。
+    with EXEC_LOCK:
+        process = Process(
+            target=continue_safe_execute, args=(send, recv, process_index),
+        )  # 沙箱 cwd 由子进程入口 os.chdir(_worker_sandbox_dir) 实现（multiprocessing 无 cwd 参数）
+        process.start()
+    EXEC_SEM.acquire()
     child_pid = process.pid
     Mutator = LLMMutator(seed)
     for _ in range(llm_fuzz_per_seed):
@@ -174,10 +192,11 @@ def fuzz_single_seed(
             else:
                 process.join()
             send, recv = Queue(), Queue()
-            process = Process(
-                target=continue_safe_execute, args=(send, recv, process_index)
-            )
-            process.start()
+            with EXEC_LOCK:
+                process = Process(
+                    target=continue_safe_execute, args=(send, recv, process_index)
+                )
+                process.start()
             child_pid = process.pid
             continue
         cov_after = bm.count_bitmap_s()
@@ -195,11 +214,10 @@ def fuzz_single_seed(
             logger.info(
                 f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
             )
+    send.put(("exit", None))
     logger.info(
         f"seed {seed.id} mutate done: {getattr(Mutator, 'budget_report', dict)()}"
     )
-
-    send.put(("exit", None))
     try:
         process.join(timeout=execution_timeout)
     except Exception:
@@ -219,6 +237,7 @@ def fuzz_single_seed(
         f"Merging coverage from process {process_index} to parent bitmap, final coverage: {bm2.count_bitmap()} bits."
     )
     bm2.write()
+    EXEC_SEM.release()  # 子进程已完全终止，释放并发名额（RQ1 修复链移植）
 
 
 def _fuzz_dataset(
@@ -233,6 +252,23 @@ def _fuzz_dataset(
     for seed in dataset:
         seeds.append((shm_key_start, seed.func_path, seed))
         shm_key_start += 1
+
+    # LLM 冷启动预热（RQ1 修复链移植）：sglang 首次请求慢/超时，正式 fuzz 前并发热身
+    from concurrent.futures import ThreadPoolExecutor as _TPE
+    from respfuzzer.utils.llm_helper import SimpleLLMClient
+    _cfg = dict(get_config("llm_mutator") or get_config("llm") or {})
+    if _cfg.get("base_url"):
+        _client = SimpleLLMClient(**_cfg)
+
+        def _warm(_):
+            try:
+                _client.chat([{"role": "user", "content": "return 1"}], max_tokens=4)
+            except Exception:
+                pass
+
+        with _TPE(max_workers=4) as _pool:
+            list(_pool.map(_warm, range(4)))
+        logger.info("LLM warmup done.")
 
     # 并行执行 fuzz_single_seed（使用线程池以避免多进程嵌套的 pickling 问题）
     cfg = get_config("fuzz")
@@ -269,8 +305,11 @@ def calc_initial_seed_coverage_dataset(
     bm = BitmapManager(4398)
     bm.clear_bitmap()
     bm.write()
-    process = Process(target=continue_safe_execute, args=(send, recv, 4398))
-    process.start()
+    with EXEC_LOCK:  # fork 瞬间互斥（RQ1 修复链移植）
+        process = Process(
+            target=continue_safe_execute, args=(send, recv, 4398),
+        )
+        process.start()
     for seed in seeds:
         try:
             send.put(("execute", seed))
@@ -284,8 +323,11 @@ def calc_initial_seed_coverage_dataset(
             else:
                 process.join()
             send, recv = Queue(), Queue()
-            process = Process(target=continue_safe_execute, args=(send, recv, 4398))
-            process.start()
+            with EXEC_LOCK:
+                process = Process(
+                    target=continue_safe_execute, args=(send, recv, 4398),
+                )
+                process.start()
             continue
     send.put(("exit", None))
     process.join()

@@ -56,6 +56,7 @@ Target function name:
 {func_name}
 
 The mutated code should call the target function and meet the mutation instruction. Do not include any explanations or comments or print statements. The mutated code should be short and concise. Do not wrap the code with fences like \`\`\`.
+IMPORTANT: The runtime environment is a CPU-only machine. NEVER use .cuda(), device='cuda', or any GPU-related operations (they raise AssertionError); use CPU tensors/devices only (e.g. torch defaults to CPU).
 
 {format_instructions}
     """,
