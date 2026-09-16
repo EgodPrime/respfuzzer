@@ -2,6 +2,7 @@
 该模块提供快速调用大型语言模型（LLM）API的实用函数。
 节省掉客户端创建、参数设置等重复工作。
 """
+import time
 
 import openai
 from langchain_openai import ChatOpenAI
@@ -28,14 +29,23 @@ class SimpleLLMClient:
         self.temperature = cfg.get("temperature", 0.7)
 
     def _chat(self, messages, **kwargs) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            stream=False,
-            **kwargs,
-            extra_body={"chat_template_kwargs": {"enable_thinking": False},},
-        )
-        return response.choices[0].message.content
+        # gpt-oss 推理模型会偶发 sglang 500（peg-native 格式不匹配，thinking 触发）——
+        # 短退避重试兜底，避免整个 run 崩溃丢数据（RQ1 gpt-oss 重跑教训）
+        last = None
+        for attempt in range(3):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                    stream=False,
+                    **kwargs,
+                    extra_body={"chat_template_kwargs": {"enable_thinking": False},},
+                )
+                return response.choices[0].message.content
+            except (openai.InternalServerError, openai.APIConnectionError, openai.APIStatusError) as e:
+                last = e
+                time.sleep(0.5 * (1 + attempt))
+        raise last
 
     def chat(self, messages, **kwargs) -> str:
         if "temperature" not in kwargs:
@@ -48,13 +58,21 @@ class SimpleLLMClient:
 
 
 def _chat(messages, **kwargs) -> str:
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        stream=False,
-        **kwargs,
-    )
-    return response.choices[0].message.content
+    # 同 SimpleLLMClient._chat：gpt-oss 偶发 sglang 500 短退避重试
+    last = None
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=messages,
+                stream=False,
+                **kwargs,
+            )
+            return response.choices[0].message.content
+        except (openai.InternalServerError, openai.APIConnectionError, openai.APIStatusError) as e:
+            last = e
+            time.sleep(0.5 * (1 + attempt))
+    raise last
 
 
 def chat(messages, **kwargs) -> str:
