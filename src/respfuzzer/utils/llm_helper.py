@@ -32,7 +32,7 @@ class SimpleLLMClient:
         # gpt-oss 推理模型会偶发 sglang 500（peg-native 格式不匹配，thinking 触发）——
         # 短退避重试兜底，避免整个 run 崩溃丢数据（RQ1 gpt-oss 重跑教训）
         last = None
-        for attempt in range(3):
+        for attempt in range(5):
             try:
                 response = self.client.chat.completions.create(
                     model=self.model_name,
@@ -44,7 +44,7 @@ class SimpleLLMClient:
                 return response.choices[0].message.content
             except (openai.InternalServerError, openai.APIConnectionError, openai.APIStatusError) as e:
                 last = e
-                time.sleep(0.5 * (1 + attempt))
+                time.sleep(0.5 * (2 ** attempt))
         raise last
 
     def chat(self, messages, **kwargs) -> str:
@@ -60,7 +60,7 @@ class SimpleLLMClient:
 def _chat(messages, **kwargs) -> str:
     # 同 SimpleLLMClient._chat：gpt-oss 偶发 sglang 500 短退避重试
     last = None
-    for attempt in range(3):
+    for attempt in range(5):
         try:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
@@ -71,7 +71,7 @@ def _chat(messages, **kwargs) -> str:
             return response.choices[0].message.content
         except (openai.InternalServerError, openai.APIConnectionError, openai.APIStatusError) as e:
             last = e
-            time.sleep(0.5 * (1 + attempt))
+            time.sleep(0.5 * (2 ** attempt))
     raise last
 
 

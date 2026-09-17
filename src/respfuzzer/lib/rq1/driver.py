@@ -173,6 +173,33 @@ def _run_one(
     return run_static_loop(mode, function, k, llm, executor)
 
 
+def _run_one_safe(
+    function: Function,
+    mode: str,
+    k: int,
+    executor,
+    llm,
+    index=None,
+) -> FunctionRun:
+    """单函数容错包装：任何单函数异常（LLM 500/解析/执行）都记录为 covered=False
+    的 failed 函数并继续，绝不杀整个 run——保证每次 run 都完整落盘（RQ1 gpt-oss
+    500 曾使整 run results 为空的教训）。failed 函数不覆盖 = 与候选生成失败同语义，
+    不偏置 FC 口径。"""
+    try:
+        return _run_one(function, mode, k, executor, llm, index)
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            f"Function {function.func_path} in {mode} run raised and is marked failed: {e!r}",
+        )
+        return FunctionRun(
+            function.func_path,
+            function.library_name or "",
+            False,
+            [CandidateRecord(1, "", False)],
+        )
+
+
+
 def _emit_row(
     run_id: str, mode: str, function: Function, c: CandidateRecord
 ) -> dict[str, Any]:
@@ -279,14 +306,14 @@ def run_experiment(
                 if concurrency > 1:
                     with ThreadPoolExecutor(max_workers=concurrency) as pool:
                         futs = [
-                            pool.submit(_run_one, f, mode, k, executor, llm, index)
+                            pool.submit(_run_one_safe, f, mode, k, executor, llm, index)
                             for f in order
                         ]
                         done = [fut.result() for fut in futs]  # 阻塞取全部，保序
                     completed = list(zip(order, done))
                 else:
                     completed = [
-                        (f, _run_one(f, mode, k, executor, llm, index)) for f in order
+                        (f, _run_one_safe(f, mode, k, executor, llm, index)) for f in order
                     ]
                 for function_, fresult in completed:
                     for c in fresult.candidates:
