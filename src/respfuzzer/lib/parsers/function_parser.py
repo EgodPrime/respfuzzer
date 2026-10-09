@@ -6,6 +6,28 @@ import dill
 from respfuzzer.models import Argument, Function
 
 
+def _format_default_value(default: object) -> str:
+    """把 `inspect.Parameter.default` 序列化为字符串（【MC2-8】默认参数值）。
+
+    口径：
+    - `inspect.Parameter.empty`（参数无默认值）→ 空串 ""，作为"无默认"的哨兵；
+    - `Ellipsis` → "..."（`repr(Ellipsis)` 得到 "Ellipsis"，而 .pyi 静态路径用
+      `ast.unparse` 得到 "..."；这里归一化为 "..."，让两条路径对同一哨兵一致）；
+    - 其它值 → `repr(default)`，得到可直接嵌入源码的 Python 字面量
+      （如 `1` → "1"、`"x"` → "'x'"、`None` → "None"）；
+    - `repr()` 自身抛异常（极少数带损坏/有副作用的 `__repr__` 的对象）→ "unknown"，
+      避免单个诡异默认值中断整条函数提取。
+    """
+    if default is inspect.Parameter.empty:
+        return ""
+    if default is Ellipsis:
+        return "..."
+    try:
+        return repr(default)
+    except Exception:
+        return "unknown"
+
+
 def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Optional[Function]:
     """
     convert a `FunctionType` to an `function` object
@@ -37,7 +59,14 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
 
         arg_pos = v.kind.name
 
-        arg_list.append(Argument(arg_name=arg_name, type=arg_type, pos_type=arg_pos))
+        arg_list.append(
+            Argument(
+                arg_name=arg_name,
+                type=arg_type,
+                pos_type=arg_pos,
+                default_value=_format_default_value(v.default),
+            )
+        )
 
     if sig.return_annotation != inspect.Signature.empty:
         ret_type_str = str(sig.return_annotation)[8:-2]  # "<class 'int'>" -> "int"

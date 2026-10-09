@@ -9,6 +9,10 @@ class Argument(BaseModel):
     arg_name: str
     type: str = "unknown"
     pos_type: str
+    # 参数默认值（Python 字面量字符串，如 "1"、"'x'"、"[1, 2]"、"...")。
+    # 空串 "" 表示该参数没有默认值（哨兵，与 type 的 "unknown" 同风格）；
+    # 默认值为 None 时记为 "None"，与"无默认"可区分。
+    default_value: str = ""
 
 
 class Function(BaseModel):
