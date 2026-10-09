@@ -10,7 +10,6 @@
 import math
 import random
 import signal
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -65,6 +64,7 @@ The mutated code should call the target function and meet the mutation instructi
 mutate_chain = MUTATE_PROMPT | get_sys_llm() | PureCodeParser
 
 LLM_TIMEOUT = 60  # seconds
+LLM_MUTATE_ATTEMPTS = 3  # 单次 LLM 变异内针对基础设施故障的重试上限
 
 def _invoke_with_timeout(chain, input_dict, config, timeout):
     """Call mutate_chain.invoke in a thread with timeout."""
@@ -88,7 +88,7 @@ def _invoke_with_timeout(chain, input_dict, config, timeout):
         raise exception[0]
     return result_holder[0]
 
-def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
+def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
     """
     使用LLM对给定的种子进行变异。
     mutation_type:
@@ -96,43 +96,57 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
         1 - 要求语义等价变异
         2 - 要求拓展代码
         3 - 要求精简代码
+
+    一次调用至多产生一次成功的 LLM 请求：首次成功即返回，仅当调用超时或抛出
+    异常时才在进程内重试（最多 ``LLM_MUTATE_ATTEMPTS`` 次，属基础设施容错）。
+    全部尝试失败时返回 ``None``，表示本次没有产出任何变体。
+
+    Returns:
+        变异得到的 ``Mutant``；若 LLM 调用在重试后仍失败，返回 ``None``。
     """
     if mutation_type < 0 or mutation_type >= len(PROMPT_MUTATE):
         raise ValueError("Invalid mutation type")
 
-    mutated_code = seed.function_call  # 默认变异结果为原始代码，以防LLM调用失败
     prompt = PROMPT_MUTATE[mutation_type]
-    for attempt in range(3):
+    for attempt in range(LLM_MUTATE_ATTEMPTS):
         try:
             res = _invoke_with_timeout(
                 mutate_chain,
                 input_dict={
                     "func_name": seed.func_name,
                     "func_call": seed.function_call,
-                    "mutation_instruction": str(rng)+prompt,
+                    "mutation_instruction": str(rng) + prompt,
                 },
                 config={"temperature": 0.0},
                 timeout=LLM_TIMEOUT,
             )
-            mutated_code = res.code
         except TimeoutError as e:
-            logger.warning(f"Mutation {attempt+1}/3 timed out after {LLM_TIMEOUT}s: {e}")
+            logger.warning(
+                f"Mutation {attempt+1}/{LLM_MUTATE_ATTEMPTS} timed out after {LLM_TIMEOUT}s: {e}"
+            )
             continue
         except Exception as e:
-            logger.warning(f"Mutation {attempt+1}/3 failed with : {e}")
+            logger.warning(
+                f"Mutation {attempt+1}/{LLM_MUTATE_ATTEMPTS} failed with : {e}"
+            )
             continue
 
-    # Save the mutant to the database
-    mutant = Mutant(
-        func_id=seed.func_id,
-        seed_id=seed.id,
-        library_name=seed.library_name,
-        func_name=seed.func_name,
-        args=seed.args,
-        function_call=mutated_code,
-    )
+        # 成功即返回：保证一次 LLM 变异最多对应一次成功的 LLM 调用，
+        # 否则变异预算 B1 与真实 LLM 调用次数无法对应（MC2-7 / MC4-1）。
+        return Mutant(
+            func_id=seed.func_id,
+            seed_id=seed.id,
+            library_name=seed.library_name,
+            func_name=seed.func_name,
+            args=seed.args,
+            function_call=res.code,
+        )
 
-    return mutant
+    logger.error(
+        f"All {LLM_MUTATE_ATTEMPTS} LLM invocation attempts failed for mutation type "
+        f"{mutation_type}: no variant produced"
+    )
+    return None
 
 
 class LLMMutator:
@@ -226,41 +240,51 @@ class LLMMutator:
             return self.calculate_reward(True, 0.0)
         return self.calculate_reward(False, coverage_gain)
 
-    def random_llm_mutate(self, no_check_semantic: bool=False, max_retries: int = 3, retry_delay: float = 5.0) -> tuple[Mutant, int]:
+    def random_llm_mutate(
+        self, no_check_semantic: bool = False
+    ) -> tuple[Mutant, int] | None:
         """
-        随机选择一种变异类型并对种子进行变异。
-        最多重试 max_retries 次，每次失败等待 retry_delay 秒。
+        执行一次 LLM 语义变异。**一次调用恰好消耗算法2 的一个变异预算槽**
+        （``for i from 1 to B1`` 的一次迭代），无论本次是否产出语义有效的变体：
+
+        - 语义有效 → 返回 ``(mutant, mutation_type)``，调用方继续执行参数变异
+          与覆盖率反馈；
+        - 语义无效（编译失败 / 未调用目标函数）→ 施加语义负反馈并返回 ``None``，
+          调用方跳过本槽的执行，对应算法2 中 ``IsValidSemantic(v)`` 为假时的
+          ``continue``；
+        - LLM 调用在 ``llm_mutate`` 内部重试后仍失败 → 记录错误并返回 ``None``；
+          该重试属基础设施容错，不额外消耗预算槽。
+
+        ``no_check_semantic=True`` 时跳过语义检查（RQ4 的 W/O-S.M. 消融组），
+        直接返回 LLM 原始输出。
+
+        Returns:
+            ``(mutant, mutation_type)``；本次预算槽未产出变体时返回 ``None``。
         """
         mutation_type = self.select_mutation_type()
+        self.rng += 1
         logger.trace(f"Randomly selected mutation type: {mutation_type}")
-        for attempt in range(max_retries):
-            try:
-                self.rng += 1
-                res = llm_mutate(self.seed, mutation_type, self.rng)
-                if no_check_semantic:
-                    return res, mutation_type
-                check = check_variant(res)
-                if not check.ok:
-                    self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
-                    if attempt < max_retries - 1:
-                        logger.warning(
-                            f"Semantic check failed ({check.reason}: {check.detail}) on attempt "
-                            f"{attempt+1}/{max_retries}, retrying in {retry_delay}s..."
-                        )
-                        time.sleep(retry_delay)
-                    else:
-                        logger.error(
-                            f"All {max_retries} attempts failed the semantic check "
-                            f"({check.reason}: {check.detail}) for mutation type {mutation_type}"
-                        )
-                    continue
-                return res, mutation_type
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"Attempt {attempt+1}/{max_retries} failed: {e}, retrying in {retry_delay}s...")
-                    time.sleep(retry_delay)
-                else:
-                    logger.error(f"All {max_retries} attempts failed for mutation type {mutation_type}: {e}")
-                    raise
-        # Should not reach here, but fallback to be safe
-        return llm_mutate(self.seed, mutation_type), mutation_type  # type: ignore[return-value]
+
+        res = llm_mutate(self.seed, mutation_type, self.rng)
+        if res is None:
+            logger.error(
+                f"LLM mutation produced no output for mutation type {mutation_type}; "
+                f"this budget slot is consumed without a variant"
+            )
+            return None
+
+        if no_check_semantic:
+            return res, mutation_type
+
+        check = check_variant(res)
+        if not check.ok:
+            # 无效的 LLM 输出同样占用一个变异预算槽（MC2-7）：不再重试，
+            # 直接施加语义负反馈并跳过该槽的执行。
+            self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
+            logger.warning(
+                f"Semantic check failed ({check.reason}: {check.detail}) for mutation "
+                f"type {mutation_type}; this budget slot is consumed and the variant "
+                f"is skipped"
+            )
+            return None
+        return res, mutation_type

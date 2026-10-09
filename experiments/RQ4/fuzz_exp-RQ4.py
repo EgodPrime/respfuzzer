@@ -114,9 +114,16 @@ def fuzz_single_seed(
         # Full / NP: run LLM mutation loop
         Mutator = LLMMutator(seed)
         for _ in range(llm_fuzz_per_seed):
-            mutant, mutation_type = Mutator.random_llm_mutate(
+            mutation = Mutator.random_llm_mutate(
                 no_check_semantic=no_semantic_filter
             )
+            if mutation is None:
+                # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行（MC2-7）
+                logger.warning(
+                    f"Skipped LLM budget slot for seed {seed.id}: no usable variant"
+                )
+                continue
+            mutant, mutation_type = mutation
             with open(DATA_DIR / "mutants.data", "a+") as f:
                 f.write(f"{mutant.model_dump_json()}\n")
             cov_before = bm.count_bitmap_s()
