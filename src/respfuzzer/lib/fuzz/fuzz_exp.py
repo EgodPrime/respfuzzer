@@ -8,6 +8,7 @@ from multiprocessing import Process, Queue
 import dcov
 from dcov import BitmapManager
 from loguru import logger
+from respfuzzer.lib.fuzz.execution_outcome import ExecutionOutcome, classify_exception
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
 )
@@ -25,7 +26,11 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
     该函数被父进程以子进程的形式创建，从父进程不断获取指令和需要执行的 Seed，并安全执行。
     父进程指令：
       - "execute", seed:Seed : 执行指定的 Seed。
+      - "fuzz", seed:HasCode : 在目标函数插桩上下文中执行变体（触发参数变异）。
       - "exit" : 退出子进程。
+
+    每条指令执行完毕后，通过 send 回传一个 ExecutionOutcome（执行期抛出的运行时异常
+    会被记录其中并交回父进程，作为算法2 的语义负面反馈，见 MC2-6）。
     """
     os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
@@ -60,24 +65,28 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
 
             match command:
                 case "execute":
+                    outcome = ExecutionOutcome()
                     try:
                         exec(seed.function_call)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # 运行时异常不再被静默丢弃，而是回传父进程作为语义负面反馈
+                        outcome = classify_exception(e)
                     finally:
                         bm_child.write()
-                        send.put("done")
+                        send.put(outcome)
                 case "fuzz":
+                    outcome = ExecutionOutcome()
                     try:
                         with instrument_function_via_path_ctx(
                             seed.func_name, data_fuzz_per_seed
                         ):
                             exec(seed.function_call)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        # 运行时异常不再被静默丢弃，而是回传父进程作为语义负面反馈
+                        outcome = classify_exception(e)
                     finally:
                         bm_child.write()
-                        send.put("done")
+                        send.put(outcome)
                 case "exit":
                     logger.info("Exiting worker process as instructed.")
                     break
@@ -117,7 +126,7 @@ def fuzz_single_seed(
         )
         try:
             send.put(("fuzz", mutant))
-            recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
+            outcome = recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
         except Exception as e:
             logger.info(f"Exception occurred: {e}")
             random_state = redis_client.hget("random_state", str(child_pid))
@@ -135,17 +144,31 @@ def fuzz_single_seed(
             process.start()
             child_pid = process.pid
             continue
+        if not isinstance(outcome, ExecutionOutcome):
+            # 兼容非 ExecutionOutcome 的旧 payload（如 bitmap 初始化失败时回传的 "done"）
+            outcome = ExecutionOutcome()
         cov_after = bm.count_bitmap_s()
         logger.info(
             f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
         )
-        if cov_after > cov_before:
-            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
+        if outcome.has_runtime_error:
+            # 运行时异常作为语义负面反馈（MC2-6）：奖励降到 0，且不再计算覆盖率增益
+            Mutator.update_reward(mutation_type, Mutator.reward_for_outcome(outcome))
+            logger.info(
+                f"LLM Mutant {mutant.id} of seed {seed.id} raised a runtime error: "
+                f"{outcome.describe()} (coverage {cov_before} -> {cov_after})"
+            )
+        elif cov_after > cov_before:
+            Mutator.update_reward(
+                mutation_type, Mutator.reward_for_outcome(outcome, 1.0)
+            )
             logger.info(
                 f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
             )
         else:
-            Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0))
+            Mutator.update_reward(
+                mutation_type, Mutator.reward_for_outcome(outcome, 0.0)
+            )
 
     send.put(("exit", None))
     try:
@@ -222,7 +245,12 @@ def calc_initial_seed_coverage_dataset(
     for seed in seeds:
         try:
             send.put(("execute", seed))
-            recv.get(timeout=10)
+            outcome = recv.get(timeout=10)
+            if isinstance(outcome, ExecutionOutcome) and outcome.has_runtime_error:
+                logger.debug(
+                    f"Seed {seed.id} ({seed.func_name}) raised during initial execution: "
+                    f"{outcome.describe()}"
+                )
         except Exception:
             logger.warning(
                 f"Seed {seed.id} execution timeout, restarting worker process."

@@ -10,6 +10,7 @@ from multiprocessing import Process, Pipe
 import coverage
 import psutil
 from loguru import logger
+from respfuzzer.lib.fuzz.execution_outcome import ExecutionOutcome, classify_exception
 from respfuzzer.lib.fuzz.instrument import (
     instrument_function_via_path_ctx,
 )
@@ -104,13 +105,16 @@ def coverage_worker(conn, source_pkgs: list, cov_data_file: str) -> None:
 
         match command:
             case "execute":
+                outcome = ExecutionOutcome()
                 try:
                     exec(seed.function_call)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # 运行时异常不再被静默丢弃，而是回传父进程作为语义负面反馈
+                    outcome = classify_exception(e)
                 cov.save()
-                conn.send("done")
+                conn.send(outcome)
             case "fuzz":
+                outcome = ExecutionOutcome()
                 try:
                     config = get_config("fuzz")
                     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
@@ -118,10 +122,11 @@ def coverage_worker(conn, source_pkgs: list, cov_data_file: str) -> None:
                         seed.func_name, data_fuzz_per_seed
                     ):
                         exec(seed.function_call)
-                except Exception:
-                    pass
+                except Exception as e:
+                    # 运行时异常不再被静默丢弃，而是回传父进程作为语义负面反馈
+                    outcome = classify_exception(e)
                 cov.save()
-                conn.send("done")
+                conn.send(outcome)
             case "exit":
                 cov.stop()
                 cov.save()
@@ -217,7 +222,7 @@ def fuzz_single_seed(
             while True:
                 if recv.poll(timeout=1):
                     try:
-                        recv.recv()
+                        outcome = recv.recv()
                     except EOFError:
                         raise RuntimeError("Worker crashed during fuzz")
                     break
@@ -230,6 +235,8 @@ def fuzz_single_seed(
                     raise RuntimeError("Worker died silently")
 
             # Mutant completed successfully
+            if not isinstance(outcome, ExecutionOutcome):
+                outcome = ExecutionOutcome()
             cov_after = (
                 _get_covered_line_count(worker_cov_file)
                 if os.path.exists(worker_cov_file)
@@ -238,14 +245,26 @@ def fuzz_single_seed(
             logger.info(
                 f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed_id}"
             )
-            if cov_after > cov_before:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 1.0))
+            if outcome.has_runtime_error:
+                # 运行时异常作为语义负面反馈（MC2-6）：奖励降到 0，且不再计算覆盖率增益
+                Mutator.update_reward(
+                    mutation_type, Mutator.reward_for_outcome(outcome)
+                )
+                logger.info(
+                    f"LLM Mutant {mutant.id} of seed {seed_id} raised a runtime error: "
+                    f"{outcome.describe()} (coverage {cov_before} -> {cov_after})"
+                )
+            elif cov_after > cov_before:
+                Mutator.update_reward(
+                    mutation_type, Mutator.reward_for_outcome(outcome, 1.0)
+                )
                 logger.info(
                     f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
                 )
             else:
-                Mutator.update_reward(mutation_type, Mutator.calculate_reward(False, 0.0))
-
+                Mutator.update_reward(
+                    mutation_type, Mutator.reward_for_outcome(outcome, 0.0)
+                )
         except (TimeoutError, RuntimeError) as e:
             logger.info(f"Exception occurred: {e}")
             random_state = redis_client.hget("random_state", str(child_pid))
