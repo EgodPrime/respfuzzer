@@ -7,16 +7,15 @@
 4. 要求精简之前的代码。
 """
 
-import ast
 import math
 import random
 import signal
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
 import threading
 
 from loguru import logger
+from respfuzzer.lib.fuzz.semantic_check import check_variant
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.llm_helper import get_sys_llm
@@ -135,15 +134,6 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int=0) -> Mutant:
     return mutant
 
 
-def filter_syntax(mutant: Mutant) -> Optional[Mutant]:
-    """使用AST检查变异代码的语法有效性。"""
-    try:
-        ast.parse(mutant.function_call)
-        return mutant
-    except SyntaxError:
-        return None
-
-
 class LLMMutator:
     """采用语义负反馈（语法错误）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
     当LLM变异产生语法错误或语义错误时，降低对应变异算子的选择概率，奖励初始值为-1
@@ -230,15 +220,20 @@ class LLMMutator:
                 res = llm_mutate(self.seed, mutation_type, self.rng)
                 if no_check_semantic:
                     return res, mutation_type
-                res = filter_syntax(res)
-                has_syntax_error = res is None
-                if has_syntax_error:
+                check = check_variant(res)
+                if not check.ok:
                     self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
                     if attempt < max_retries - 1:
-                        logger.warning(f"Syntax error on attempt {attempt+1}/{max_retries}, retrying in {retry_delay}s...")
+                        logger.warning(
+                            f"Semantic check failed ({check.reason}: {check.detail}) on attempt "
+                            f"{attempt+1}/{max_retries}, retrying in {retry_delay}s..."
+                        )
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"All {max_retries} attempts failed with syntax errors for mutation type {mutation_type}")
+                        logger.error(
+                            f"All {max_retries} attempts failed the semantic check "
+                            f"({check.reason}: {check.detail}) for mutation type {mutation_type}"
+                        )
                     continue
                 return res, mutation_type
             except Exception as e:
