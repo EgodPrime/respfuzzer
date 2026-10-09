@@ -16,6 +16,11 @@ from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos import get_seed_by_function_name, get_seeds
 from respfuzzer.utils.config import get_config
+from respfuzzer.utils.experiment_recorder import (
+    record_event,
+    record_result,
+    start_experiment,
+)
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
@@ -115,13 +120,21 @@ def fuzz_single_seed(
     process.start()
     child_pid = process.pid
     Mutator = LLMMutator(seed)
-    for _ in range(llm_fuzz_per_seed):
+    for slot in range(llm_fuzz_per_seed):
         mutation = Mutator.random_llm_mutate()
         if mutation is None:
             # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行，
             # 对应算法2 中 IsValidSemantic(v) 为假时的 continue（MC2-7）
             logger.warning(
                 f"Skipped LLM budget slot for seed {seed.id}: no semantically valid variant"
+            )
+            # 该槽的跳过事实落盘为结构化事件（MC3-1）
+            record_event(
+                "budget_slot_skipped",
+                seed_id=seed.id,
+                func_name=seed.func_name,
+                slot=slot,
+                process_index=process_index,
             )
             continue
         mutant, mutation_type = mutation
@@ -141,6 +154,14 @@ def fuzz_single_seed(
             logger.info(
                 f"Mutant {mutant.id} execution timeout after {execution_timeout} seconds, restarting worker process. Last random state: {random_state}"
             )
+            record_event(
+                "mutant_timeout",
+                seed_id=seed.id,
+                mutant_id=mutant.id,
+                func_name=mutant.func_name,
+                slot=slot,
+                timeout=execution_timeout,
+            )
             if process.is_alive():
                 kill_process_tree_linux(process)
             else:
@@ -158,6 +179,20 @@ def fuzz_single_seed(
         cov_after = bm.count_bitmap_s()
         logger.info(
             f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
+        )
+        # run 级结果数据：每次变体执行的覆盖率增益与执行结果（MC3-1）
+        record_event(
+            "mutant_executed",
+            seed_id=seed.id,
+            mutant_id=mutant.id,
+            func_name=mutant.func_name,
+            slot=slot,
+            mutation_type=mutation_type,
+            cov_before=cov_before,
+            cov_after=cov_after,
+            cov_gain=cov_after - cov_before,
+            has_runtime_error=outcome.has_runtime_error,
+            outcome=outcome.describe(),
         )
         if outcome.has_runtime_error:
             # 运行时异常作为语义负面反馈（MC2-6）：奖励降到 0，且不再计算覆盖率增益
@@ -198,11 +233,19 @@ def fuzz_single_seed(
         f"Merging coverage from process {process_index} to parent bitmap, final coverage: {bm2.count_bitmap()} bits."
     )
     bm2.write()
+    record_event(
+        "seed_finished",
+        seed_id=seed.id,
+        func_name=seed.func_name,
+        process_index=process_index,
+        merged_coverage=bm2.count_bitmap(),
+        mutation_type_expectations=list(Mutator.mu),
+    )
 
 
 def _fuzz_dataset(
     dataset: list[Seed],
-) -> None:
+) -> int | None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
@@ -227,17 +270,29 @@ def _fuzz_dataset(
                 seed,
                 shm_key,
             )
-            futures.append((fut, full_name))
+            futures.append((fut, full_name, seed.library_name))
 
-        for fut, full_name in futures:
+        final_coverage: int | None = None
+        for fut, full_name, library_name in futures:
             try:
                 # 等待任务完成并捕获异常（任务内部已有异常捕获，但这里再保险）
                 fut.result()
             except Exception as e:
                 logger.exception(f"Parallel fuzz task for {full_name} raised: {e}")
             finally:
-                p = BitmapManager(4398).count_bitmap()
-                logger.info(f"Current coverage after fuzzing {full_name}: {p} bits.")
+                final_coverage = BitmapManager(4398).count_bitmap()
+                logger.info(
+                    f"Current coverage after fuzzing {full_name}: {final_coverage} bits."
+                )
+                # run 级结果数据：单个函数 fuzz 完成时的覆盖率（MC3-1）
+                record_event(
+                    "seed_fuzzed",
+                    func_name=full_name,
+                    library_name=library_name,
+                    coverage=final_coverage,
+                )
+        record_result("final_coverage", final_coverage)
+        return final_coverage
 
 
 def calc_initial_seed_coverage_dataset(
@@ -276,6 +331,7 @@ def calc_initial_seed_coverage_dataset(
     bm = BitmapManager(4398)
     p = bm.count_bitmap_s()
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
+    return p
 
 
 def fuzz_dataset(
@@ -290,12 +346,20 @@ def fuzz_dataset(
     # dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
     #     open(dataset_path, "r")
     # )
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        seeds: list[dict] = json.load(f)
-    
-    seeds = [Seed.model_validate(s) for s in seeds]
-    calc_initial_seed_coverage_dataset(seeds)
-    _fuzz_dataset(seeds)
+    with start_experiment(
+        "fuzz_dataset",
+        metadata={
+            "entry": "respfuzzer.cmd.fuzz:fuzz_dataset",
+            "dataset_path": str(dataset_path),
+        },
+    ):
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            seeds: list[dict] = json.load(f)
+
+        seeds = [Seed.model_validate(s) for s in seeds]
+        record_result("seed_count", len(seeds))
+        record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
+        _fuzz_dataset(seeds)
 
 
 def fuzz_one_library(library_name: str) -> None:
@@ -309,23 +373,43 @@ def fuzz_one_library(library_name: str) -> None:
     logger.info(f"Starting fuzzing for library: {library_name}")
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
-    with ThreadPoolExecutor(max_workers=max_workers) as exc:
-        futures = []
-        sub_key = 4399
-        for seed in get_seeds(library_name):
-            fut = exc.submit(
-                fuzz_single_seed,
-                seed,
-                sub_key,
-            )
-            futures.append((fut, seed.func_name))
-            sub_key += 1
-        for fut, func_name in futures:
-            try:
-                fut.result()
-            except Exception as e:
-                logger.exception(f"Fuzz task for {func_name} raised: {e}")
-            finally:
-                logger.info(
-                    f"Current coverage after fuzzing {func_name}: {bm_parent.count_bitmap_s()} bits."
+    with start_experiment(
+        "fuzz_library",
+        metadata={
+            "entry": "respfuzzer.cmd.fuzz:fuzz_library",
+            "library_name": str(library_name),
+        },
+    ):
+        record_result("library_name", library_name)
+        seeds = list(get_seeds(library_name))
+        record_result("seed_count", len(seeds))
+        with ThreadPoolExecutor(max_workers=max_workers) as exc:
+            futures = []
+            sub_key = 4399
+            for seed in seeds:
+                fut = exc.submit(
+                    fuzz_single_seed,
+                    seed,
+                    sub_key,
                 )
+                futures.append((fut, seed.func_name, seed.library_name))
+                sub_key += 1
+            final_coverage: int | None = None
+            for fut, func_name, seed_library in futures:
+                try:
+                    fut.result()
+                except Exception as e:
+                    logger.exception(f"Fuzz task for {func_name} raised: {e}")
+                finally:
+                    final_coverage = bm_parent.count_bitmap_s()
+                    logger.info(
+                        f"Current coverage after fuzzing {func_name}: {final_coverage} bits."
+                    )
+                    # run 级结果数据：单个函数 fuzz 完成时的覆盖率（MC3-1）
+                    record_event(
+                        "seed_fuzzed",
+                        func_name=func_name,
+                        library_name=seed_library,
+                        coverage=final_coverage,
+                    )
+        record_result("final_coverage", final_coverage)

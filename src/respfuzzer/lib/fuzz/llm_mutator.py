@@ -18,6 +18,7 @@ from respfuzzer.lib.fuzz.execution_outcome import ExecutionOutcome
 from respfuzzer.lib.fuzz.semantic_check import check_variant
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
+from respfuzzer.utils.experiment_recorder import record_event
 from respfuzzer.utils.llm_helper import get_sys_llm
 
 from pydantic import BaseModel, Field
@@ -271,6 +272,13 @@ class LLMMutator:
                 f"LLM mutation produced no output for mutation type {mutation_type}; "
                 f"this budget slot is consumed without a variant"
             )
+            # LLM 无输出（内部重试耗尽）落盘为结构化事件（MC3-1）
+            record_event(
+                "llm_no_output",
+                seed_id=self.seed.id,
+                func_name=self.seed.func_name,
+                mutation_type=mutation_type,
+            )
             return None
 
         if no_check_semantic:
@@ -285,6 +293,19 @@ class LLMMutator:
                 f"Semantic check failed ({check.reason}: {check.detail}) for mutation "
                 f"type {mutation_type}; this budget slot is consumed and the variant "
                 f"is skipped"
+            )
+            # 无效 LLM 输出的 reason/detail 落盘为结构化事件（MC3-1）
+            # 这正是 MC2-7 记录里标注「未纳入本次」的那一项
+            record_event(
+                "invalid_llm_output",
+                seed_id=self.seed.id,
+                func_name=self.seed.func_name,
+                mutation_type=mutation_type,
+                reason=check.reason,
+                detail=check.detail,
+                error_line=check.error_line,
+                target_called=check.target_called,
+                code=res.function_call,
             )
             return None
         return res, mutation_type
