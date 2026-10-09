@@ -19,7 +19,7 @@ from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import (
     record_event,
     record_result,
-    start_experiment,
+    start_run,
 )
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
@@ -334,25 +334,47 @@ def calc_initial_seed_coverage_dataset(
     return p
 
 
+def _library_from_dataset(dataset_path: str) -> str | None:
+    """从数据集文件名推导库名：``nltk_seeds_sampled.json`` → ``nltk``。"""
+    stem = os.path.splitext(os.path.basename(str(dataset_path)))[0]
+    for suffix in ("_seeds_sampled", "_seeds_dyfuzz", "_seeds", "_functions"):
+        if stem.endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return stem or None
+
+
 def fuzz_dataset(
     dataset_path: str,
+    rq: str | None = None,
+    group: str = "respfuzzer",
+    library: str | None = None,
+    mode: str | None = None,
+    out_dir: str | None = None,
 ) -> None:
-    """Fuzz functions specified in the dataset JSON file."""
+    """Fuzz functions specified in the dataset JSON file.
+
+    ``rq`` / ``group`` / ``library`` / ``mode`` / ``out_dir`` 决定本次运行的 ``.log``
+    与 ``*_checkpoint.json`` 命名（见 ``respfuzzer.utils.experiment_recorder``）。
+    ``library`` 缺省从数据集文件名推导，``rq`` 缺省 ``adhoc``（临时运行，产物落
+    ``run_data/``）；RQ3 的 ``run_respfuzzer.sh`` 会显式传 ``--rq RQ3`` 与 ``--out-dir``。
+    """
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-    # dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-    #     open(dataset_path, "r")
-    # )
-    with start_experiment(
-        "fuzz_dataset",
+    with start_run(
+        rq or "adhoc",
+        group=group,
+        library=library or _library_from_dataset(dataset_path),
+        mode=mode,
+        out_dir=out_dir,
         metadata={
             "entry": "respfuzzer.cmd.fuzz:fuzz_dataset",
             "dataset_path": str(dataset_path),
         },
     ):
+        logger.info(f"Starting fuzzing for dataset: {dataset_path}")
         with open(dataset_path, "r", encoding="utf-8") as f:
             seeds: list[dict] = json.load(f)
 
@@ -362,24 +384,37 @@ def fuzz_dataset(
         _fuzz_dataset(seeds)
 
 
-def fuzz_one_library(library_name: str) -> None:
+def fuzz_one_library(
+    library_name: str,
+    rq: str | None = None,
+    group: str = "respfuzzer",
+    mode: str | None = None,
+    out_dir: str | None = None,
+) -> None:
     """
     Fuzz the specified library with seeds from the database.
+
+    产物命名同 :func:`fuzz_dataset``：``rq`` / ``group`` / ``mode`` / ``out_dir``
+    决定 ``.log`` 与 ``*_checkpoint.json`` 的名字。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    logger.info(f"Starting fuzzing for library: {library_name}")
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
-    with start_experiment(
-        "fuzz_library",
+    with start_run(
+        rq or "adhoc",
+        group=group,
+        library=library_name,
+        mode=mode,
+        out_dir=out_dir,
         metadata={
             "entry": "respfuzzer.cmd.fuzz:fuzz_library",
             "library_name": str(library_name),
         },
     ):
+        logger.info(f"Starting fuzzing for library: {library_name}")
         record_result("library_name", library_name)
         seeds = list(get_seeds(library_name))
         record_result("seed_count", len(seeds))

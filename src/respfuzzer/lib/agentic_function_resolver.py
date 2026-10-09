@@ -11,7 +11,11 @@ from loguru import logger
 from respfuzzer.models import ExecutionResultType, Function, Seed
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.paths import DATA_DIR
+from respfuzzer.utils.experiment_recorder import record_event, record_result, start_run
+from respfuzzer.utils.paths import DATA_DIR, PROJECT_DIR
+
+#: RQ2 的 .log / *_checkpoint.json 落盘目录（experiments/RQ2/）
+RQ2_DIR = PROJECT_DIR / "experiments" / "RQ2"
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -467,29 +471,77 @@ def solve_function(function: Function) -> Optional[Seed]:
             function_call=code,
         )
         logger.success(f"Seed found for {function.func_name}:\n{code}")
+        record_event(
+            "seed_generated",
+            func_name=function.func_name,
+            library_name=function.library_name,
+            seed_id=seed.id,
+        )
         return seed
     except Exception as e:
         logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
+        record_event(
+            "seed_failed",
+            func_name=function.func_name,
+            library_name=function.library_name,
+            error=repr(e),
+        )
+
+
+def _rq2_group() -> str:
+    """按 reflective_seeder 配置推导 RQ2 实验组（见 ``experiments/RQ2/exp.md``）。
+
+    配置项与实验组的对应：docs = SCE、reasoner = RCM；两者都开是 Full 配置（文件名里
+    记作 ``respfuzzer``），只开 docs 是 ``sce-only``，只开 reasoner 是 ``rcm-only``，
+    都关是 ``baseline``。
+    """
+    use_docs = bool(cfg.get("use_docs", False))
+    use_reasoner = bool(cfg.get("use_reasoner", False))
+    if use_docs and use_reasoner:
+        return "respfuzzer"
+    if use_docs:
+        return "sce-only"
+    if use_reasoner:
+        return "rcm-only"
+    return "baseline"
 
 
 def solve_library_functions(library_name: str) -> None:
     """Load all functions of the given library from the database and attempt to generate seeds for them."""
-    functions = get_functions(library_name)
-    concurrency = int(cfg.get("concurrency", 4))
+    with start_run(
+        "RQ2",
+        group=_rq2_group(),
+        library=library_name,
+        out_dir=RQ2_DIR,
+        metadata={
+            "entry": "respfuzzer.cmd.reflective_seeder:generate_seeds",
+            "library_name": str(library_name),
+            "use_docs": bool(cfg.get("use_docs", False)),
+            "use_reasoner": bool(cfg.get("use_reasoner", False)),
+            "concurrency": int(cfg.get("concurrency", 4)),
+        },
+    ):
+        functions = get_functions(library_name)
+        concurrency = int(cfg.get("concurrency", 4))
+        record_result("function_count", len(functions))
 
-    seeds: List[Seed] = []
-    with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = [executor.submit(solve_function, function) for function in functions]
-        for future in as_completed(futures):
-            seed = future.result()
-            if seed is not None:
-                seeds.append(seed)
+        seeds: List[Seed] = []
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            futures = [
+                executor.submit(solve_function, function) for function in functions
+            ]
+            for future in as_completed(futures):
+                seed = future.result()
+                if seed is not None:
+                    seeds.append(seed)
 
-    # Save all seeds to a JSON file
-    if len(seeds) == 0:
-        logger.info(f"No seeds generated for library {library_name}")
-        return
-    seeds_data = [seed.model_dump() for seed in seeds]
-    output_file = DATA_DIR / f"{library_name}_seeds.json"
-    with open(output_file, "w") as f:
-        json.dump(seeds_data, f, indent=2)
+        # Save all seeds to a JSON file
+        record_result("seed_count", len(seeds))
+        if len(seeds) == 0:
+            logger.info(f"No seeds generated for library {library_name}")
+            return
+        seeds_data = [seed.model_dump() for seed in seeds]
+        output_file = DATA_DIR / f"{library_name}_seeds.json"
+        with open(output_file, "w") as f:
+            json.dump(seeds_data, f, indent=2)
+        record_result("output_file", str(output_file))

@@ -3,18 +3,26 @@ import sys
 import fire
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import Process, Queue
+from pathlib import Path
 
 import dcov
 from dcov import BitmapManager
 from loguru import logger
-from respfuzzer.lib.fuzz.fuzz_exp import continue_safe_execute
+from respfuzzer.lib.fuzz.fuzz_exp import _library_from_dataset, continue_safe_execute
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import Seed
 from respfuzzer.repos import get_seeds
 from respfuzzer.utils.config import get_config
+from respfuzzer.utils.experiment_recorder import (
+    record_event,
+    record_result,
+    start_run,
+)
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
+
+RQ4_DIR = Path(__file__).resolve().parent
 
 
 def _parse_mode(mode: str) -> tuple[bool, bool, bool, bool]:
@@ -200,7 +208,7 @@ def _fuzz_dataset(
     no_data_fuzz: bool = False,
     no_semantic_filter: bool = False,
     no_cov_feedback: bool = False,
-) -> None:
+) -> int | None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
@@ -233,17 +241,28 @@ def _fuzz_dataset(
                 no_semantic_filter=no_semantic_filter,
                 no_cov_feedback=no_cov_feedback,
             )
-            futures.append((fut, full_name))
+            futures.append((fut, full_name, seed.library_name))
 
-        for fut, full_name in futures:
+        final_coverage: int | None = None
+        for fut, full_name, library_name in futures:
             try:
                 # 等待任务完成并捕获异常（任务内部已有异常捕获，但这里再保险）
                 fut.result()
             except Exception as e:
                 logger.exception(f"Parallel fuzz task for {full_name} raised: {e}")
             finally:
-                p = BitmapManager(4398).count_bitmap()
-                logger.info(f"Current coverage after fuzzing {full_name}: {p} bits.")
+                final_coverage = BitmapManager(4398).count_bitmap()
+                logger.info(
+                    f"Current coverage after fuzzing {full_name}: {final_coverage} bits."
+                )
+                record_event(
+                    "seed_fuzzed",
+                    func_name=full_name,
+                    library_name=library_name,
+                    coverage=final_coverage,
+                )
+        record_result("final_coverage", final_coverage)
+        return final_coverage
 
 
 def calc_initial_seed_coverage_dataset(
@@ -279,11 +298,15 @@ def calc_initial_seed_coverage_dataset(
     bm = BitmapManager(4398)
     p = bm.count_bitmap_s()
     logger.info(f"Initial coverage after executing all seeds: {p} bits.")
+    return p
 
 
 def fuzz_dataset(
     dataset_path: str,
     mode: str = "",
+    rq: str = "RQ4",
+    group: str = "respfuzzer",
+    out_dir: str | None = None,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file.
 
@@ -298,27 +321,51 @@ def fuzz_dataset(
               "NL,NCF"    - No LLM, no coverage feedback (data fuzzing only)
               "NP,NCF"    - No data fuzzing, no coverage feedback (LLM mutation only)
               "NL,NP,NCF" - No LLM, no data fuzzing, no coverage feedback (seed execution only)
+        rq/group/out_dir: 决定本次运行的 ``.log`` 与 ``*_checkpoint.json`` 命名与位置
+              （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在本目录。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}, mode={mode or 'Full'}")
-
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
+    with start_run(
+        rq,
+        group=group,
+        library=_library_from_dataset(dataset_path),
+        mode=mode or "Full",
+        out_dir=out_dir or RQ4_DIR,
+        metadata={
+            "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
+            "dataset_path": str(dataset_path),
+            "mode": mode or "Full",
+        },
+    ):
+        logger.info(
+            f"Starting fuzzing for dataset: {dataset_path}, mode={mode or 'Full'}"
+        )
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            seeds_raw: list[dict] = json.load(f)
 
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        seeds_raw: list[dict] = json.load(f)
-
-    seeds = [Seed.model_validate(s) for s in seeds_raw]
-    calc_initial_seed_coverage_dataset(seeds)
-    _fuzz_dataset(seeds, no_llm=no_llm, no_data_fuzz=no_data_fuzz, no_semantic_filter=no_semantic_filter, no_cov_feedback=no_cov_feedback)
+        seeds = [Seed.model_validate(s) for s in seeds_raw]
+        record_result("seed_count", len(seeds))
+        record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
+        _fuzz_dataset(
+            seeds,
+            no_llm=no_llm,
+            no_data_fuzz=no_data_fuzz,
+            no_semantic_filter=no_semantic_filter,
+            no_cov_feedback=no_cov_feedback,
+        )
 
 
 def fuzz_one_library(
     library_name: str,
     *,
     mode: str = "",
+    rq: str = "RQ4",
+    group: str = "respfuzzer",
+    out_dir: str | None = None,
 ) -> None:
     """
     Fuzz the specified library with seeds from the database.
@@ -326,41 +373,64 @@ def fuzz_one_library(
     Args:
         library_name: Name of the library to fuzz.
         mode: Comma-separated ablation mode. Same options as fuzz_dataset.
+        rq/group/out_dir: 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    logger.info(f"Starting fuzzing for library: {library_name}, mode={mode or 'Full'}")
-
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
-
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
-    with ThreadPoolExecutor(max_workers=max_workers) as exc:
-        futures = []
-        sub_key = 4399
-        for seed in get_seeds(library_name):
-            fut = exc.submit(
-                fuzz_single_seed,
-                seed,
-                sub_key,
-                no_llm=no_llm,
-                no_data_fuzz=no_data_fuzz,
-                no_semantic_filter=no_semantic_filter,
-                no_cov_feedback=no_cov_feedback,
-            )
-            futures.append((fut, seed.func_name))
-            sub_key += 1
-        for fut, func_name in futures:
-            try:
-                fut.result()
-            except Exception as e:
-                logger.exception(f"Fuzz task for {func_name} raised: {e}")
-            finally:
-                logger.info(
-                    f"Current coverage after fuzzing {func_name}: {bm_parent.count_bitmap_s()} bits."
+    with start_run(
+        rq,
+        group=group,
+        library=library_name,
+        mode=mode or "Full",
+        out_dir=out_dir or RQ4_DIR,
+        metadata={
+            "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
+            "library_name": str(library_name),
+            "mode": mode or "Full",
+        },
+    ):
+        logger.info(
+            f"Starting fuzzing for library: {library_name}, mode={mode or 'Full'}"
+        )
+        record_result("library_name", library_name)
+        with ThreadPoolExecutor(max_workers=max_workers) as exc:
+            futures = []
+            sub_key = 4399
+            for seed in get_seeds(library_name):
+                fut = exc.submit(
+                    fuzz_single_seed,
+                    seed,
+                    sub_key,
+                    no_llm=no_llm,
+                    no_data_fuzz=no_data_fuzz,
+                    no_semantic_filter=no_semantic_filter,
+                    no_cov_feedback=no_cov_feedback,
                 )
+                futures.append((fut, seed.func_name))
+                sub_key += 1
+            final_coverage: int | None = None
+            for fut, func_name in futures:
+                try:
+                    fut.result()
+                except Exception as e:
+                    logger.exception(f"Fuzz task for {func_name} raised: {e}")
+                finally:
+                    final_coverage = bm_parent.count_bitmap_s()
+                    logger.info(
+                        f"Current coverage after fuzzing {func_name}: {final_coverage} bits."
+                    )
+                    record_event(
+                        "seed_fuzzed",
+                        func_name=func_name,
+                        library_name=library_name,
+                        coverage=final_coverage,
+                    )
+        record_result("final_coverage", final_coverage)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ echo "Data directory: $DATA_DIR"
 
 source "$config_file"
 
-timestamp=$(date +"%Y%m%d%H%M")
+# .log 与 *_checkpoint.json 由 experiment_recorder 按统一命名写入 experiments/RQ3/（MC3-1）
 
 
 for library in "${libraries[@]}"; do
@@ -30,8 +30,7 @@ for library in "${libraries[@]}"; do
         continue
     fi
 
-    log_file="$cur_file_dir/RQ3-respfuzzer-${library^}-${timestamp}.log"
-    cmd="uv run fuzz fuzz_dataset $input_file > $log_file 2>&1"
+    cmd="uv run fuzz fuzz_dataset $input_file --rq RQ3 --group respfuzzer --out-dir $cur_file_dir"
     echo "cmd: $cmd"
     eval "$cmd"
 done

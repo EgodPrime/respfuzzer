@@ -2,7 +2,7 @@
 report.py — RQ4 汇报脚本（新格式日志）
 
 新格式下每个 (library, mode) 各有一个独立日志文件:
-  RQ4-respfuzzer-{Library}-{timestamp}-mode-{Mode}.log
+  rq4_respfuzzer_{library}_{YYYYmmddTHHMMSS}[_mode-{mode}].log
 
 同一库同一模式允许多份日志，自动取最终值的平均。
 
@@ -101,20 +101,25 @@ def discover_logs(log_dir: str) -> dict[str, dict[str, list[str]]]:
     Returns:
         {library: {mode: [log_path1, log_path2, ...], ...}, ...}
     """
+    # MC3-1 统一命名：Full 组不带 _mode- 段，其余模式为小写 _mode-nl / _mode-nsf ...
     pattern_rq4 = re.compile(
-        r"RQ4-respfuzzer-(\w+)-(\d+)-mode-(NL|NP|NSF|NCF|Full)\.log"
+        r"rq4_respfuzzer_(?P<library>.+?)_(?P<ts>\d{8}T\d{6}).*?"
+        r"(?:_mode-(?P<mode>nl|np|nsf|ncf))?\.log$"
     )
 
-    raw: dict[str, dict[str, list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
+    raw: dict[str, dict[str, list[tuple[str, str]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     log_files = glob.glob(os.path.join(log_dir, "*.log"))
     for log_file in log_files:
         basename = os.path.basename(log_file)
         match = pattern_rq4.match(basename)
         if match:
-            library = match.group(1)
-            timestamp = match.group(2)
-            mode = match.group(3)
+            library = match.group("library")
+            timestamp = match.group("ts")
+            mode = match.group("mode")
+            mode = mode.upper() if mode else "Full"
             raw[library][mode].append((timestamp, log_file))
 
     # 返回文件列表（不再只取最新一份）

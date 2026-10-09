@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 from multiprocessing import Process, Queue
+from pathlib import Path
 
 import dcov
 import fire
@@ -14,15 +15,23 @@ from f4a_mutator import Fuzz4AllMutator
 from loguru import logger
 
 from respfuzzer.lib.fuzz.fuzz_exp import (
+    _library_from_dataset,
     calc_initial_seed_coverage_dataset,
     continue_safe_execute,
 )
 from respfuzzer.models import Seed
 from respfuzzer.utils.config import get_config
+from respfuzzer.utils.experiment_recorder import (
+    record_event,
+    record_result,
+    start_run,
+)
 from respfuzzer.utils.process_helper import (
     kill_process_tree_linux,
     manage_process_with_timeout,
 )
+
+F4A_DIR = Path(__file__).resolve().parent.parent  # experiments/RQ3
 
 
 def validate_test_case(mutated_call: str) -> bool:
@@ -148,58 +157,111 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     logger.info(f"Fuzz seed {seed.id} done ")
 
 
-def _fuzz_dataset(seeds: list[Seed], command: str) -> None:
+def _fuzz_dataset(seeds: list[Seed], command: str) -> int | None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
     """
+    final_coverage: int | None = None
     for seed in seeds:
         fuzz_single_seed(seed, command)
         bm = BitmapManager(4398)
-        p = bm.count_bitmap_s()
-        logger.info(f"Current coverage after fuzzing {seed.func_name}: {p} bits.")
+        final_coverage = bm.count_bitmap_s()
+        logger.info(
+            f"Current coverage after fuzzing {seed.func_name}: {final_coverage} bits."
+        )
+        record_event(
+            "seed_fuzzed",
+            func_name=seed.func_name,
+            library_name=seed.library_name,
+            coverage=final_coverage,
+        )
+    record_result("final_coverage", final_coverage)
+    return final_coverage
 
 
-def fuzz_dataset(dataset_path: str) -> None:
+def fuzz_dataset(
+    dataset_path: str,
+    rq: str = "RQ3",
+    group: str = "fuzz4all",
+    out_dir: str | None = None,
+) -> None:
     """
     Fuzz the dataset.
+
+    ``rq`` / ``group`` / ``out_dir`` 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置
+    （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在 ``experiments/RQ3/``。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     bm = BitmapManager(4398)
     bm.clear_bitmap()
     bm.write()
+    with start_run(
+        rq,
+        group=group,
+        library=_library_from_dataset(dataset_path),
+        out_dir=out_dir or F4A_DIR,
+        metadata={
+            "entry": "experiments/RQ3/miniFuzz4All/fuzz_dataset.py",
+            "dataset_path": str(dataset_path),
+        },
+    ):
+        logger.info(f"Starting fuzzing for dataset: {dataset_path}")
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            seeds: list[dict] = json.load(f)
 
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-
-    with open(dataset_path, "r", encoding="utf-8") as f:
-        seeds: list[dict] = json.load(f)
-    
-    seeds = [Seed.model_validate(s) for s in seeds]
-    calc_initial_seed_coverage_dataset(seeds)
-    _fuzz_dataset(seeds, "execute")
+        seeds = [Seed.model_validate(s) for s in seeds]
+        record_result("seed_count", len(seeds))
+        record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
+        _fuzz_dataset(seeds, "execute")
 
 
-def fuzz_dataset_infinite(dataset_path: str) -> None:
+def fuzz_dataset_infinite(
+    dataset_path: str,
+    rq: str = "RQ3",
+    group: str = "fuzz4all",
+    out_dir: str | None = None,
+) -> None:
     """
     Fuzz the dataset in an infinite loop.
+
+    Ctrl-C 结束时 checkpoint 的 ``status`` 记为 ``interrupted``（不是 ``completed``）。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
-
-    logger.info(f"Starting fuzzing for dataset: {dataset_path}")
-
-    dataset: dict[str, dict[str, dict[str, list[int]]]] = json.load(
-        open(dataset_path, "r")
+    recorder = start_run(
+        rq,
+        group=group,
+        library=_library_from_dataset(dataset_path),
+        out_dir=out_dir or F4A_DIR,
+        metadata={
+            "entry": "experiments/RQ3/miniFuzz4All/fuzz_dataset.py",
+            "dataset_path": str(dataset_path),
+            "mode": "infinite",
+        },
     )
-    calc_initial_seed_coverage_dataset(dataset)
-    while True:
-        try:
-            _fuzz_dataset(dataset, "execute")
-        except KeyboardInterrupt:
-            logger.info("Fuzzing interrupted by user. Have a nice day!")
-            break
+    interrupted = False
+    try:
+        logger.info(f"Starting fuzzing for dataset: {dataset_path}")
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            dataset: list[dict] = json.load(f)
+        seeds = [Seed.model_validate(s) for s in dataset]
+        record_result("seed_count", len(seeds))
+        record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
+        while True:
+            try:
+                _fuzz_dataset(seeds, "execute")
+            except KeyboardInterrupt:
+                logger.info("Fuzzing interrupted by user. Have a nice day!")
+                interrupted = True
+                break
+    except BaseException as exc:
+        recorder.finish("failed", error=exc)
+        raise
+    else:
+        recorder.finish("interrupted" if interrupted else "completed")
 
 
 def main():

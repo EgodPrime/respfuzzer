@@ -167,16 +167,53 @@ open("log.txt", "a").write("\n")
 
 assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
 data_path = sys.argv[1]
+# ---- MC3-1：本次 DyFuzz 运行的 .log 与 *_checkpoint.json（统一命名）----
+import atexit as _atexit
+from pathlib import Path as _Path
+
+from respfuzzer.lib.fuzz.fuzz_exp import _library_from_dataset
+from respfuzzer.utils.experiment_recorder import record_result, start_run
+
+_RQ3_DIR = _Path(__file__).resolve().parent.parent  # experiments/RQ3
+recorder = start_run(
+    "RQ3",
+    group="dyfuzz",
+    library=_library_from_dataset(data_path),
+    out_dir=_RQ3_DIR,
+    metadata={
+        "entry": "experiments/RQ3/DyFuzz-patch/run_respfuzzer.py",
+        "data_path": str(data_path),
+    },
+)
+
+
+def _finish_checkpoint(status, error=None):
+    if not recorder.closed:
+        recorder.finish(status, error=error)
+
+
+# 未捕获异常 → status=failed（excepthook）；正常跑完 → atexit → status=completed
+_original_excepthook = sys.excepthook
+
+
+def _checkpoint_excepthook(tp, value, tb):
+    _finish_checkpoint("failed", error=value)
+    _original_excepthook(tp, value, tb)
+
+
+sys.excepthook = _checkpoint_excepthook
+_atexit.register(_finish_checkpoint, "completed")
 logger.info(f"Loading seeds from {data_path}...", flush=True)
 data = json.load(open(data_path, "r"))
 from respfuzzer.models import Seed
 seeds = [Seed.model_validate(seed_dict) for seed_dict in data]
 logger.info("num of seeds: %s" % len(seeds), flush=True)
+record_result("seed_count", len(seeds))
 from respfuzzer.lib.fuzz.fuzz_exp import calc_initial_seed_coverage_dataset
 bm = BitmapManager(4398)
 bm.clear_bitmap()
 bm.write()
-calc_initial_seed_coverage_dataset(seeds)
+record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
 moddic = {}
 for seed in seeds:
     library_name = seed.library_name
@@ -227,6 +264,8 @@ for mod in list(moddic.keys()):
 
 
 t2 = time.time()
+record_result("total_api_calls", totalAPI)
+record_result("final_coverage", bm.count_bitmap_s())
 
 open("log.txt", "a").write(str(t2))
 open("log.txt", "a").write("\n")

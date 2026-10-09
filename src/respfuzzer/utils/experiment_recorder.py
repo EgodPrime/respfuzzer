@@ -1,29 +1,42 @@
-"""把每一次实验的**日志**与**结果数据**落盘为 JSON（【MC3-1】）。
+"""每一次实验落两个文件：统一命名的 ``.log`` + 记录结束状态的 ``*_checkpoint.json``（【MC3-1】）。
 
-评审「主要意见 3」第 1 条要求「在开源仓库中存放每一次实验的日志和结果数据（增加
-保存结果为 json 的功能）」。本模块是该能力的框架侧实现，供框架入口
-（``respfuzzer.cmd.fuzz`` / ``fuzz_exp``）与 RQ1–RQ4 的实验驱动（环节②）共用。
+评审「主要意见 3」第 1 条要求「在开源仓库中存放每一次实验的日志和结果数据（增加保存结果
+为 json 的功能）」。本模块是该能力的框架侧实现，4 个 RQ 的所有实验驱动共用同一套命名与
+同一套字段。
 
-一次 ``start_experiment(...)`` 对应一次独立运行（run），在
-``run_data/experiments/<run_id>/`` 下落盘三个文件：
+**产物契约**（一次运行 = 一个 ``stem``）::
 
-- ``logs.jsonl``   —— JSON Lines 格式的 loguru 日志，每行一条日志记录；
-- ``events.jsonl`` —— JSON Lines 格式的结构化事件（变异执行、无效 LLM 输出……），
-  是 run 级结果数据的明细来源；
-- ``result.json``  —— 本次运行的汇总（状态、耗时、环境、配置快照、结果数据、
-  事件计数），即对外公开的「结果数据」。
+    <rq>_<group>_<library>_<YYYYmmddTHHMMSS>[_mode-<mode>].log
+    <rq>_<group>_<library>_<YYYYmmddTHHMMSS>[_mode-<mode>]_checkpoint.json
+
+例如::
+
+    rq3_respfuzzer_nltk_20261010T090000.log
+    rq3_respfuzzer_nltk_20261010T090000_checkpoint.json
+    rq4_respfuzzer_nltk_20261010T090000_mode-nl.log
+    rq2_sce-only_nltk_20261010T100000_checkpoint.json
+
+- ``.log`` 是**可读文本日志**：loguru 文本 sink（格式与 loguru 默认 stderr 格式一致，
+  ``experiments/RQ*/report.py`` 依赖的行首时间戳与 ``Current coverage after fuzzing``
+  语句因此原样保留）加上对 ``sys.stdout`` / ``sys.stderr`` 的 tee——后者让只用 ``print``
+  的脚本（RQ1 生成脚本、第三方 DyFuzz）不改一行代码也能留下同样格式的日志。
+- ``*_checkpoint.json`` 是**运行结束时的状态与元数据**：状态（含异常）、起止时间与耗时、
+  环境（argv/python/platform/hostname/git_commit）、脱敏后的 ``config.toml`` 快照、
+  运行元数据、结果数据（``results``）、事件计数（``event_counts``）、以及**内嵌的全部
+  结构化事件** ``events[]``；``log`` 字段指向同 stem 的 ``.log``。
 
 设计要点：
 
-- **线程 + fork 安全**：模糊测试主循环是 ``max_workers`` 个 worker 线程外加 fork
-  出来的执行子进程，日志与事件可能并发写入；写文件持全局锁，并通过
-  ``os.register_at_fork(after_in_child=...)`` 在子进程里重置锁，避免子进程继承到
-  父进程已被占用的锁而死锁。
-- **未启动即 no-op**：``record_event`` / ``record_result`` 在没有活动 recorder 时
-  直接返回，因此库代码（如 ``llm_mutator``）可以无条件调用，不必感知实验是否在录制。
-- **配置快照脱敏**：``api_key`` 等敏感字段写入 json 前统一替换为 ``***``。
-- **原子落盘**：``result.json`` 先写临时文件再 ``os.replace``，避免半截文件。
-- **落盘失败不打断实验**：日志 sink 写入失败只计数，``__exit__`` 里结果写失败只报错。
+- **唯一文件集**：不再有 run 目录与 ``logs.jsonl`` / ``events.jsonl`` / ``result.json``
+  三件套——日志在 ``.log`` 里，其余全在 ``checkpoint.json`` 里，仓库里只有两个文件。
+- **checkpoint 带时间戳**：否则 ``batch_run.sh`` 重复 N 次会互相覆盖，违背「公开每一次
+  独立运行的结果」；带时间戳也让 log 与 checkpoint 天然同 stem、可直接配对。
+- **未启动即 no-op**：``record_event`` / ``record_result`` 在没有活动记录器时直接返回，
+  因此库代码（如 ``llm_mutator``）可以无条件调用。
+- **线程 + fork 安全**：写文件持锁，``os.register_at_fork(after_in_child=...)`` 在子进程
+  里重置锁，避免子进程继承到父进程已持有的锁而死锁。
+- **脱敏**：``api_key`` / ``password`` / ``secret`` 等字段写盘前递归替换为 ``***``。
+- **原子落盘**：checkpoint 先写临时文件再 ``os.replace``；``finish()`` 幂等。
 """
 
 import json
@@ -40,7 +53,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tomllib import TOMLDecodeError
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Self, TextIO
 
 from loguru import logger
 
@@ -48,10 +61,12 @@ from respfuzzer.utils.config import get_config
 from respfuzzer.utils.paths import PROJECT_DIR, RUNDATA_DIR
 
 SCHEMA_VERSION = 1
-DEFAULT_RESULTS_DIR = RUNDATA_DIR / "experiments"
-LOG_FILENAME = "logs.jsonl"
-EVENT_FILENAME = "events.jsonl"
-RESULT_FILENAME = "result.json"
+#: 未显式给 ``out_dir`` 时的落盘目录（临时/手工运行，不污染 experiments/）
+DEFAULT_OUT_DIR = RUNDATA_DIR
+#: 与 loguru 默认 stderr 格式一致；``report.py`` 按行首 ``%Y-%m-%d %H:%M:%S.%f`` 解析
+LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}"
+CHECKPOINT_SUFFIX = "_checkpoint.json"
+LOG_SUFFIX = ".log"
 
 # 写进 json 前需要脱敏的字段名（大小写不敏感，按子串匹配）
 SECRET_KEY_MARKERS = (
@@ -81,11 +96,11 @@ def _reset_locks_after_fork() -> None:
 
 os.register_at_fork(after_in_child=_reset_locks_after_fork)
 
-_active: "ExperimentRecorder | None" = None
+_active: "RunRecorder | None" = None
 
 
 # ---------------------------------------------------------------------------
-# json 工具
+# json / 时间工具
 # ---------------------------------------------------------------------------
 
 
@@ -190,7 +205,7 @@ def _environment() -> dict[str, Any]:
 
 
 def _slug(text: str) -> str:
-    """把任意名字转成安全的目录名（保留 ``\\w`` / ``.`` / ``-``）。"""
+    """把任意名字转成安全的路径片段（保留 ``\\w`` / ``.`` / ``-``）。"""
     cleaned = re.sub(r"[^\w.-]+", "-", str(text), flags=re.UNICODE)
     cleaned = re.sub(r"-{2,}", "-", cleaned).strip("-_")
     if not cleaned or cleaned in {".", ".."}:
@@ -198,38 +213,93 @@ def _slug(text: str) -> str:
     return cleaned
 
 
-def _configured_results_dir() -> Path:
-    """落盘根目录：默认 ``run_data/experiments``，可用 ``[experiment] results_dir`` 覆盖。"""
-    try:
-        section = get_config("experiment")
-    except (OSError, TOMLDecodeError, ValueError):
-        section = None
-    raw = section.get("results_dir") if isinstance(section, dict) else None
-    if not raw:
-        return DEFAULT_RESULTS_DIR
-    path = Path(str(raw)).expanduser()
-    return path if path.is_absolute() else PROJECT_DIR / path
+# ---------------------------------------------------------------------------
+# 命名契约
+# ---------------------------------------------------------------------------
 
 
-def _make_run_dir(base: Path, name: str, run_id: str | None) -> Path:
-    """在锁内挑选并创建本次运行的目录，避免并发运行撞名。"""
-    with _io_lock:
-        if run_id:
-            stem = _slug(run_id)
-            run_dir = base / stem
-            suffix = 1
-            while run_dir.exists():
-                suffix += 1
-                run_dir = base / f"{stem}-{suffix}"
-        else:
-            stamp = _now().strftime("%Y%m%dT%H%M%S")
-            run_dir = base / f"{_slug(name)}-{stamp}-{os.getpid()}"
-            suffix = 1
-            while run_dir.exists():
-                suffix += 1
-                run_dir = base / f"{_slug(name)}-{stamp}-{os.getpid()}-{suffix}"
-        run_dir.mkdir(parents=True, exist_ok=True)
-        return run_dir
+def run_stem(
+    rq: str,
+    group: str,
+    library: str | None = None,
+    mode: str | None = None,
+    timestamp: str | None = None,
+) -> str:
+    """构造一次运行的 ``stem``，log 与 checkpoint 共用它。
+
+    ``rq3_respfuzzer_nltk_20261010T090000_mode-full`` 这种形式：
+    ``rq`` / ``group`` / ``library`` 小写、``mode`` 追加在时间戳之后。
+    """
+    stamp = timestamp or _now().strftime("%Y%m%dT%H%M%S")
+    parts = [_slug(rq).lower(), _slug(group).lower()]
+    if library:
+        parts.append(_slug(library).lower())
+    parts.append(_slug(stamp))
+    if mode and _slug(mode).lower() != "full":
+        # Full 是默认消融组，不出现在文件名里（与约定的命名样例一致）
+        parts.append(f"mode-{_slug(mode).lower()}")
+    return "_".join(parts)
+
+
+def log_filename(stem: str) -> str:
+    return f"{stem}{LOG_SUFFIX}"
+
+
+def checkpoint_filename(stem: str) -> str:
+    return f"{stem}{CHECKPOINT_SUFFIX}"
+
+
+def _unique_stem(out_dir: Path, stem: str) -> str:
+    """同名（同一秒内重复启动）时加 ``-2`` 后缀，避免互相覆盖。"""
+    candidate = stem
+    suffix = 1
+    while (out_dir / log_filename(candidate)).exists() or (
+        out_dir / checkpoint_filename(candidate)
+    ).exists():
+        suffix += 1
+        candidate = f"{stem}-{suffix}"
+    return candidate
+
+
+# ---------------------------------------------------------------------------
+# stdout / stderr tee
+# ---------------------------------------------------------------------------
+
+
+class _TeeWriter:
+    """把 ``print()`` 与 stderr 输出镜像到 ``.log``，同时保持控制台输出不变。
+
+    对只用 ``print`` 的脚本（RQ1 生成脚本、第三方 DyFuzz）无需改代码即可留下日志。
+    """
+
+    def __init__(self, original: TextIO, path: Path, owner: "RunRecorder") -> None:
+        self._original = original
+        self._path = path
+        self._owner = owner
+
+    def write(self, text: str) -> int:
+        try:
+            self._original.write(text)
+        except (OSError, ValueError):  # pragma: no cover - 控制台已关闭
+            pass
+        if text:
+            self._owner.append_raw(text)
+        return len(text) if isinstance(text, str) else 0
+
+    def flush(self) -> None:
+        try:
+            self._original.flush()
+        except (OSError, ValueError):  # pragma: no cover
+            pass
+
+    def isatty(self) -> bool:
+        return bool(getattr(self._original, "isatty", lambda: False)())
+
+    def fileno(self) -> int:
+        return int(self._original.fileno())
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._original, name)
 
 
 # ---------------------------------------------------------------------------
@@ -237,25 +307,33 @@ def _make_run_dir(base: Path, name: str, run_id: str | None) -> Path:
 # ---------------------------------------------------------------------------
 
 
-class ExperimentRecorder:
-    """一次独立运行的日志与结果数据收集器。
+class RunRecorder:
+    """一次独立运行的记录器：产出 ``.log`` 与 ``*_checkpoint.json``。
 
-    通常不直接构造，而是通过 :func:`start_experiment` 启动；用 ``with`` 包住实验
-    主体即可在正常结束时写 ``result.json``（成功）、异常结束时写 ``failed``
-    （含异常信息）。
+    通常不直接构造，而是通过 :func:`start_run` 启动；用 ``with`` 包住实验主体即可在
+    正常结束时写 ``status: completed``，异常结束时写 ``failed``（含异常类型与消息）。
     """
 
     def __init__(
         self,
-        run_dir: Path,
-        name: str,
+        out_dir: Path,
+        rq: str,
+        group: str,
+        library: str | None,
+        mode: str | None,
+        stem: str,
         *,
         metadata: dict[str, Any] | None = None,
         config: dict[str, Any] | None = None,
+        capture_stdout: bool = True,
     ) -> None:
-        self.run_dir = run_dir
-        self.run_id = run_dir.name
-        self.name = name
+        self.out_dir = out_dir
+        self.rq = rq
+        self.group = group
+        self.library = library
+        self.mode = mode
+        self.stem = stem
+        self.run_id = stem
         self.metadata = _scrub_secrets(_json_safe(dict(metadata or {})))
         self.config = (
             _scrub_secrets(_json_safe(config))
@@ -263,19 +341,22 @@ class ExperimentRecorder:
             else _config_snapshot()
         )
         self.results: dict[str, Any] = {}
+        self.events: list[dict[str, Any]] = []
         self.event_counts: dict[str, int] = {}
-        self.log_records = 0
-        self.events_written = 0
+        self.log_lines = 0
+        self.raw_lines = 0
         self.write_errors = 0
         self.started_at = _now()
         self.finished_at: datetime | None = None
         self._sink_id: int | None = None
+        self._tee_streams: list[tuple[str, TextIO, _TeeWriter]] = []
+        self._capture_stdout = capture_stdout
         self._closed = False
+        self._finishing = False
 
-        self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.logs_path = self.run_dir / LOG_FILENAME
-        self.events_path = self.run_dir / EVENT_FILENAME
-        self.result_path = self.run_dir / RESULT_FILENAME
+        out_dir.mkdir(parents=True, exist_ok=True)
+        self.log_path = out_dir / log_filename(stem)
+        self.checkpoint_path = out_dir / checkpoint_filename(stem)
 
     # -- 属性 ---------------------------------------------------------------
 
@@ -285,17 +366,31 @@ class ExperimentRecorder:
 
     # -- 日志 ---------------------------------------------------------------
 
-    def attach_log_sink(self, level: str = "DEBUG") -> None:
-        """把本 recorder 注册为 loguru sink，日志以 JSON Lines 落盘。
-
-        只**追加** sink，不动其它 sink，因此不会影响实验已有的 stderr 日志格式
-        （``report.py`` 仍按文本日志解析覆盖率）。
-        """
+    def attach(self, level: str = "DEBUG") -> None:
+        """挂上 loguru 文本 sink 与 stdout/stderr tee，开始写 ``.log``。"""
         if self._sink_id is not None or self._closed:
             return
-        self._sink_id = logger.add(self._loguru_sink, level=level, catch=True)
+        self._sink_id = logger.add(
+            self._loguru_sink, level=level, format=LOG_FORMAT, catch=True
+        )
+        if self._capture_stdout:
+            self._attach_tee("stdout")
+            self._attach_tee("stderr")
 
-    def detach_log_sink(self) -> None:
+    def _attach_tee(self, name: str) -> None:
+        original = getattr(sys, name, None)
+        if original is None or isinstance(original, _TeeWriter):
+            return
+        tee = _TeeWriter(original, self.log_path, self)
+        setattr(sys, name, tee)
+        self._tee_streams.append((name, original, tee))
+
+    def detach(self) -> None:
+        """摘除 sink 与 tee（``finish()`` 内部调用，也可手工调）。"""
+        for name, original, tee in self._tee_streams:
+            if getattr(sys, name, None) is tee:
+                setattr(sys, name, original)
+        self._tee_streams.clear()
         sink_id, self._sink_id = self._sink_id, None
         if sink_id is None:
             return
@@ -303,49 +398,38 @@ class ExperimentRecorder:
             logger.remove(sink_id)
         except ValueError:
             # sink 已被外部的 logger.remove() 清掉（实验入口会重设日志）
-            logger.debug(f"Log sink {sink_id} of run {self.run_id} already removed")
+            logger.debug(f"Log sink {sink_id} of run {self.stem} already removed")
 
     def _loguru_sink(self, message: str) -> None:
-        record = getattr(message, "record", None)
-        payload = self._log_payload(record, str(message))
+        text = str(message)
         with _io_lock:
             if self._closed:
                 return
-            try:
-                self._append(self.logs_path, payload)
-            except OSError:
-                # 文件写入失败（磁盘满等）只计数，绝不让 sink 抛回 loguru
-                self.write_errors += 1
-                return
-            self.log_records += 1
+            if self._append_text(text):
+                self.log_lines += 1
 
-    @staticmethod
-    def _log_payload(record: Any, fallback: str) -> dict[str, Any]:
-        if not isinstance(record, dict):
-            return {"ts": _now_iso(), "level": "UNKNOWN", "message": fallback}
-        payload: dict[str, Any] = {
-            "ts": record["time"].isoformat(timespec="milliseconds"),
-            "level": record["level"].name,
-            "logger": record["name"],
-            "function": record["function"],
-            "line": record["line"],
-            "thread": record["thread"].name,
-            "process": record["process"].id,
-            "message": record["message"],
-        }
-        exception = record.get("exception")
-        if exception:
-            payload["exception"] = {
-                "type": getattr(getattr(exception, "type", None), "__name__", None),
-                "value": str(getattr(exception, "value", "")),
-                "traceback": str(getattr(exception, "traceback", "")),
-            }
-        return payload
+    def append_raw(self, text: str) -> None:
+        """tee 写入（stdout/stderr 片段），由 :class:`_TeeWriter` 调用。"""
+        with _io_lock:
+            if self._closed:
+                return
+            if self._append_text(text):
+                self.raw_lines += 1
+
+    def _append_text(self, text: str) -> bool:
+        try:
+            with self.log_path.open("a", encoding="utf-8") as handle:
+                handle.write(text)
+        except OSError:
+            # 写日志失败（磁盘满等）只计数，绝不让 sink 抛回 loguru
+            self.write_errors += 1
+            return False
+        return True
 
     # -- 事件与结果 ---------------------------------------------------------
 
     def record_event(self, event_type: str, **fields: Any) -> None:
-        """追加一条结构化事件到 ``events.jsonl``（无活动 recorder 或已收尾时为 no-op）。"""
+        """追加一条结构化事件（收尾后为 no-op）。"""
         if self._closed:
             return
         payload = _json_safe(dict(fields))
@@ -354,13 +438,12 @@ class ExperimentRecorder:
         with _io_lock:
             if self._closed:
                 return
-            self._append(self.events_path, payload)
-            self.events_written += 1
+            self.events.append(payload)
             key = str(payload["event"])
             self.event_counts[key] = self.event_counts.get(key, 0) + 1
 
     def record_result(self, key: str, value: Any) -> None:
-        """写入一条汇总结果数据（最终进入 ``result.json`` 的 ``results`` 字段）。"""
+        """写入一条结果数据（最终进入 checkpoint 的 ``results`` 字段）。"""
         if self._closed:
             return
         with _io_lock:
@@ -374,58 +457,62 @@ class ExperimentRecorder:
 
     # -- 收尾 ---------------------------------------------------------------
 
-    def build_result(self, status: str, error: Any = None) -> dict[str, Any]:
+    def build_checkpoint(self, status: str, error: Any = None) -> dict[str, Any]:
         finished = self.finished_at or _now()
-        duration = (finished - self.started_at).total_seconds()
         return {
             "schema_version": SCHEMA_VERSION,
-            "run_id": self.run_id,
-            "name": self.name,
+            "rq": self.rq,
+            "group": self.group,
+            "library": self.library,
+            "mode": self.mode,
+            "run_id": self.stem,
+            "log": log_filename(self.stem),
+            "checkpoint": checkpoint_filename(self.stem),
             "status": status,
-            "error": error,
+            "error": _error_payload(error),
             "started_at": self.started_at.isoformat(timespec="milliseconds"),
             "finished_at": finished.isoformat(timespec="milliseconds"),
-            "duration_seconds": round(duration, 3),
+            "duration_seconds": round((finished - self.started_at).total_seconds(), 3),
             "environment": _environment(),
             "config": self.config,
             "metadata": self.metadata,
             "results": self.results,
             "event_counts": dict(sorted(self.event_counts.items())),
             "totals": {
-                "log_records": self.log_records,
-                "events": self.events_written,
+                "events": len(self.events),
+                "log_lines": self.log_lines,
+                "raw_lines": self.raw_lines,
                 "write_errors": self.write_errors,
             },
-            "files": {
-                "logs": LOG_FILENAME,
-                "events": EVENT_FILENAME,
-                "result": RESULT_FILENAME,
-            },
+            "events": self.events,
         }
 
     def finish(self, status: str = "completed", error: Any = None) -> Path:
-        """收尾：摘除日志 sink，原子写出 ``result.json``。幂等，可重复调用。"""
+        """收尾：摘 sink/tee，原子写出 ``*_checkpoint.json``。幂等，可重复调用。"""
         global _active
-        error_payload = _error_payload(error)
         if error is not None and status == "completed":
             status = "failed"
         with _global_lock:
-            if self._closed:
-                return self.result_path
-            self._closed = True
+            if self._closed or self._finishing:
+                return self.checkpoint_path
+            self._finishing = True
             if _active is self:
                 _active = None
-        self.detach_log_sink()
+        logger.debug(
+            f"Run {self.stem} finished with status={status}, "
+            f"checkpoint -> {self.checkpoint_path}"
+        )
+        self.detach()
         self.finished_at = _now()
-        payload = self.build_result(status, error_payload)
+        payload = self.build_checkpoint(status, error)
         with _io_lock:
-            tmp_path = self.result_path.with_suffix(".json.tmp")
+            self._closed = True
+            tmp_path = self.checkpoint_path.with_suffix(".json.tmp")
             with tmp_path.open("w", encoding="utf-8") as handle:
                 handle.write(_dump(payload))
                 handle.write("\n")
-            os.replace(tmp_path, self.result_path)
-        logger.debug(f"Experiment result saved to {self.result_path}")
-        return self.result_path
+            os.replace(tmp_path, self.checkpoint_path)
+        return self.checkpoint_path
 
     # -- 上下文管理器 -------------------------------------------------------
 
@@ -444,20 +531,11 @@ class ExperimentRecorder:
             else:
                 self.finish("failed", error=exc)
         except OSError:
-            # 结果落盘失败不能吞掉实验本身的异常
+            # checkpoint 落盘失败不能吞掉实验本身的异常
             logger.opt(exception=True).error(
-                f"Failed to write experiment result json for run {self.run_id}"
+                f"Failed to write checkpoint json for run {self.stem}"
             )
         return False
-
-    # -- 内部 ---------------------------------------------------------------
-
-    @staticmethod
-    def _append(path: Path, payload: dict[str, Any]) -> None:
-        """追加一行 JSON。每次写都重新 open（O_APPEND），fork 出来的子进程也能安全写。"""
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(_dump(payload))
-            handle.write("\n")
 
 
 # ---------------------------------------------------------------------------
@@ -465,27 +543,32 @@ class ExperimentRecorder:
 # ---------------------------------------------------------------------------
 
 
-def start_experiment(
-    name: str,
+def start_run(
+    rq: str,
     *,
+    group: str,
+    library: str | None = None,
+    mode: str | None = None,
+    out_dir: str | os.PathLike[str] | None = None,
+    timestamp: str | None = None,
     metadata: dict[str, Any] | None = None,
     config: dict[str, Any] | None = None,
-    run_id: str | None = None,
-    results_dir: str | os.PathLike[str] | None = None,
-    log_level: str | None = "DEBUG",
-    capture_logs: bool = True,
-) -> ExperimentRecorder:
-    """启动一次独立运行的录制，返回 recorder（可直接用于 ``with``）。
+    log_level: str = "DEBUG",
+    capture_stdout: bool = True,
+) -> RunRecorder:
+    """启动一次独立运行的录制，返回记录器（可直接用于 ``with``）。
 
     Args:
-        name: 运行名，用于生成目录名与 ``result.json`` 的 ``name`` 字段。
-        metadata: 运行级元数据（数据集路径、随机种子、实验组名……），原样落盘。
+        rq: 实验编号，如 ``RQ1``..``RQ4``；决定文件名前缀与 checkpoint 的 ``rq`` 字段。
+        group: 实验组，如 ``respfuzzer`` / ``fuzz4all`` / ``dyfuzz`` / ``sce-only``。
+        library: 目标库（如 ``nltk``）；一次运行覆盖多库时可为 ``None``。
+        mode: RQ4 的消融模式（``Full`` / ``NL`` / ``NSF`` ...），仅 RQ4 使用。
+        out_dir: 落盘目录，通常是 ``experiments/RQ<x>/``；缺省为 ``run_data/``。
+        timestamp: 覆盖自动时间戳（复现/测试用）。
+        metadata: 运行元数据（数据集路径、随机种子、解码参数……），原样落盘。
         config: 配置快照；缺省时自动快照 ``config.toml``（脱敏后）。
-        run_id: 显式指定目录名（同一实验多次运行需保持可读命名时用）。
-        results_dir: 覆盖落盘根目录；缺省走 ``[experiment] results_dir`` 或
-            ``run_data/experiments``。
-        log_level: 日志 sink 级别；``None`` 表示不挂日志 sink。
-        capture_logs: 是否把 loguru 日志写入 ``logs.jsonl``。
+        log_level: loguru sink 级别。
+        capture_stdout: 是否把 stdout/stderr tee 进 ``.log``（只用 print 的脚本靠它）。
     """
     global _active
     with _global_lock:
@@ -495,19 +578,28 @@ def start_experiment(
         # 同一进程里连续启动两次：先把上一次收尾，避免结果互相覆盖
         previous.finish(status="superseded")
 
-    base = Path(results_dir) if results_dir is not None else _configured_results_dir()
-    run_dir = _make_run_dir(base, name, run_id)
-    recorder = ExperimentRecorder(run_dir, name, metadata=metadata, config=config)
+    base = Path(out_dir) if out_dir is not None else DEFAULT_OUT_DIR
+    stem = _unique_stem(base, run_stem(rq, group, library, mode, timestamp))
+    recorder = RunRecorder(
+        base,
+        rq,
+        group,
+        library,
+        mode,
+        stem,
+        metadata=metadata,
+        config=config,
+        capture_stdout=capture_stdout,
+    )
     with _global_lock:
         _active = recorder
-    if capture_logs:
-        recorder.attach_log_sink(level=log_level or "DEBUG")
-    logger.debug(f"Recording experiment run {recorder.run_id} into {run_dir}")
+    recorder.attach(level=log_level)
+    logger.debug(f"Recording run {stem} into {base}")
     return recorder
 
 
-def get_recorder() -> ExperimentRecorder | None:
-    """返回当前活动的 recorder；没有则返回 ``None``。"""
+def get_recorder() -> RunRecorder | None:
+    """返回当前活动的记录器；没有则返回 ``None``。"""
     with _global_lock:
         return _active
 
@@ -536,8 +628,8 @@ def record_results(mapping: dict[str, Any]) -> None:
         recorder.record_results(mapping)
 
 
-def finish_experiment(status: str = "completed", error: Any = None) -> Path | None:
-    """收尾当前运行并返回 ``result.json`` 路径；未启动录制时返回 ``None``。"""
+def finish_run(status: str = "completed", error: Any = None) -> Path | None:
+    """收尾当前运行并返回 checkpoint 路径；未启动录制时返回 ``None``。"""
     recorder = get_recorder()
     if recorder is None:
         return None
@@ -545,12 +637,12 @@ def finish_experiment(status: str = "completed", error: Any = None) -> Path | No
 
 
 @contextmanager
-def experiment_run(name: str, **kwargs: Any) -> Iterator[ExperimentRecorder]:
-    """``with experiment_run("rq3-respfuzzer") as rec:`` 的便捷封装。
+def run_session(name: str, **kwargs: Any) -> Iterator[RunRecorder]:
+    """``with run_session("RQ3", group="respfuzzer", ...) as rec:`` 的便捷封装。
 
     异常结束时以 ``failed`` + 异常信息收尾，异常继续向上抛出。
     """
-    recorder = start_experiment(name, **kwargs)
+    recorder = start_run(name, **kwargs)
     try:
         yield recorder
     except BaseException as exc:

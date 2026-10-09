@@ -64,8 +64,8 @@ DISPLAY_TO_COV_KEY = {
 LOG_DIR = os.path.join(os.path.dirname(__file__))
 COVERAGE_PATTERN = re.compile(r"Current coverage after fuzzing .*?: (\d+) bits")
 
-# Filename pattern: RQ3-{fuzzer}-{library}-{timestamp}.log
-FILENAME_PATTERN = re.compile(r"RQ3-([^-]+)-(.+?)-\d{8,12}\.log$")
+# Filename pattern (MC3-1 统一命名): rq3_{fuzzer}_{library}_{YYYYmmddTHHMMSS}[-N].log
+FILENAME_PATTERN = re.compile(r"rq3_([a-z0-9]+)_(.+?)_(\d{8}T\d{6})(?:-\d+)?\.log$")
 TIME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}")
 
 
@@ -103,7 +103,7 @@ def extract_final_coverage_and_time(log_path: str):
 def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
     """
     Scan all RQ3-*.log files, extract fuzzer + library + final coverage + elapsed time.
-
+    Scan all rq3_*.log files, extract fuzzer + library + final coverage + elapsed time.
     Multiple log files per (fuzzer, library) are automatically averaged.
 
     Returns (coverage_data, time_data):
@@ -114,7 +114,7 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str
     cov_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
     time_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
 
-    log_files = sorted(glob.glob(os.path.join(log_dir, "RQ3-*.log")))
+    log_files = sorted(glob.glob(os.path.join(log_dir, "rq3_*.log")))
 
     for log_path in log_files:
         filename = os.path.basename(log_path)

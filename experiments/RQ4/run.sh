@@ -19,7 +19,7 @@ exp_script_path="$cur_file_dir/fuzz_exp-RQ4.py"
 
 source "$config_file"
 
-timestamp=$(date +"%Y%m%d%H%M")
+# .log 与 *_checkpoint.json 由 experiment_recorder 按统一命名写入 experiments/RQ4/（MC3-1）
 
 
 for library in "${libraries[@]}"; do
@@ -29,12 +29,7 @@ for library in "${libraries[@]}"; do
         continue
     fi
 
-    log_file="$cur_file_dir/RQ4-respfuzzer-${library^}-${timestamp}-mode-${mode}.log"
-    if [ "$mode" = "Full" ]; then
-        cmd="uv run $exp_script_path $input_file > $log_file 2>&1"
-    else
-        cmd="uv run $exp_script_path $input_file --mode $mode > $log_file 2>&1"
-    fi
+    cmd="uv run $exp_script_path $input_file --mode $mode"
     echo "cmd: $cmd"
     eval "$cmd"
 done

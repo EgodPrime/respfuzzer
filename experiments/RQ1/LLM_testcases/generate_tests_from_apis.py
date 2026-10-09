@@ -34,8 +34,17 @@ import math
 import os
 import random
 import re
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Dict
 
+try:
+    # 依赖项目包：请在项目根用 `uv run python <script>` 运行，或设置 PYTHONPATH=$(pwd)/src
+    from respfuzzer.utils.experiment_recorder import start_run
+except ImportError:  # 缺依赖时脚本仍可独立运行，只是不产出 .log / checkpoint
+    start_run = None
+
+RQ1_DIR = Path(__file__).resolve().parent.parent  # experiments/RQ1
 try:
     import httpx
 except Exception as e:
@@ -383,6 +392,36 @@ async def generate_all(
     print(f"Completed {total} requests. Python files in: {outdir}")
 
 
+@contextmanager
+def _rq1_checkpoint(args):
+    """MC3-1：RQ1 每次运行落同名格式的 ``.log`` 与 ``*_checkpoint.json``。
+
+    ``start_run`` 不可用（未装项目包 / 未设置 PYTHONPATH）时退化成普通执行，不产出文件。
+    """
+    if start_run is None:
+        yield None
+        return
+    with start_run(
+        "RQ1",
+        group="respfuzzer",
+        out_dir=RQ1_DIR,
+        metadata={
+            "entry": "experiments/RQ1/LLM_testcases/generate_tests_from_apis.py",
+            "input": str(args.input),
+            "outdir": str(args.outdir),
+            "model": str(args.model),
+            "api_base": str(args.api_base),
+            "parallel": int(args.parallel),
+            "count_per_lib": int(args.count_per_lib),
+            "multiplier": int(args.multiplier),
+        },
+    ) as recorder:
+        recorder.record_result("input", str(args.input))
+        recorder.record_result("outdir", str(args.outdir))
+        recorder.record_result("model", str(args.model))
+        yield recorder
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -438,19 +477,25 @@ def main():
             "No API key found. Set OPENAI_API_KEY or populate MODEL_API_KEYS for the chosen model."
         )
 
-    asyncio.run(
-        generate_all(
-            args.input,
-            args.outdir,
-            api_key,
-            parallel=args.parallel,
-            model=args.model,
-            api_base=args.api_base,
-            per_lib_count=args.count_per_lib,
-            multiplier=args.multiplier,
-            verbose=args.verbose,
+    with _rq1_checkpoint(args) as recorder:
+        asyncio.run(
+            generate_all(
+                args.input,
+                args.outdir,
+                api_key,
+                parallel=args.parallel,
+                model=args.model,
+                api_base=args.api_base,
+                per_lib_count=args.count_per_lib,
+                multiplier=args.multiplier,
+                verbose=args.verbose,
+            )
         )
-    )
+        if recorder is not None:
+            recorder.record_result(
+                "outdir_file_count",
+                sum(len(files) for _, _, files in os.walk(args.outdir)),
+            )
 
 
 if __name__ == "__main__":
