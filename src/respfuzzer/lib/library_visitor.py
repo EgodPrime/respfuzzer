@@ -7,11 +7,13 @@ from typing import Dict, Iterator, Set
 
 import dill
 from loguru import logger
-from respfuzzer.lib.parsers.function_parser import (
-    from_builtin_function_type,
-    from_function_type,
+from respfuzzer.lib.parsers.function_parser import from_function_type
+from respfuzzer.lib.parsers.pyi_parser import (
+    _find_all_pyi_files,
+    build_name_index,
+    parse_pyi_files,
 )
-from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files, parse_pyi_files
+from respfuzzer.lib.signature import resolve_builtin_signature
 from respfuzzer.models import Function
 from respfuzzer.utils.paths import DATA_DIR
 
@@ -27,6 +29,12 @@ class LibraryVisitor:
         """
         self.library_name = library_name
         self.pyi_cache: Dict[str, Dict] = {}
+        # 裸函数名 -> 限定键（仅整库唯一裸名登记；歧义裸名不登记）【MC2-11】
+        self.name_index: dict[str, str] = {}
+        self._rp_cache: dict = {}  # id(obj) -> 物理身份元组，dill 解析记忆化
+        self._builtin_resolve_cache: dict = (
+            {}
+        )  # 物理身份元组 -> Function（同一物理函数只解析一次）
 
     def visit(self) -> Iterator[Function]:
         """
@@ -44,6 +52,13 @@ class LibraryVisitor:
             return
 
         self.find_all_pyi_functions()
+        # 运行时同名异身份并入歧义判定：stub 侧唯一、运行时却存在 ≥2 个不同物理身份同名函数的
+        # 裸名不再兜底（否则 stub 缺失方会错拿另一身份的 stub），落到运行时签名解析【MC2-11】。
+        self.name_index = build_name_index(
+            self.pyi_cache,
+            ambiguous_bare_names=self._runtime_bare_collisions(library),
+        )
+        self._builtin_resolve_cache = {}
 
         obj_has_been_seen = set()
         for function in self._visit(library, self.library_name, obj_has_been_seen):
@@ -69,10 +84,70 @@ class LibraryVisitor:
         with ProcessPoolExecutor(cpu_count) as executor:
             futures = []
             for file_path in unique_files:
-                futures.append(executor.submit(parse_pyi_files, file_path))
+                # 限定键需库根路径 + 库名：缺一即抛 ValueError（不产出未限定键）
+                futures.append(
+                    executor.submit(
+                        parse_pyi_files, file_path, root_path, self.library_name
+                    )
+                )
             for future in futures:
                 result = future.result()
                 self.pyi_cache.update(result)
+
+        # 由 pyi_cache 派生唯一裸名索引（限定键 miss 时的兜底入口）【MC2-11】
+        self.name_index = build_name_index(self.pyi_cache)
+
+    def _real_path(self, obj) -> tuple:
+        """对象 → 物理身份元组（dill），失败返回空元组并记忆化。【MC2-11】。
+
+        物理身份既是 `_visit` 的归属过滤依据，也是 builtin 查 stub 的限定键主体，
+        这里集中解析 + 缓存，供 `visit()` 的运行时同名歧义预扫描与 `_visit` 复用。
+        """
+        cached = self._rp_cache.get(id(obj))
+        if cached is not None:
+            return cached
+        try:
+            path = tuple(dill.source._namespace(obj) or ())
+        except Exception as exc:  # noqa: BLE001 — dill 可能对任意对象抛异常
+            logger.debug(f"dill.source._namespace failed for {obj!r}: {exc}")
+            path = ()
+        self._rp_cache[id(obj)] = path
+        return path
+
+    def _runtime_bare_collisions(self, root_mod: ModuleType) -> set:
+        """预收集「运行时同名异身份」裸名集：≥2 个不同物理身份的函数共用同一裸名。
+
+        口径与 `_visit` 一致（公开绑定、跳过 `_` 前缀、归属过滤同库）；只做枚举与
+        物理身份解析（复用 `_rp_cache` 记忆化），不解析签名。供 `build_name_index` 剔除
+        兜底候选：这类裸名即使 stub 侧唯一，兜底也会让缺失方错拿另一身份的 stub。
+        """
+        seen_mod: set = set()
+        by_real: dict = {}
+
+        def rec(m: ModuleType) -> None:
+            if id(m) in seen_mod:
+                return
+            seen_mod.add(id(m))
+            for name in dir(m):
+                if name.startswith("_"):
+                    continue
+                try:
+                    obj = getattr(m, name)
+                except Exception:  # noqa: BLE001, S112 — getattr 可能抛任意异常
+                    continue
+                if isinstance(obj, ModuleType):
+                    if obj.__name__.startswith(root_mod.__name__ + "."):
+                        rec(obj)
+                    continue
+                if not isinstance(obj, (FunctionType, BuiltinFunctionType)):
+                    continue
+                rp = self._real_path(obj)
+                if not rp or rp[0] != self.library_name:
+                    continue
+                by_real.setdefault(rp[-1], set()).add(rp)
+
+        rec(root_mod)
+        return {nm for nm, rps in by_real.items() if len(rps) >= 2}
 
     def _visit(
         self, mod: ModuleType, root_mod_name: str, obj_has_been_seen: set
@@ -100,8 +175,9 @@ class LibraryVisitor:
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
 
-            real_path = dill.source._namespace(obj)
-            if real_path[0] != root_mod_name:
+            # 物理身份（dill）作为归属过滤依据 + builtin 查 stub 的限定键主体【MC2-11】
+            real_path = self._real_path(obj)
+            if not real_path or real_path[0] != root_mod_name:
                 # skip if it does not belong to the library
                 continue
             if real_path[-1] != name:
@@ -123,11 +199,25 @@ class LibraryVisitor:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
-                    if name in self.pyi_cache:
-                        function = from_builtin_function_type(
-                            self.pyi_cache[name], obj, public_name=public_name
+                    # 签名闭合链【MC2-11】：①限定键 stub → ②唯一裸名兜底 → ③inspect
+                    # → ④docstring → ⑤留空占位(signature_resolved=False)。
+                    # 同一物理身份只解析一次：别名绑定复用签名，仅重打公开名。
+                    rp_key = real_path
+                    function = self._builtin_resolve_cache.get(rp_key)
+                    if function is None:
+                        function = resolve_builtin_signature(
+                            obj,
+                            real_path,
+                            pyi_cache=self.pyi_cache,
+                            name_index=self.name_index,
+                            public_name=public_name,
                         )
-                        yield function
+                        self._builtin_resolve_cache[rp_key] = function
+                    elif function.func_name != public_name:
+                        function = function.model_copy(
+                            update={"func_name": public_name}
+                        )
+                    yield function
 
 
 def _deduplicate_functions(functions: list[Function]) -> list[Function]:

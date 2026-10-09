@@ -39,7 +39,7 @@ def _runtime_none_and_ellipsis(x=None, y=...):
 
 
 def _parse_pyi(content: str) -> dict:
-    """用伪文件对象跑 `_parse_pyi_file`，返回其 `pyi_cache`。"""
+    """用伪文件对象跑 `_parse_pyi_file`，返回其 `pyi_cache`（键为完全限定名）。"""
     mock_file = Mock()
     mock_file.read.return_value = content
     mock_file.__enter__ = Mock(return_value=mock_file)
@@ -48,7 +48,10 @@ def _parse_pyi(content: str) -> dict:
 
     cache: dict = {}
     with patch("builtins.open", mock_open):
-        _parse_pyi_file("/path/to/test.pyi", cache)
+        # root_path / library_name 必传：限定键 = <库名>.<模块路径>.<函数名>【MC2-11】
+        _parse_pyi_file(
+            "/path/to/test.pyi", cache, root_path="/path/to", library_name="mylib"
+        )
     return cache
 
 
@@ -157,7 +160,9 @@ def test_from_function_type_bad_repr_fallback(mock_signature, mock_getsource):
 def test_pyi_positional_defaults_aligned_right():
     """位置参数默认值在 node.args.defaults 中与最右若干个位置参数对齐。"""
     cache = _parse_pyi("def f(a: int, b: int = 1, c: int = 2) -> int:...\n")
-    defaults = {arg.arg_name: arg.default_value for arg in cache["f"]["args"]}
+    defaults = {
+        arg.arg_name: arg.default_value for arg in cache["mylib.test.f"]["args"]
+    }
     assert defaults == {"a": "", "b": "1", "c": "2"}
 
 
@@ -167,7 +172,7 @@ def test_pyi_all_five_parameter_kinds():
         "def pos_only(a: int, /, b: str, c: float = 1.5, *args: int, "
         "d: int, e: int = 2, **kwargs) -> int:...\n"
     )
-    args = {arg.arg_name: arg for arg in cache["pos_only"]["args"]}
+    args = {arg.arg_name: arg for arg in cache["mylib.test.pos_only"]["args"]}
     assert args["a"].default_value == ""
     assert args["b"].default_value == ""
     assert args["c"].default_value == "1.5"
@@ -180,21 +185,25 @@ def test_pyi_all_five_parameter_kinds():
 def test_pyi_only_positional_defaults_misaligned_left():
     """只有最右 d 有默认：a/b/c 必须都为空串（验证对齐方向，不是从左往右填）。"""
     cache = _parse_pyi("def f(a, b, c, d=9):...\n")
-    defaults = [arg.default_value for arg in cache["f"]["args"]]
+    defaults = [arg.default_value for arg in cache["mylib.test.f"]["args"]]
     assert defaults == ["", "", "", "9"]
 
 
 def test_pyi_string_and_none_defaults():
     """字符串 / None 默认值：ast.unparse 结果与运行时 repr 口径一致。"""
     cache = _parse_pyi('def f(a: str = "x", b=None) -> None:...\n')
-    defaults = {arg.arg_name: arg.default_value for arg in cache["f"]["args"]}
+    defaults = {
+        arg.arg_name: arg.default_value for arg in cache["mylib.test.f"]["args"]
+    }
     assert defaults == {"a": "'x'", "b": "None"}
 
 
 def test_pyi_kwonly_all_without_defaults():
     """kw_defaults 中若干 None：仅关键字参数按序得到空串，不会错位。"""
     cache = _parse_pyi("def f(*, a, b=1, c) -> None:...\n")
-    defaults = {arg.arg_name: arg.default_value for arg in cache["f"]["args"]}
+    defaults = {
+        arg.arg_name: arg.default_value for arg in cache["mylib.test.f"]["args"]
+    }
     assert defaults == {"a": "", "b": "1", "c": ""}
 
 
