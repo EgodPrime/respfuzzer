@@ -84,13 +84,22 @@ The paper reports three final models; the exact (quantized) checkpoints used are
 
 All three checkpoints are served via **SGLang** (version `0.5.6.post3.dev9187+g21c88f862`). Reproduce each by serving its checkpoint and setting `model_name` in both `[llm]` and `[llm_mutator]` to the served model id.
 
-> **TODO** 具体部署脚本（三模型的 SGLang serve 命令）待补充：
->
-> ```bash
-> # TODO(respfuzzer): 三模型 SGLang 0.5.6.post3.dev9187+g21c88f862 部署脚本
-> # 为 Llama3.1-8B-Instruct-FP8 / Qwen3.6-35B-A3B-FP8 / gpt-oss-120b 各准备一条
-> # python -m sglang.launch_server --model-path ... 命令（待补充）
-> ```
+```bash
+#Llama-3.1-8B-Instruct-FP8
+sglang serve \
+  --model-path models/Meta-Llama-3.1-8B-Instruct-FP8 \
+  --served-model-name Llama-3.1-8B-Instruct --host 0.0.0.0 --port 8021 \
+  --mem-fraction-static 0.8 \
+  --attention-backend flashinfer \
+  --chunked-prefill-size 2048 \
+  --max-running-requests 32 --cuda-graph-max-bs-decode 32 \
+  --kv-cache-dtype fp8_e4m3 \
+  --disable-radix-cache --mamba-ssm-dtype bfloat16 --mamba-full-memory-ratio 0.07 --mamba-radix-cache-strategy extra_buffer_lazy
+```
+
+> TODO: Qwen3.6-35B-A3B-FP8和gpt-oss-120b的部署脚本，跑的时候调整好了再复制过来
+
+
 
 ### Data Storage
 Data is stored as JSON files under the directory selected by the `RESPFUZZER_DATA_DIR` environment variable (default `data/`). No SQL database is used.
