@@ -1,13 +1,18 @@
 import json
+import os
+import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import List, Optional
 
 import openai
 from loguru import logger
+
 from respfuzzer.models import ExecutionResultType, Function, Seed
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
@@ -16,6 +21,14 @@ from respfuzzer.utils.paths import DATA_DIR, PROJECT_DIR
 
 #: RQ2 的 .log / *_checkpoint.json 落盘目录（experiments/RQ2/）
 RQ2_DIR = PROJECT_DIR / "experiments" / "RQ2"
+
+#: 种子执行沙箱根（``run_data/``，可用 ``RESPFUZZER_RUN_DATA`` 覆盖）。
+#: QueitExecutor 的子进程 cwd 指向其中的一次性目录，seed 的相对路径产物
+#: 不再污染项目根（numpy.so / paddle/ 遮蔽真实包的教训，随 RQ1 引擎移植）。
+def _run_data_root() -> Path:
+    root = Path(os.environ.get("RESPFUZZER_RUN_DATA", "run_data"))
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
@@ -132,6 +145,7 @@ res = c(x, y)
             try:
                 response = client.chat.completions.create(
                     model=llm_cfg["model_name"],
+                    temperature=0.7,  # RQ1/RSG 解码设置统一 0.7（与 CountingLLM 一致）
                     messages=[
                         {
                             "role": "system",
@@ -203,10 +217,14 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         stdout = ""
         stderr = ""
         proc = None
+        # 沙箱 cwd：seed 的相对路径产物落 run_data/ 一次性目录，执行完即删
+        # （避免在项目根写出 numpy.so / paddle/ 等遮蔽真实包）
+        sandbox = Path(tempfile.mkdtemp(prefix="fz-", dir=_run_data_root()))
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
-            command = ["python3", f.name]
+            # sys.executable：与父进程同一解释器（.venv），系统 python3 缺本项目依赖
+            command = [sys.executable, f.name]
             try:
                 # 启动子进程
                 proc = subprocess.Popen(
@@ -217,6 +235,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                     text=True,  # 读取为字符串
                     shell=False,
                     start_new_session=True,
+                    cwd=str(sandbox),  # 沙箱 cwd：产物不落项目根
                 )
 
                 # 读取输出（捕获所有）
@@ -258,6 +277,7 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                     "stdout": stdout,
                     "stderr": stderr,
                 }
+                shutil.rmtree(sandbox, ignore_errors=True)  # 沙箱即删
             return result
 
 
@@ -275,6 +295,7 @@ class Reasoner:
             try:
                 response = client.chat.completions.create(
                     model=llm_cfg["model_name"],
+                    temperature=0.7,  # RQ1/RSG 解码设置统一 0.7（与 CountingLLM 一致）
                     messages=[
                         {
                             "role": "system",
@@ -329,6 +350,7 @@ class Judger:
             try:
                 response = client.chat.completions.create(
                     model=llm_cfg["model_name"],
+                    temperature=0.7,  # RQ1/RSG 解码设置统一 0.7（与 CountingLLM 一致）
                     messages=[
                         {
                             "role": "system",
@@ -378,13 +400,20 @@ class Judger:
         raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
-def solve(function: Function) -> Optional[str]:
+def solve(function: Function, budget: int = 10) -> Optional[str]:
+    """反射式种子生成主循环（SCE + RCM 自省）。
+
+    Args:
+        function: 目标函数。
+        budget: 自省预算——attempter/judger/executor 任一环节失败即扣 1，扣到 0 停。
+            默认 10 保持历史行为；RQ1 里传入与对照 pass@k 相同的 ``k``，
+            使 ours 与各对照组在同一次 run 中拿到相同次数的 LLM 调用【MC6-5】。
+    """
     attempter = Attempter()
     judger = Judger()
     executor = QueitExecutor()
     reasoner = Reasoner()
 
-    budget = 10
     history: List[dict] = []
     solved = False
     code = None

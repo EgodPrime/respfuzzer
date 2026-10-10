@@ -48,3 +48,12 @@ budget_mode = "llm_calls"
 budget_mode = "llm_calls"
 # 预算值,默认每个 API 执行 50 次
 budget_value = 50
+# RQ1 的 RAG 基线【MC6-2】：检索用 embedding 服务（OpenAI 兼容 /v1/embeddings）。
+# 不配置（或整段注释）时：开发/测试用确定性 fake embedding；正式跑 rq1seed --mode rag
+# --no-fake-embedding 会在未配置时显式报错，不静默降级。
+# 可用 `python -m respfuzzer.lib.rq1.embedding_mock --port 8123` 起本地 mock 服务。
+#[embedding]
+#base_url = "http://127.0.0.1:8123/v1"
+#api_key = "sk-mock"
+#model_name = "mock-embedding"
+#batch_size = 64

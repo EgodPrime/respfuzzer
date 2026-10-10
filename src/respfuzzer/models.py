@@ -2,7 +2,7 @@ import uuid
 from enum import IntEnum
 from typing import Protocol
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, model_validator
 
 
 class Argument(BaseModel):
@@ -18,7 +18,10 @@ class Argument(BaseModel):
 class Function(BaseModel):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str | None = None
-    func_name: str
+    # 兼容旧数据集键名【MC6-2】：存量 data/*_functions.json（历史分支产物）用
+    # ``func_path`` 存公开导出路径，新提取路径与代码统一用 ``func_name``；
+    # 两者语义相同，读入时任一键都接受（序列化仍只写 ``func_name``）。
+    func_name: str = Field(validation_alias=AliasChoices("func_name", "func_path"))
     real_path: str = ""
     source: str
     args: list[Argument]
@@ -35,6 +38,9 @@ class Function(BaseModel):
     docstring_quality: str = "without-docstring"
     # 类型注解完整性：完整注解（具名参数与返回值全部带注解）/ 不完整注解
     type_annotation_completeness: str = "不完整注解"
+    # 函数原始 docstring 文本【MC6-2】：RQ1 的 RAG 基线以「限定名 + docstring」
+    # 作为检索 query，prompt 也需要它；存量数据集带该字段，旧数据缺失时默认空串。
+    docstring: str = ""
 
     def __repr__(self):
         """
