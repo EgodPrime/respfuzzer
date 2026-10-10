@@ -3,7 +3,7 @@
 与 ours 的差异仅在「是否自省」：
   - ours   ：RSG 自省循环（agentic solve，驱动层接入，见 RQ1Execuctor 注释）；
   - 本模块：对照模式的 pass@k 循环——生成 k 个候选、任意 covered 即短路。
-等预算：对照 k 次 LLM 调用 = ours 自省预算 k（同一 run 同一 k，【MC6-5】）。
+等预算【MC6-5】：k 既可全局给定，也可由驱动层按「ours 每函数实际调用次数」逐函数覆盖。
 
 covered 判定统一走共享 Executor（静态门控 + 调用成功口径【MC7-1】，F9）；
 extended 的源码切片与 rag 的检索片段由驱动层准备后注入（F7/F8）。
@@ -35,7 +35,14 @@ class FunctionRun:
     library_name: str
     covered: bool  # pass@k：任一候选覆盖
     candidates: list[CandidateRecord] = field(default_factory=list)
+    # 该函数本次 run 消耗的 LLM 资源（MC6-5 归因：calls / prompt_tokens / …）
+    usage: dict[str, int] = field(default_factory=dict)
 
+
+    @property
+    def llm_calls(self) -> int:
+        """该函数本次 run 消耗的 LLM 调用次数（MC6-5 等预算的计量口径）。"""
+        return int(self.usage.get("calls", 0))
 
 def extract_code(text: str | None) -> str | None:
     """从 LLM 响应提取代码：<code></code> 优先，``` 兜底；无则 None。

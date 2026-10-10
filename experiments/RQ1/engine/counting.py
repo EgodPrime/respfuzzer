@@ -1,15 +1,23 @@
-"""RQ1 F5：资源计数（ED-9 seed 段）——LLM 调用次数 + usage tokens。
+"""RQ1 F5：资源计数——LLM 调用次数 + usage tokens + 每函数归因（MC6-5）。
 
 CountingLLM 组合 SimpleLLMClient：每次调用默认注入 temperature=0.7（F4-2 一致），
 并在 response 落地后累计 calls 与 prompt/completion/total tokens。
 response 无 usage（部分端点/错误）时优雅计 0，不抛（ut-F5-4）。
-供 RQ1 各模式共用的 LLM 封装；与 ED-4 等预算口径打通。
+
+**每函数归因【MC6-5】**：`usage_bucket()` 用 ``ContextVar`` 开一个独立统计桶——
+worker 线程内设置，同一次 LLM 调用同时计入「run 累计器」和「当前函数的桶」。
+ContextVar 天然按线程隔离，并发跑不同函数时不会互相串账；一次 run 内把各函数的
+桶求和即等于该 run 的 usage（可作为交叉校验）。
+供 RQ1 各模式共用的 LLM 封装；与等预算口径打通。
 """
 
 from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -17,7 +25,13 @@ from respfuzzer.utils.llm_helper import SimpleLLMClient
 
 _RQ1_TEMPERATURE = 0.7
 
+#: 一次资源统计的四个通道（run 累计器与每函数桶共用同一组键）
+USAGE_KEYS = ("calls", "prompt_tokens", "completion_tokens", "total_tokens")
 
+#: 当前作用域的每函数统计桶（MC6-5）；None = 不做归因（run 外/未开启）
+_bucket_var: ContextVar[dict[str, int] | None] = ContextVar(
+    "rq1_usage_bucket", default=None
+)
 def _safe_int(obj: Any, attr: str) -> int:
     """从 usage 对象取整数字段；缺失/异常→0（不抛，ut-F5-4）。"""
     try:
@@ -25,6 +39,23 @@ def _safe_int(obj: Any, attr: str) -> int:
         return int(value) if value is not None else 0
     except (TypeError, ValueError):
         return 0
+
+@contextmanager
+def usage_bucket() -> Iterator[dict[str, int]]:
+    """开启一个「按函数归因」的资源统计桶【MC6-5】。
+
+    桶只对**当前线程**生效（``ContextVar`` 按线程隔离），并发跑多个函数时各自的
+    LLM 调用互不串账；退出作用域自动还原外层桶（可嵌套）。返回的 dict 由调用方
+    持有，run 结束后可与该 run 的 usage 交叉校验（各函数之和 == run 总量）。
+    """
+    token = _bucket_var.set({key: 0 for key in USAGE_KEYS})
+    try:
+        bucket = _bucket_var.get()
+        if bucket is None:  # 刚 set 过，不可能为 None；防御性分支
+            raise RuntimeError("usage_bucket 初始化失败")
+        yield bucket
+    finally:
+        _bucket_var.reset(token)
 
 
 @dataclass
@@ -37,15 +68,27 @@ class UsageCounter:
     total_tokens: int = 0
     _lock: Any = field(default_factory=threading.Lock, repr=False, compare=False, init=False)
     def record(self, response: Any) -> None:
-        """累计一次 response：calls+1；usage 缺失/异常时 token 记 0（不抛）。"""
+        """累计一次 response：calls+1；usage 缺失/异常时 token 记 0（不抛）。
+
+        若当前处于 ``usage_bucket()`` 作用域（MC6-5 每函数归因），同一笔增量
+        也会写入该函数的桶——两次写入互不覆盖，run 累计器与桶始终可对账。
+        """
+        usage = getattr(response, "usage", None)
+        delta = {
+            "calls": 1,
+            "prompt_tokens": _safe_int(usage, "prompt_tokens"),
+            "completion_tokens": _safe_int(usage, "completion_tokens"),
+            "total_tokens": _safe_int(usage, "total_tokens"),
+        }
         with self._lock:
-            self.calls += 1
-            usage = getattr(response, "usage", None)
-            if usage is None:
-                return
-            self.prompt_tokens += _safe_int(usage, "prompt_tokens")
-            self.completion_tokens += _safe_int(usage, "completion_tokens")
-            self.total_tokens += _safe_int(usage, "total_tokens")
+            self.calls += delta["calls"]
+            self.prompt_tokens += delta["prompt_tokens"]
+            self.completion_tokens += delta["completion_tokens"]
+            self.total_tokens += delta["total_tokens"]
+        bucket = _bucket_var.get()
+        if bucket is not None:
+            for key, value in delta.items():
+                bucket[key] = bucket.get(key, 0) + value
 
     def as_dict(self) -> dict[str, int]:
         with self._lock:
