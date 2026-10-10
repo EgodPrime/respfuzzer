@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib
 
-import respfuzzer.lib.rq1.extended as ext
+import experiments.RQ1.engine.extended as ext
 from respfuzzer.models import Function
 
 

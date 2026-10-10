@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from respfuzzer.lib.rq1.modes import extract_code, run_static_loop
+from experiments.RQ1.engine.modes import extract_code, run_static_loop
 from respfuzzer.models import Function
 
 FN = Function(func_name="math.sqrt", library_name="math", source="", args=[])

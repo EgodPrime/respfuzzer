@@ -9,8 +9,8 @@
 
 from __future__ import annotations
 
-import respfuzzer.lib.rq1.aggregate as agg
-from respfuzzer.lib.rq1.aggregate import WideTable
+import experiments.RQ1.engine.aggregate as agg
+from experiments.RQ1.engine.aggregate import WideTable
 
 
 def _rows(mode, run, func, covered, funcs_per_run=3):
@@ -123,7 +123,7 @@ def test_function_fraction_missing_run_excluded():
 
 def test_aggregate_end_to_end_driver_rows(tmp_path):
     """it-F10：真实 run 产物 → function_covered → 宽表 → 每库数值 sanity。"""
-    from respfuzzer.lib.rq1.driver import run_experiment
+    from experiments.RQ1.engine.driver import run_experiment
     from respfuzzer.models import Function
 
     funcs = [

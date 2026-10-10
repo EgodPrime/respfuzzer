@@ -4,7 +4,7 @@
 （HTTPEmbeddingProvider → POST /v1/embeddings），用于 RAG 冒烟与测试。
 
 运行（前台）：
-    uv run python -m respfuzzer.lib.rq1.embedding_mock --port 8123
+    python -m experiments.RQ1.engine.embedding_mock --port 8123  # 需仓库根在 sys.path
 
 作为库使用（测试内嵌）：
     srv = EmbeddingMockServer(port=0)   # 0 → 随机端口
@@ -25,7 +25,7 @@ import logging
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from respfuzzer.lib.rq1.rag_index import _stable_vec  # 复用确定性向量
+from .rag_index import _stable_vec  # 复用确定性向量
 
 logger = logging.getLogger(__name__)
 

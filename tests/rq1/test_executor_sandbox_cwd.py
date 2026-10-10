@@ -3,8 +3,8 @@
 
 from pathlib import Path
 
+from experiments.RQ1.engine.executor import RQ1Executor
 from respfuzzer.lib.agentic_function_resolver import QueitExecutor
-from respfuzzer.lib.rq1.executor import RQ1Executor
 from respfuzzer.models import ExecutionResultType, Function
 
 

@@ -12,8 +12,8 @@ from __future__ import annotations
 import openai
 import pytest
 
-from respfuzzer.lib.rq1.embedding_mock import EmbeddingMockServer
-from respfuzzer.lib.rq1.rag_index import (
+from experiments.RQ1.engine.embedding_mock import EmbeddingMockServer
+from experiments.RQ1.engine.rag_index import (
     FakeEmbeddingProvider,
     HTTPEmbeddingProvider,
     RAGIndex,
@@ -101,8 +101,8 @@ def test_http_provider_unreachable_raises():
 
 def test_driver_rag_end_to_end_with_mock(server, tmp_path):
     """driver rag 模式注入 mock provider → 完整 run 产物（冒烟级端到端）。"""
-    from respfuzzer.lib.rq1.driver import merge_results, run_experiment
-    from respfuzzer.lib.rq1.table import check_artifacts
+    from experiments.RQ1.engine.driver import merge_results, run_experiment
+    from experiments.RQ1.engine.table import check_artifacts
 
     funcs = [
         Function(

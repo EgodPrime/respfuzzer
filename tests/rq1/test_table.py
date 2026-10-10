@@ -7,8 +7,8 @@
 
 from __future__ import annotations
 
-from respfuzzer.lib.rq1.driver import run_experiment
-from respfuzzer.lib.rq1.table import (
+from experiments.RQ1.engine.driver import run_experiment
+from experiments.RQ1.engine.table import (
     build_report,
     check_artifacts,
 )

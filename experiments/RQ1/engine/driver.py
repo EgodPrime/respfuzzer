@@ -25,22 +25,23 @@ from pathlib import Path
 from typing import Any
 
 import respfuzzer.lib.agentic_function_resolver as agentic
-from respfuzzer.lib.exec_lock import EXEC_LOCK
-from respfuzzer.lib.rq1.counting import CountingLLM, UsageCounter
-from respfuzzer.lib.rq1.executor import RQ1Executor
-from respfuzzer.lib.rq1.extended import source_slice_for
-from respfuzzer.lib.rq1.manifest import (
-    build_decode_config,
-    build_manifest,
-    write_manifest,
-)
-from respfuzzer.lib.rq1.modes import CandidateRecord, FunctionRun, run_static_loop
-from respfuzzer.lib.rq1.rag_index import index_for_library
-from respfuzzer.lib.rq1.seeding import derive_run_seed, seed_run, shuffled
 from respfuzzer.models import Function
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.llm_helper import SimpleLLMClient
+
+from .counting import CountingLLM, UsageCounter
+from .exec_lock import EXEC_LOCK
+from .executor import RQ1Executor
+from .extended import source_slice_for
+from .manifest import (
+    build_decode_config,
+    build_manifest,
+    write_manifest,
+)
+from .modes import CandidateRecord, FunctionRun, run_static_loop
+from .rag_index import index_for_library
+from .seeding import derive_run_seed, seed_run, shuffled
 
 logger = logging.getLogger(__name__)
 

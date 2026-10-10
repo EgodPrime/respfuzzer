@@ -29,7 +29,7 @@ from typing import Any
 
 # 代码执行全局串行锁：LLM 请求并发，但子进程代码执行一次只允许一个并行。
 # 多线程并发 fork 大库（torch/pandas/paddle 各 ~1-2GB）会瞬间峰值超 15GB → OOM/段错误。
-from respfuzzer.lib.exec_lock import EXEC_LOCK as _EXEC_LOCK
+from .exec_lock import EXEC_LOCK as _EXEC_LOCK
 
 
 def _sandbox_dir() -> Path:

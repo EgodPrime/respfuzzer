@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import re
 
-from respfuzzer.lib.rq1.driver import merge_results, run_experiment
+from experiments.RQ1.engine.driver import merge_results, run_experiment
 from respfuzzer.models import Function
 
 
@@ -184,7 +184,7 @@ def test_f1_rag_requires_library(tmp_path):
 def test_target_importable_shortcut():
     """ours 短路探测：运行时不可导入目标（pyi 私有路径）→ False，
     占位 covered=False 与对照 CALLFAIL 对齐（paddle.amp.* 类省巨额无效 solve）。"""
-    from respfuzzer.lib.rq1.driver import _target_module_importable
+    from experiments.RQ1.engine.driver import _target_module_importable
 
     assert _target_module_importable("numpy.linalg.norm") is True
     assert _target_module_importable("nonexistent_mod.foo") is False
@@ -218,7 +218,7 @@ def test_rag_retrieval_full_pool_and_excludes_self(tmp_path):
     for prompt in llm.prompts:
         target = re.search(r"为(\S+)生成", prompt)
         assert target, "prompt 缺目标函数名"
-        block = re.search(r"<retrieval>\n(.*?)\n</retrieval>", prompt, flags=re.S)
+        block = re.search(r"<retrieval>\n(.*?)\n</retrieval>", prompt, flags=re.DOTALL)
         assert block, "rag prompt 未注入 <retrieval>"
         text = block.group(1)
         own_idx = target.group(1).rsplit("f", 1)[1]

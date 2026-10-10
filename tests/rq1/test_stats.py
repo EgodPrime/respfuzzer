@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import random
 
-import respfuzzer.lib.rq1.stats as st
+import experiments.RQ1.engine.stats as st
 
 
 def test_f11_constant_sample_ci_collapses_to_point():

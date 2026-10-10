@@ -8,7 +8,12 @@
 
 from __future__ import annotations
 
-from respfuzzer.lib.rq1.seeding import derive_run_seed, ed4_quota, seed_run, shuffled
+from experiments.RQ1.engine.seeding import (
+    derive_run_seed,
+    ed4_quota,
+    seed_run,
+    shuffled,
+)
 
 FUNCS = [f"f{i}" for i in range(30)]
 

@@ -10,8 +10,8 @@ import json
 from types import SimpleNamespace
 from typing import Any, cast
 
-from respfuzzer.lib.rq1.counting import CountingLLM, UsageCounter
-from respfuzzer.lib.rq1.driver import run_experiment
+from experiments.RQ1.engine.counting import CountingLLM, UsageCounter
+from experiments.RQ1.engine.driver import run_experiment
 from respfuzzer.models import Function
 from respfuzzer.utils.llm_helper import SimpleLLMClient
 

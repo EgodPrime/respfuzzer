@@ -12,7 +12,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any, cast
 
-from respfuzzer.lib.rq1.counting import CountingLLM
+from experiments.RQ1.engine.counting import CountingLLM
 from respfuzzer.utils.llm_helper import SimpleLLMClient
 
 

@@ -13,8 +13,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from respfuzzer.lib.rq1.prompts import build_prompt
 from respfuzzer.models import Function
+
+from .prompts import build_prompt
 
 
 @dataclass

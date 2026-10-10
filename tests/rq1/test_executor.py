@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from respfuzzer.lib.rq1.executor import RQ1Executor, static_gate
+from experiments.RQ1.engine.executor import RQ1Executor, static_gate
 from respfuzzer.models import Function
 
 executor = RQ1Executor(timeout=5.0)

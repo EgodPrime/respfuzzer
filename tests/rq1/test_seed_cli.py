@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from respfuzzer.cmd import rq1_seed
+from experiments.RQ1 import rq1_seed
 
 
 def _write_manifest(run_dir: Path, usage: dict) -> None:

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from respfuzzer.lib.rq1.rag_index import (
+from experiments.RQ1.engine.rag_index import (
     FakeEmbeddingProvider,
     HTTPEmbeddingProvider,
     RAGIndex,
@@ -104,7 +104,7 @@ def test_f8_configured_embedding_ok_even_no_fake():
 def test_f8_dev_default_fake(monkeypatch):
     """开发默认（allow_fake=True）且 embedding 未配置 → fake provider + 不抛。"""
     monkeypatch.setattr(
-        "respfuzzer.lib.rq1.rag_index.get_config", lambda section: {}
+        "experiments.RQ1.engine.rag_index.get_config", lambda section: {}
     )
     assert isinstance(
         make_embedding_provider(cfg=None, allow_fake=True), FakeEmbeddingProvider

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import subprocess
 
-from respfuzzer.lib.rq1 import manifest as m
+from experiments.RQ1.engine import manifest as m
 
 LLM_CFG = {
     "model_name": "Qwen3.6-35B-A3B",

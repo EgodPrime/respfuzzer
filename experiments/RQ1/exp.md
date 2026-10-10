@@ -2,6 +2,40 @@
 
 > Note: we use {RESPFUZZER} to denote the root directory of the RespFuzzer repo.
 
+## RQ1 seed 质量实验引擎（5 模式，MC6-2）
+
+RQ1 的对照实验引擎位于 `experiments/RQ1/engine/`（实验专属代码，不进 `src/respfuzzer`）：
+
+| 文件 | 作用 |
+| --- | --- |
+| `prompts.py` | 5 模式 prompt（`ours` / `normal` / `prompted` / `extended` / `rag`） |
+| `modes.py` | 对照组 pass@k 引擎（任一候选覆盖即短路） |
+| `driver.py` | 多 run、随机种子、并发派发、逐候选落盘与合并 |
+| `executor.py` | 共享覆盖判定（静态门控 + 调用成功口径【MC7-1】） |
+| `extended.py` / `rag_index.py` / `embedding_mock.py` | Extended 源码切片 / **RAG 检索索引【MC6-2】** / 本地 mock embedding 服务 |
+| `counting.py` `manifest.py` `seeding.py` | 资源计数、decode/manifest 快照、run 随机种子 |
+| `aggregate.py` `stats.py` `table.py` | 配对聚合、bootstrap 与 Cliff's delta、报表 |
+| `exec_lock.py` | 代码执行与模块加载的全局串行锁 |
+
+入口（仓库根目录执行，无需 `PYTHONPATH`）：
+
+```bash
+python experiments/RQ1/rq1_seed.py --mode normal --library numpy --runs 5 --k 10
+python experiments/RQ1/rq1_seed.py --mode ours   --library math --runs 1 --limit 3
+python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-embedding  # 正式 RAG（需 [embedding]）
+```
+
+说明：
+
+- `--k` 同时是对照组 pass@k 的候选数与 `ours` 的自省预算（等预算【MC6-5】）；
+- `--mode rag` 每库建一个源码索引（语料 = 采样前整库函数池），检索片段注入 prompt 的
+  `<retrieval>`；embedding 服务读 config `[embedding]`，未配置时用确定性 fake embedding，
+  正式跑加 `--no-fake-embedding` 做显式校验；`python -m experiments.RQ1.engine.embedding_mock`
+  可起本地 mock 服务；默认剔除目标函数自身，`--rag-include-self` 可切回；
+- 产物：`runs/RQ1/<mode>/<library>/r<run>_s<seed>/{manifest,decode_config,results}` 三件套，
+  外加 `experiments/RQ1/rq1_<mode>_<library>_<ts>.log` + 同 stem 的 `*_checkpoint.json`【MC3-1】；
+- 测试在 `tests/rq1/`（由 `pyproject.toml` 的 `pythonpath = [".", "src"]` 提供搜索路径）。
+
 ## Purpose
 
 This experiment generates example programs for libraries/APIs using a large

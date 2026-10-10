@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from respfuzzer.lib.rq1.prompts import (
+from experiments.RQ1.engine.prompts import (
     DEFAULT_MODE,
     MODES,
     build_prompt,

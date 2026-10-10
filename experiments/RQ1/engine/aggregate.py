@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from respfuzzer.lib.rq1.driver import merge_results
+from .driver import merge_results
 
 _RUN_ID_RE = re.compile(r"^.*_r(\d+)_s(\d+)$")
 

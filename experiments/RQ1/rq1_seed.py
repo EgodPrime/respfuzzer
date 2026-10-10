@@ -1,9 +1,9 @@
 """RQ1 统一入口 CLI：5 模式 seed 质量实验（ours / normal / prompted / extended / rag）。
 
-用法示例：
-  uv run rq1seed --mode normal --library numpy --runs 5 --k 10 --seed 42
-  uv run rq1seed --mode ours   --library math --runs 1 --limit 3   # 冒烟子集
-  uv run rq1seed --mode rag    --library requests --no-fake-embedding  # 正式 RAG（需 [embedding]）
+用法示例（仓库根目录执行，无需 PYTHONPATH）：
+  python experiments/RQ1/rq1_seed.py --mode normal --library numpy --runs 5 --k 10
+  python experiments/RQ1/rq1_seed.py --mode ours   --library math --runs 1 --limit 3
+  python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-embedding
 
 关键约定：
 
@@ -16,19 +16,30 @@
 - **产物契约【MC3-1】**：每次运行落 ``runs/RQ1/...`` 三件套，并额外产出
   ``experiments/RQ1/rq1_<mode>_<library>_<ts>.log`` + 同 stem 的
   ``*_checkpoint.json``（含解码设置、并发数、token 与 LLM 调用次数）。
+- **代码位置**：RQ1 实验引擎（5 模式 prompt、pass@k 驱动、覆盖判定、RAG 索引等）
+  位于 ``experiments/RQ1/engine/``；``src/respfuzzer`` 只保留框架侧能力
+  （模型、静态门控、RSG 自省循环、记录器）。
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from respfuzzer.lib.rq1.aggregate import function_covered
-from respfuzzer.lib.rq1.driver import merge_results, run_experiment
-from respfuzzer.lib.rq1.manifest import build_decode_config
-from respfuzzer.lib.rq1.prompts import DEFAULT_MODE, MODES
-from respfuzzer.lib.rq1.seeding import ed4_quota
+# 以脚本方式直接运行时补齐搜索路径：仓库根 → ``experiments.*``（namespace 包），
+# ``src`` → ``respfuzzer.*``（框架侧模块）。pytest 侧由 pyproject 的 pythonpath 提供。
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
+
+from experiments.RQ1.engine.aggregate import function_covered
+from experiments.RQ1.engine.driver import merge_results, run_experiment
+from experiments.RQ1.engine.manifest import build_decode_config
+from experiments.RQ1.engine.prompts import DEFAULT_MODE, MODES
+from experiments.RQ1.engine.seeding import ed4_quota
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import start_run
@@ -131,7 +142,7 @@ def main() -> None:
         library=args.library,
         out_dir=RQ1_DIR,
         metadata={
-            "entry": "respfuzzer.cmd.rq1_seed:main",
+            "entry": "experiments/RQ1/rq1_seed.py",
             "mode": args.mode,
             "library": args.library,
             "runs": args.runs,

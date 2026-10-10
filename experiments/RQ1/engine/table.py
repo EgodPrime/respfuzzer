@@ -11,14 +11,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from respfuzzer.lib.rq1.aggregate import (
+from .aggregate import (
     WideTable,
     build_wide,
     complete_functions,
     function_fraction,
     paired_diffs,
 )
-from respfuzzer.lib.rq1.stats import cliffs_delta, paired_bootstrap_ci
+from .stats import cliffs_delta, paired_bootstrap_ci
 
 
 def library_row(
