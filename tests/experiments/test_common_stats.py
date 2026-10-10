@@ -101,6 +101,30 @@ def test_compare_to_reference_requires_reference_group():
         compare_to_reference({"ours": [1.0]}, "base")
 
 
+def test_compare_to_reference_paired_delta_ci():
+    """ut-MC3-2-E4：``paired=True`` 时 Δ 的 CI 来自同一批样本的配对差值。"""
+    a = [100.0, 0.0, 100.0, 100.0]
+    b = [100.0, 0.0, 0.0, 0.0]
+    paired = compare_to_reference({"a": a, "b": b}, "b", paired=True, n_boot=400)[0]
+    plain = compare_to_reference({"a": a, "b": b}, "b", n_boot=400)[0]
+
+    # 配对差值 [0, 0, 100, 100] → 区间必在 [0, 100] 内（非配对会把两组独立重采样）
+    assert paired["mean_diff"] == pytest.approx(50.0)
+    assert paired["diff_ci_low"] == 0.0
+    assert paired["diff_ci_high"] == 100.0
+    # Cliff's δ 是秩方法，与是否配对无关
+    assert paired["cliffs_delta"] == plain["cliffs_delta"] == 0.5
+
+
+def test_compare_to_reference_paired_falls_back_when_lengths_differ():
+    """ut-MC3-2-E5：两组不等长时回退非配对（不因 strict zip 报错）。"""
+    row = compare_to_reference(
+        {"a": [1.0, 2.0, 3.0], "b": [0.0]}, "b", paired=True, n_boot=100
+    )[0]
+    assert row["mean_diff"] == pytest.approx(2.0)
+    assert row["diff_ci_low"] is None  # b 只有 1 个样本，无从重采样
+
+
 def test_compare_to_reference_empty_group_has_no_effect_size():
     """ut-MC3-2-E3：某组 0 个样本 → 效应量与差值都不编造。"""
     rows = compare_to_reference({"ours": [], "base": [1.0, 2.0]}, "base")

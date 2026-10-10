@@ -183,6 +183,7 @@ def compare_to_reference(
     n_boot: int = DEFAULT_N_BOOT,
     alpha: float = DEFAULT_ALPHA,
     rng: random.Random | None = None,
+    paired: bool = False,
 ) -> list[dict[str, object]]:
     """把一组（同口径的）多组运行样本与 ``reference`` 对照，返回逐组统计行。
 
@@ -190,6 +191,9 @@ def compare_to_reference(
     ``ci_high`` / ``mean_diff`` / ``diff_ci_low`` / ``diff_ci_high`` /
     ``cliffs_delta`` / ``magnitude`` / ``reference``。
     对照组自身的 ``cliffs_delta`` = 0.0、差值 = 0；缺样本（n=0）时效应量为 ``None``。
+    ``paired=True`` 时 Δ 的 CI 改用**同一批样本的配对差值** bootstrap（与 RQ1 引擎的
+    ``paired_bootstrap_ci`` 同口径）：要求两组等长，不等长时自动回退为非配对。
+    Cliff's δ 是秩方法，本身不依赖配对，两种模式下一致。
     """
     if reference not in samples_by_group:
         raise ValueError(
@@ -216,9 +220,17 @@ def compare_to_reference(
                 }
             )
         else:
-            low, high, diff = mean_diff_ci(
-                values, ref_values, n_boot=n_boot, alpha=alpha, rng=rng
-            )
+            if paired and len(values) == len(ref_values):
+                low, high, diff = mean_ci(
+                    [a - b for a, b in zip(values, ref_values, strict=True)],
+                    n_boot=n_boot,
+                    alpha=alpha,
+                    rng=rng,
+                )
+            else:
+                low, high, diff = mean_diff_ci(
+                    values, ref_values, n_boot=n_boot, alpha=alpha, rng=rng
+                )
             row.update(
                 {
                     "mean_diff": diff if values else None,
@@ -247,6 +259,7 @@ def stats_rows(
     n_boot: int = DEFAULT_N_BOOT,
     alpha: float = DEFAULT_ALPHA,
     rng: random.Random | None = None,
+    paired: bool = False,
 ) -> list[dict[str, object]]:
     """``{label: {group: samples}}`` → 逐 label 的对比行（保持输入顺序）。
 
@@ -263,6 +276,7 @@ def stats_rows(
                 n_boot=n_boot,
                 alpha=alpha,
                 rng=rng,
+                paired=paired,
             )
         )
     return rows
@@ -331,6 +345,7 @@ def stats_rows_for(
     n_boot: int = DEFAULT_N_BOOT,
     alpha: float = DEFAULT_ALPHA,
     rng: random.Random | None = None,
+    paired: bool = False,
 ) -> list[dict[str, object]]:
     """报表一条龙：排序 → 汇总行 → 逐 label 的 :func:`compare_to_reference`。
 
@@ -338,12 +353,16 @@ def stats_rows_for(
     - ``average``：追加 ``average_label`` 汇总行（只用各组都齐全的 label 的均值）；
     - ``reference`` 组在**每个** label 里都必须存在，否则抛 ``ValueError``
       （报表侧应先过滤掉缺对照组的 label，而不是静默当 0）。
+    - ``paired``：Δ 的 CI 用同一批样本的配对差值（等长时），见
+      :func:`compare_to_reference`。
     """
     ordered = _order_data(data, labels=labels, groups=groups)
     present = _groups_in(ordered, order=groups)
     if average and present:
         ordered = _average_label_data(ordered, present, label=average_label)
-    return stats_rows(ordered, reference, n_boot=n_boot, alpha=alpha, rng=rng)
+    return stats_rows(
+        ordered, reference, n_boot=n_boot, alpha=alpha, rng=rng, paired=paired
+    )
 
 
 def _num(value: object, unit: str, *, signed: bool = False) -> str:
