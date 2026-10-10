@@ -5,8 +5,8 @@
   - 函数处理顺序由 run_seed 洗牌（run 分布级变异源二）；
   - 每个函数按 mode 跑：ours=RSG 自省；normal/prompted/extended/rag=pass@k
     循环，其中 rag 的 <retrieval> 片段由本模块用每库索引检索后注入【MC6-2】，
-    五个模式共享同一 Executor，k 可全局给定、也可按 ours 的每函数实际调用次数
-    逐函数覆盖【MC6-5】；
+    五个模式共享同一 Executor，k 可全局给定、也可按 ours 在该函数上实际用掉的
+    自省轮次逐函数覆盖（单位=轮次，不对齐 LLM 调用次数）【MC6-5】；
   - 产物 runs/RQ1/<mode>/<library>/r<run_index>_s<seed>/ 下
     manifest.json + decode_config.json + results.jsonl（每候选一行）
     + budget.json（每函数 LLM 调用明细，供对照组「相同次数」驱动【MC6-5】）。
@@ -139,10 +139,13 @@ def _run_one(
 ) -> FunctionRun:
     """对单函数执行一次 run（ours=自省 / 对照=pass@k）。
 
-    ``function_budget``【MC6-5】：该 run 内逐函数给定的调用预算（key=func_name，
-    value=ours 在该函数上的实际调用次数）；命中即覆盖全局 ``k``，未命中回退 ``k``。
-    预算 ≤ 0（ours 对该函数一次都没调，如目标不可导入）→ 落占位记录
-    （covered=False、1 个空候选），否则该函数会从配对分母里消失、虚增 FC。
+    ``function_budget``【MC6-5】：该 run 内逐函数给定的**尝试轮次**（key=func_name，
+    value=ours 在该函数上成功时用掉的自省轮次；ours 耗尽预算时即预算值）；命中即
+    覆盖全局 ``k``，未命中回退 ``k``。轮次 ≤ 0（ours 一轮都没跑，如目标不可导入）
+    → 落占位记录（covered=False、1 个空候选），否则该函数会从配对分母里消失、虚增 FC。
+
+    **计量单位是轮次**：ours 的一轮自省（attempter→judger→executor(+reasoner)）
+    不等于一次 LLM 调用，RQ1 不做调用次数对齐【MC6-5 口径修正】。
     """
     k_eff = k
     if function_budget is not None:
@@ -155,30 +158,37 @@ def _run_one(
     if mode == "ours":
         if not _target_module_importable(function.func_name):
             # 运行时不可导入目标（pyi 私有路径）：与对照 CALLFAIL 一致短路
-            # 占位 False，免 solve 白耗 budget×LLM（paddle.amp.* 等）
+            # 占位 False（attempts=0），免 solve 白耗预算（paddle.amp.* 等）
             return FunctionRun(
                 function.func_name, function.library_name or "", False,
                 [CandidateRecord(1, "", False)],
             )
-        # 等预算【MC6-5】：ours 的自省预算取对照 pass@k 的 k（同一次 run 内一致）；
-        # covered 由共享 Executor 按「调用成功（无异常）」口径复判【MC7-1】。
-        code = agentic.solve(function, budget=k_eff)
+        # 等预算【MC6-5】：记下 ours 实际自省了几轮——成功即成功那一轮，
+        # 耗尽预算即 k 轮；这正是对照组要拿到的尝试次数。
+        solve_stats: dict = {}
+        code = agentic.solve(function, budget=k_eff, stats=solve_stats)
+        rounds = int(solve_stats.get("rounds", 0))
         if code is None:
             # ours 失败不静默剔除：落盘一行 covered=False（空 code 标记），
             # 保证配对完整性与 FC 口径不偏置（此前空 candidates → 函数被 removed 抬升覆盖）
-            return FunctionRun(
+            failed = FunctionRun(
                 function.func_name, function.library_name or "", False,
                 [CandidateRecord(1, "", False)],
             )
+            failed.attempts = rounds
+            return failed
         covered = bool(executor.covered(function, code))
-        return FunctionRun(
+        done = FunctionRun(
             function.func_name,
             function.library_name or "",
             covered,
             [CandidateRecord(1, code, covered)],
         )
+        done.attempts = rounds
+        return done
+
     if mode == "extended":
-        return run_static_loop(
+        result = run_static_loop(
             mode,
             function,
             k_eff,
@@ -186,7 +196,7 @@ def _run_one(
             executor,
             source_slice=source_slice_for(function),
         )
-    if mode == "rag":
+    elif mode == "rag":
         query = f"{function.func_name}\n{function.docstring or ''}"
         # 默认剔除目标函数自身：RAG 检索的是「别的函数的上下文」，不是源码直拼【MC6-2】
         exclude = None if rag_include_self else function.func_name
@@ -195,8 +205,12 @@ def _run_one(
             if index is not None
             else ""
         )
-        return run_static_loop(mode, function, k_eff, llm, executor, retrieval=retr)
-    return run_static_loop(mode, function, k_eff, llm, executor)
+        result = run_static_loop(mode, function, k_eff, llm, executor, retrieval=retr)
+    else:
+        result = run_static_loop(mode, function, k_eff, llm, executor)
+    # 对照组：一次候选生成 = 一次尝试（pass@k 短路则少于 k）
+    result.attempts = len(result.candidates)
+    return result
 
 
 def _run_one_safe(
@@ -397,10 +411,12 @@ def run_experiment(
                 ]
                 fh.writelines(lines)
 
-            # 每函数 LLM 调用明细【MC6-5】：对照组据此「以相同次数驱动」
+            # 每函数尝试轮次与资源明细【MC6-5】：对照组据此「以相同轮次驱动」
             per_function: dict[str, dict[str, int]] = {}
             for function_, fresult in completed:
-                per_function[function_.func_name] = dict(fresult.usage)
+                record = {"attempts": int(fresult.attempts)}
+                record.update(dict(fresult.usage))
+                per_function[function_.func_name] = record
                 if run_budget is not None and function_.func_name not in run_budget:
                     budget_misses += 1
             budget_payload = {
@@ -409,19 +425,25 @@ def run_experiment(
                 "run_seed": run_seed,
                 "mode": mode,
                 "k": k,
+                # 计量单位【MC6-5 口径修正】：轮次（ours=自省轮次，对照=候选尝试数），
+                # **不是** LLM 调用次数——RQ1 不做调用次数对齐
+                "unit": "attempts",
                 "budget_source": "function" if run_budget is not None else "k",
                 "budget_misses": budget_misses,
-                # 分配到的预算上限【MC6-5】：对照组应 == ours 实际用量（miss 处回退全局 k）
-                "assigned_budget_calls": (
+                # 分配到的尝试轮次上限：对照组应 == ours 成功时轮次（耗尽预算则 == k）
+                "assigned_attempts": (
                     sum(int(v) for v in run_budget.values())
                     if run_budget is not None
                     else k * len(per_function)
                 ),
+                "total_attempts": sum(
+                    int(rec.get("attempts", 0)) for rec in per_function.values()
+                ),
                 "total_llm_calls": sum(
-                    usage.get("calls", 0) for usage in per_function.values()
+                    int(rec.get("calls", 0)) for rec in per_function.values()
                 ),
                 "total_tokens": sum(
-                    usage.get("total_tokens", 0) for usage in per_function.values()
+                    int(rec.get("total_tokens", 0)) for rec in per_function.values()
                 ),
                 "per_function": per_function,
             }
@@ -433,18 +455,34 @@ def run_experiment(
                 logger.warning(
                     "MC6-5 预算未覆盖 %d 个函数（已回退全局 k=%d）", budget_misses, k
                 )
+            if (
+                budget_payload["budget_source"] == "function"
+                and budget_payload["total_attempts"]
+                > budget_payload["assigned_attempts"]
+            ):
+                # 轮次对齐自检：对照组不应超过 ours 给出的轮次上限
+                logger.warning(
+                    "MC6-5 超预算 run=%s: 尝试 %s 轮 > 分配 %s 轮",
+                    run_id,
+                    budget_payload["total_attempts"],
+                    budget_payload["assigned_attempts"],
+                )
             # run 函数跑完后回填资源计数并重写 manifest（ED-9 每 run 必吐）
             now_usage = counter.as_dict()
             manifest["usage"] = {k: now_usage[k] - run_start[k] for k in now_usage}
             manifest["budget"] = {
                 "source": budget_payload["budget_source"],
+                "unit": "attempts",
+                "assigned_attempts": budget_payload["assigned_attempts"],
+                "total_attempts": budget_payload["total_attempts"],
                 "total_llm_calls": budget_payload["total_llm_calls"],
                 "misses": budget_payload["budget_misses"],
             }
-            # 归因对账【MC6-5】：各函数调用数之和必须等于 run 内增量（否则归因漏账）
+            # 资源归因对账【MC4-3】：各函数 LLM 调用数之和 == run 内 usage 增量
+            # （只对账**调用数**；轮次是另一口径，不做此恒等式）
             if budget_payload["total_llm_calls"] != manifest["usage"].get("calls", 0):
                 logger.warning(
-                    "MC6-5 归因对账失败 run=%s: per_function=%s usage_calls=%s",
+                    "RQ1 资源归因对账失败 run=%s: per_function_calls=%s usage_calls=%s",
                     run_id,
                     budget_payload["total_llm_calls"],
                     manifest["usage"].get("calls"),

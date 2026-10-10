@@ -6,7 +6,7 @@
   python experiments/RQ1/rq1_seed.py --mode normal --library numpy --runs 5 --k 10
   python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-embedding
 
-  # MC6-5 等预算全流程：先跑 ours 记录 LLM 调用次数，再以相同次数驱动其余对照组
+  # MC6-5 等预算全流程：先跑 ours 记录自省轮次，再让其余对照组尝试相同轮次
   python experiments/RQ1/rq1_seed.py --library numpy --runs 5 --k 10 --mc6-5
 
   # 只补跑某个对照组（沿用已落盘的 ours 预算）
@@ -18,11 +18,12 @@
   该库函数源码索引上做 top-k 检索，把片段注入 prompt 的 ``<retrieval>`` 段。
   embedding 服务来自 config ``[embedding]``；未配置时默认确定性 fake embedding
   （仅开发/测试），正式跑传 ``--no-fake-embedding``——未配置即显式报错，不静默。
-- **等预算【MC6-5】**：``--mc6-5`` 先跑 ours（RespFuzzer），按 run×函数记录它
-  实际消耗的 LLM 调用次数（``budget.json``），再把该次数作为 pass@k 的 k 逐函数
-  地喂给 normal / prompted / extended / rag——即「相同次数驱动其他所有对照组」。
-  对照组 pass@k 命中即短路，因此**实际用量 ≤ ours**（预算是上限，不会超）；
-  ours 自身仍受全局 ``--k`` 封顶。
+- **等预算【MC6-5】**：``--mc6-5`` 先跑 ours（RespFuzzer），按 run×函数记录它的
+  **自省轮次**（``budget.json``，``unit=attempts``）——成功时记到成功那一轮，耗尽
+  预算时记到 ``--k``——再把该轮次作为 pass@k 的 k 逐函数喂给 normal / prompted /
+  extended / rag。**单位是轮次，不是 LLM 调用次数**（一轮自省含 attempter/judger/
+  reasoner 多次调用，RQ1 不做调用数对齐，调用与 token 只作资源记录）。
+  对照组 pass@k 命中即短路，因此**实际尝试 ≤ 分配轮次**。
 - **产物契约【MC3-1】**：每个模式一次运行各落一个 ``experiments/RQ1/
   rq1_<mode>_<library>_<ts>.log`` + 同 stem 的 ``*_checkpoint.json``（含解码设置、
   并发数、token 与 LLM 调用次数）；``--mc6-5`` 额外产出等预算计划
@@ -90,21 +91,21 @@ def _usage_totals(outdir: str, mode: str, library: str | None) -> dict:
     return {"total": total, "per_run": per_run}
 
 
-def _budget_total(outdir: str, mode: str, library: str | None) -> int:
-    """该 mode 各 run ``budget.json`` 的**实际** LLM 调用数之和（归因口径，无则 0）。"""
+def _attempts_total(outdir: str, mode: str, library: str | None) -> int:
+    """该 mode 各 run ``budget.json`` 的**实际尝试轮次**之和【MC6-5】（无则 0）。"""
     return sum(
-        int(payload.get("total_llm_calls", 0) or 0)
+        int(payload.get("total_attempts", 0) or 0)
         for payload in _iter_budget_payloads(outdir, mode, library)
     )
 
 
-def _budget_assigned_total(outdir: str, mode: str, library: str | None) -> int:
-    """该 mode 各 run 分配到的**预算上限**之和【MC6-5】（对照组应 == ours 实际用量）。"""
+def _assigned_attempts_total(outdir: str, mode: str, library: str | None) -> int:
+    """该 mode 分配到的**尝试轮次上限**之和（对照组应 == ours 成功/耗尽时的轮次）。"""
     total = 0
     for payload in _iter_budget_payloads(outdir, mode, library):
-        assigned = payload.get("assigned_budget_calls")
+        assigned = payload.get("assigned_attempts")
         total += int(
-            assigned if assigned is not None else payload.get("total_llm_calls", 0) or 0
+            assigned if assigned is not None else payload.get("total_attempts", 0) or 0
         )
     return total
 
@@ -124,8 +125,10 @@ def _iter_budget_payloads(outdir: str, mode: str, library: str | None) -> list[d
 def _load_function_budget(
     outdir: str, source_mode: str, library: str | None
 ) -> dict[str, dict[str, int]]:
-    """读取某模式各 run 的 ``budget.json`` → ``{str(run_seed): {func_name: calls}}``。
+    """读取某模式各 run 的 ``budget.json`` → ``{str(run_seed): {func_name: attempts}}``。
 
+    取的是**尝试轮次**（ours 的自省轮次），**不是** LLM 调用次数【MC6-5 口径修正】：
+    ours 成功时给到成功那一轮，耗尽预算时给到 ``--k``。
     各模式的 ``run_seed`` 由 ``derive_run_seed(base_seed, run_index)`` 派生、与模式
     无关，因此同一 run 序号在 ours 与对照组之间天然对齐【MC6-5】。
     """
@@ -138,8 +141,11 @@ def _load_function_budget(
             print(f"[MC6-5] 跳过损坏的 budget 文件 {path}: {exc}", flush=True)
             continue
         per_function: dict[str, int] = {}
-        for func_name, usage in (payload.get("per_function") or {}).items():
-            per_function[func_name] = int(usage.get("calls", 0) or 0)
+        for func_name, rec in (payload.get("per_function") or {}).items():
+            attempts = rec.get("attempts")
+            per_function[func_name] = int(
+                attempts if attempts is not None else rec.get("calls", 0) or 0
+            )
         budget[str(payload.get("run_seed"))] = per_function
     return budget
 
@@ -217,8 +223,9 @@ def _run_mode(
                 round(sum(per_func.values()) / len(per_func), 4) if per_func else None
             ),
             "llm_calls": usage["total"]["calls"],  # token/调用次数【MC4-3】
-            "attributed_llm_calls": _budget_total(args.outdir, mode, args.library),
-            "assigned_llm_calls": _budget_assigned_total(
+            # 尝试轮次【MC6-5】：ours=自省轮次，对照=候选尝试数（调用次数仅记录不对齐）
+            "attempts": _attempts_total(args.outdir, mode, args.library),
+            "assigned_attempts": _assigned_attempts_total(
                 args.outdir, mode, args.library
             ),
             "usage": usage,
@@ -246,17 +253,19 @@ def _run_mode(
 
 
 def run_mc6_5(args) -> dict:
-    """MC6-5 编排：先跑 ours 记录 LLM 调用次数，再以相同次数驱动其余对照组。
+    """MC6-5 编排：先跑 ours 记录自省轮次，再让其余对照组尝试相同轮次。
 
     流程：
-      1. 跑 ``ours``（RespFuzzer）——全局 ``--k`` 只是它的封顶，实际用量按函数记账；
-      2. 读 ``runs/RQ1/ours/<lib>/r*_s*/budget.json`` 得到 ``{run_seed: {func: calls}}``；
+      1. 跑 ``ours``（RespFuzzer）——全局 ``--k`` 只是它的自省封顶，每函数记下
+         **实际用了几轮**（成功 → 成功那一轮；耗尽预算 → ``--k``）；
+      2. 读 ``runs/RQ1/ours/<lib>/r*_s*/budget.json`` 得到 ``{run_seed: {func: attempts}}``；
       3. 逐个跑对照组（``--controls``，默认 normal/prompted/extended/rag），
-         把同一 run_seed 的每函数调用数当作 pass@k 的 k；
-      4. 汇总各模式用量，写 ``runs/RQ1/mc65_plan_<library>_<ts>.json`` 留证。
+         把同一 run_seed 的每函数轮次当作 pass@k 的 k；
+      4. 汇总各模式尝试与调用量，写 ``runs/RQ1/mc65_plan_<library>_<ts>.json`` 留证。
 
-    口径：**等预算（上限相等）**。对照组 pass@k 命中即短路，实际用量 ≤ ours；
-    预算总额（各函数 k 之和）== ours 实际总额，故总次数可直接对账。
+    口径：**等轮次**（`unit=attempts`），**不对齐 LLM 调用次数**（一轮自省含
+    attempter/judger/reasoner 多次调用）。对照组 pass@k 命中即短路，
+    实际尝试 ≤ 分配轮次。
     """
     controls = _parse_controls(args.controls)
     summaries: list[dict] = [_run_mode(args, "ours")]
@@ -277,6 +286,7 @@ def run_mc6_5(args) -> dict:
 
     plan = {
         "mc6_5": True,
+        "unit": "attempts",  # 轮次口径【MC6-5 口径修正】：不以 LLM 调用次数对齐
         "library": args.library,
         "runs": args.runs,
         "seed": args.seed,
@@ -284,16 +294,17 @@ def run_mc6_5(args) -> dict:
         "k_cap": args.k,
         "concurrency": args.concurrency,
         "budget_source": "ours",
-        "budget_total_llm_calls": budget_total,
+        "budget_total_attempts": budget_total,
         "budget_per_run": {
-            run_seed: {"functions": len(per_func), "llm_calls": sum(per_func.values())}
+            run_seed: {"functions": len(per_func), "attempts": sum(per_func.values())}
             for run_seed, per_func in sorted(budget.items())
         },
         "modes": summaries,
         "equal_budget": True,
         "note": (
-            "对照组按 ours 每函数实际 LLM 调用次数给等额预算（pass@k 短路可少用，"
-            "实际用量 ≤ ours；ours 自身仍受 --k 封顶）"
+            "对照组按 ours 每函数的自省轮次给等额尝试次数：ours 成功 → 成功那一轮，"
+            "ours 耗尽预算 → --k 轮；pass@k 短路可少用（实际尝试 ≤ 分配）。"
+            "RQ1 不对齐 LLM 调用次数，调用数仅作资源记录"
         ),
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
@@ -303,15 +314,17 @@ def run_mc6_5(args) -> dict:
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     plan_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print("\n=== MC6-5 等预算对照（预算基准 = ours 实际调用次数）===", flush=True)
-    print(f"预算基准: {budget_total} 次 LLM 调用（{len(budget)} 个 run）", flush=True)
+    print("\n=== MC6-5 等预算对照（单位=尝试轮次，基准 = ours 自省轮次）===", flush=True)
+    print(f"轮次基准: {budget_total} 轮（{len(budget)} 个 run）", flush=True)
     for summary in summaries:
         is_baseline = summary["mode"] == "ours"
-        cap = budget_total if is_baseline else summary.get("assigned_llm_calls", 0)
+        assigned = (
+            budget_total if is_baseline else summary.get("assigned_attempts", 0)
+        )
         print(
-            f"  {summary['mode']:<10} 实际 {summary['llm_calls']:>6} 次"
-            f"（{'预算基准' if is_baseline else '分配预算'} {cap}，"
-            f"归因记账 {summary.get('attributed_llm_calls', summary['llm_calls'])}）"
+            f"  {summary['mode']:<10} 实际尝试 {summary.get('attempts', 0):>4} 轮"
+            f"（{'基准' if is_baseline else '分配'} {assigned} 轮，"
+            f"LLM 调用 {summary['llm_calls']} 次）"
             f"  fc_passk={summary['fc_passk']}",
             flush=True,
         )
@@ -375,7 +388,7 @@ def main() -> None:
         "--mc6-5",
         dest="mc6_5",
         action="store_true",
-        help="【MC6-5】先跑 ours 记录 LLM 调用次数，再用相同次数驱动其余对照组",
+        help="【MC6-5】先跑 ours 记录自省轮次，再让其余对照组尝试相同轮次",
     )
     parser.add_argument(
         "--controls",

@@ -24,17 +24,19 @@ python experiments/RQ1/rq1_seed.py --mode normal --library numpy --runs 5 --k 10
 python experiments/RQ1/rq1_seed.py --mode ours   --library math --runs 1 --limit 3
 python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-embedding  # 正式 RAG（需 [embedding]）
 
-  # 【MC6-5】先跑 ours 记录 LLM 调用次数，再以相同次数驱动其余对照组
+  # 【MC6-5】先跑 ours 记录自省轮次，再让其余对照组尝试相同轮次
   python experiments/RQ1/rq1_seed.py --library yaml --runs 5 --k 10 --mc6-5
 ```
 
 说明：
 
-- **等预算【MC6-5】**：`--mc6-5` 先跑 `ours`（RespFuzzer），按 run×函数记录它实际
-  消耗的 LLM 调用次数（`budget.json`），再把该次数逐函数当作 pass@k 的 k 去驱动
-  normal / prompted / extended / rag；单组补跑用 `--mode <m> --budget-from ours`。
-  `--k` 只是 ours 的自省轮次封顶与「预算缺函数」时的兜底值；对照组 pass@k 短路
-  可少用，实际用量 ≤ 基准；
+- **等预算【MC6-5】**：`--mc6-5` 先跑 `ours`（RespFuzzer），按 run×函数记录它的
+  **自省轮次**（`budget.json`，`unit=attempts`：成功 → 成功那一轮，耗尽预算 → `--k`），
+  再把该轮次逐函数当作 pass@k 的 k 去驱动 normal / prompted / extended / rag；
+  单组补跑用 `--mode <m> --budget-from ours`。**单位是轮次而不是 LLM 调用次数**
+  （一轮自省含 attempter/judger/reasoner 多次调用，RQ1 不做调用数对齐）；
+  对照组 pass@k 短路可少用，实际尝试 ≤ 分配轮次；`--k` 只是 ours 的自省封顶与
+  「预算缺函数」时的兜底值；
 - `--mode rag` 每库建一个源码索引（语料 = 采样前整库函数池），检索片段注入 prompt 的
   `<retrieval>`；embedding 服务读 config `[embedding]`，未配置时用确定性 fake embedding，
   正式跑加 `--no-fake-embedding` 做显式校验；`python -m experiments.RQ1.engine.embedding_mock`

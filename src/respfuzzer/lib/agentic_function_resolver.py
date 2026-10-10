@@ -400,24 +400,34 @@ class Judger:
         raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
 
-def solve(function: Function, budget: int = 10) -> Optional[str]:
+def solve(
+    function: Function, budget: int = 10, stats: dict | None = None
+) -> Optional[str]:
     """反射式种子生成主循环（SCE + RCM 自省）。
 
     Args:
         function: 目标函数。
-        budget: 自省预算——attempter/judger/executor 任一环节失败即扣 1，扣到 0 停。
-            默认 10 保持历史行为；RQ1 里传入与对照 pass@k 相同的 ``k``，
-            使 ours 与各对照组在同一次 run 中拿到相同次数的 LLM 调用【MC6-5】。
+        budget: 自省预算——每轮失败扣 1，扣到 0 停（默认 10 保持历史行为）。
+        stats: 可选出参，回填本次自省的计量：``rounds``（实际自省轮次）、
+            ``budget``（给定预算）、``budget_left``、``solved``、``exhausted``
+            （是否耗尽预算）。RQ1 用它把「ours 成功用了几轮 / 是否耗尽」记账，
+            从而驱动对照组的尝试轮次【MC6-5】——**单位是轮次，不是 LLM 调用次数**。
+
+    Returns:
+        成功的代码字符串；失败返回 ``None``。
     """
     attempter = Attempter()
     judger = Judger()
     executor = QueitExecutor()
     reasoner = Reasoner()
+    initial_budget = budget
+    rounds = 0
 
     history: List[dict] = []
     solved = False
     code = None
     while True:
+        rounds += 1  # 一轮自省 = attempter → judger → executor(+reasoner) 一个来回
         # generate may raise; handle and record the error into history so we can save it later
         try:
             code = attempter.generate(function, history)
@@ -480,6 +490,17 @@ def solve(function: Function, budget: int = 10) -> Optional[str]:
             if budget == 0:
                 break
             continue
+
+    if stats is not None:
+        stats.update(
+            {
+                "rounds": rounds,
+                "budget": initial_budget,
+                "budget_left": budget,
+                "solved": solved,
+                "exhausted": budget <= 0,  # 耗尽预算 → 对照组按约定拿满预算轮次【MC6-5】
+            }
+        )
 
     if solved:
         return code
