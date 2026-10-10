@@ -1,7 +1,7 @@
 [llm]
 base_url = "https://api.openai.com/v1"
 api_key = "sk-xxxxxxx" # your OpenAI API key
-model_name = "gpt-4-0613"
+model_name = "Qwen3.6-35B-A3B" # one of [Llama-3.1-8B-Instruct, Qwen3.6-35B-A3B, gpt-oss-120b]
 temperature = 0.7
 
 [redis]
@@ -15,12 +15,16 @@ deterministic_mode = true
 llm_fuzz_per_seed = 10
 data_fuzz_per_seed = 10
 max_try_per_seed = 10
-max_workers = 50
+max_workers = 10
+# 预算模式: llm_calls (固定LLM调用次数,默认) / wall_clock (固定运行时间秒) / executions (固定实际执行次数)
+budget_mode = "llm_calls"
+# 预算值,默认使用 llm_fuzz_per_seed
+# budget_value = 10
 
 [llm_mutator]
 base_url = "https://api.openai.com/v1"
 api_key = "sk-xxxxxxx" # your OpenAI API key
-model_name = "gpt-4-0613"
+model_name = "Qwen3.6-35B-A3B" # one of [Llama-3.1-8B-Instruct, Qwen3.6-35B-A3B, gpt-oss-120b]
 temperature = 0.7
 
 [reflective_seeder]
@@ -33,3 +37,14 @@ strategy = 1
 concurrency = 10
 execution_timeout = 5.0
 llm_fuzz_per_seed = 100
+# 预算模式: llm_calls (固定LLM调用次数,默认) / wall_clock (固定运行时间秒) / executions (固定实际执行次数)
+budget_mode = "llm_calls"
+# 预算值,默认使用 llm_fuzz_per_seed
+# budget_value = 100
+
+[dyfuzz]
+# 预算模式: llm_calls (固定执行次数,默认) / wall_clock (固定运行时间秒)
+# DyFuzz 不使用 LLM,所以 llm_calls 和 executions 等价
+budget_mode = "llm_calls"
+# 预算值,默认每个 API 执行 50 次
+budget_value = 50
