@@ -7,11 +7,21 @@ Cols: 12 libraries (coverage %) + Average + #Time
 Multiple log files per (fuzzer, library) are automatically averaged.
 """
 
-import glob
-import re
-import os
 import datetime
+import glob
+import os
+import re
+import sys
 from collections import defaultdict
+from collections.abc import Callable
+from pathlib import Path
+
+#: 以脚本方式直接运行时补齐仓库根搜索路径（与 ``experiments/RQ1`` 各入口一致）
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from experiments.common.stats import format_stats_table, stats_rows_for
 
 COV_TOTAL_MAP = {
     'nltk': 52257,
@@ -100,17 +110,20 @@ def extract_final_coverage_and_time(log_path: str):
     return last_coverage, elapsed
 
 
-def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
+def collect_runs(
+    log_dir: str,
+) -> tuple[dict[str, dict[str, list[int]]], dict[str, dict[str, list[int]]]]:
     """
-    Scan all RQ3-*.log files, extract fuzzer + library + final coverage + elapsed time.
     Scan all rq3_*.log files, extract fuzzer + library + final coverage + elapsed time.
-    Multiple log files per (fuzzer, library) are automatically averaged.
 
-    Returns (coverage_data, time_data):
-      coverage_data: {fuzzer: {library: avg_coverage}}  (float for averaging)
-      time_data:      {fuzzer: {library: avg_elapsed_seconds}}  (int)
+    保留**逐次运行**的原始值【MC3-2】：置信区间与效应量必须基于每次运行的样本，
+    只有均值无从估计不确定性。
+
+    Returns (cov_runs, time_runs):
+      cov_runs:  {fuzzer: {library: [coverage_per_run, ...]}}
+      time_runs: {fuzzer: {library: [elapsed_seconds_per_run, ...]}}
     """
-    # Collect raw values per (fuzzer, library) for averaging
+    # Collect raw values per (fuzzer, library)
     cov_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
     time_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
 
@@ -147,18 +160,39 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str
             time_accum[fuzzer_name][library].append(elapsed)
         print(f"  {fuzzer_name:12s} | {library:12s} -> cov={coverage:>6d}  time={elapsed}s")
 
+    return (
+        {fuzzer: dict(libs) for fuzzer, libs in cov_accum.items()},
+        {fuzzer: dict(libs) for fuzzer, libs in time_accum.items()},
+    )
+
+
+def average_runs(
+    cov_runs: dict[str, dict[str, list[int]]],
+    time_runs: dict[str, dict[str, list[int]]],
+) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
+    """
+    按 (fuzzer, library) 对多次运行取均值（原报表口径；逐次样本见 ``collect_runs``）。
+
+    Args:
+        cov_runs / time_runs: ``collect_runs`` 返回的逐次运行原始值。
+
+    Returns (coverage_data, time_data):
+      coverage_data: {fuzzer: {library: avg_coverage}}  (float for averaging)
+      time_data:     {fuzzer: {library: avg_elapsed_seconds}}  (int)
+    """
+
     # Average across multiple logs per (fuzzer, library)
     coverage_results: dict[str, dict[str, float]] = {}
     time_results: dict[str, dict[str, int]] = {}
 
-    for fuzzer in cov_accum:
+    for fuzzer in cov_runs:
         coverage_results[fuzzer] = {}
         time_results[fuzzer] = {}
-        for lib, covs in cov_accum[fuzzer].items():
+        for lib, covs in cov_runs[fuzzer].items():
             avg_cov = sum(covs) / len(covs)
             coverage_results[fuzzer][lib] = avg_cov
-            if fuzzer in time_accum and lib in time_accum[fuzzer]:
-                times = time_accum[fuzzer][lib]
+            if fuzzer in time_runs and lib in time_runs[fuzzer]:
+                times = time_runs[fuzzer][lib]
                 time_results[fuzzer][lib] = round(sum(times) / len(times))
             else:
                 time_results[fuzzer][lib] = 0
@@ -170,6 +204,13 @@ def parse_log_files(log_dir: str) -> tuple[dict[str, dict[str, float]], dict[str
             print(f"  [AVG] {fuzzer:12s} | {lib:12s} -> cov={cov:>8.1f}  time={t}s")
 
     return coverage_results, time_results
+
+
+def parse_log_files(
+    log_dir: str,
+) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, int]]]:
+    """历史接口：``collect_runs``（逐次样本）+ ``average_runs``（求均值）。"""
+    return average_runs(*collect_runs(log_dir))
 
 
 def cov_percent(coverage: float, lib: str) -> str:
@@ -188,7 +229,7 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
         rows: DyFuzz | Fuzz4All | RespFuzzer
         cols: 12 library names + Average + #Time
     """
-    fuzzers = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
+    fuzzers = FUZZER_ORDER
 
     libs = DISPLAY_ORDER
 
@@ -226,9 +267,107 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
     return "\n".join(lines)
 
 
+#: 报表行序（表 V 的三个 fuzzer）
+FUZZER_ORDER = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
+
+#: 效应量对照组：其余 fuzzer 的均值差与 Cliff's δ 都相对它计算【MC3-2】
+REFERENCE_FUZZER = "RespFuzzer"
+
+#: 跨库汇总行的 label（把各库均值当作独立样本）
+AVERAGE_LABEL = "Average"
+
+#: 统计表脚注
+_STATS_NOTE = (
+    "> 每行基于**每次独立运行**的样本：`mean±sd` 与 `95% CI`（percentile bootstrap，"
+    "B=2000，固定 seed 可复现）；`Δ` 是相对对照组的均值差及其 95% CI；`Cliff's δ` 是"
+    "效应量（>0 表示该组更高；|δ|<0.147 negligible、<0.33 small、<0.474 medium、其余 large）。"
+    f"`{AVERAGE_LABEL}` 行只取**各组都有数据**的库，把库均值当作独立样本；"
+    "函数层 / 库层的配对与分层 Bootstrap 见【MC3-4】。"
+)
+
+
+def _coverage_percent(value: int, lib: str) -> float:
+    """覆盖率计数 → 百分比（与 ``cov_percent`` 同一分母口径）。"""
+    total = COV_TOTAL_MAP.get(DISPLAY_TO_COV_KEY.get(lib, lib).lower())
+    return value / total * 100 if total else float(value)
+
+
+def _seconds(value: int, _lib: str) -> float:
+    """耗时秒数（占位换算，保持 ``value_fn`` 形状一致）。"""
+    return float(value)
+
+
+def _by_library(
+    runs: dict[str, dict[str, list[int]]],
+    value_fn: Callable[[int, str], float],
+) -> dict[str, dict[str, list[float]]]:
+    """``{fuzzer: {library: [runs]}}`` → ``{library: {fuzzer: [换算后的 runs]}}``（未排序）。"""
+    by_lib: dict[str, dict[str, list[float]]] = {}
+    for fuzzer, libraries in runs.items():
+        for lib, values in libraries.items():
+            converted = [value_fn(v, lib) for v in values]
+            if converted:
+                by_lib.setdefault(lib, {})[fuzzer] = converted
+    return by_lib
+
+
+def _stats_table(
+    by_lib: dict[str, dict[str, list[float]]],
+    groups: list[str],
+    *,
+    unit: str,
+    metric: str,
+) -> str:
+    """一个指标的统计表（n / mean±sd / 95% CI / Δ / Cliff's δ）。"""
+    labels = [lib for lib in by_lib if REFERENCE_FUZZER in by_lib[lib]]
+    skipped = [lib for lib in by_lib if REFERENCE_FUZZER not in by_lib[lib]]
+    if not labels:
+        return f"（缺少对照组 {REFERENCE_FUZZER} 的日志，{metric} 的效应量无法计算，已跳过）"
+    rows = stats_rows_for(
+        {lib: by_lib[lib] for lib in labels},
+        REFERENCE_FUZZER,
+        labels=DISPLAY_ORDER,
+        groups=groups,
+        average_label=AVERAGE_LABEL,
+    )
+    table = format_stats_table(
+        rows,
+        label_header="Library",
+        group_header="Fuzzer",
+        unit=unit,
+        reference=REFERENCE_FUZZER,
+        with_diff=True,
+    )
+    if skipped:
+        table += (
+            f"\n\n> 缺少 `{REFERENCE_FUZZER}` 日志、未列入的库：{', '.join(skipped)}。"
+        )
+    return table
+
+
+def gen_stats_tables(
+    cov_runs: dict[str, dict[str, list[int]]],
+    time_runs: dict[str, dict[str, list[int]]],
+) -> str:
+    """【MC3-2】覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
+    groups = list(FUZZER_ORDER)
+    blocks = ["## Run-level statistics 【MC3-2】"]
+    for title, runs, value_fn, unit in (
+        ("Coverage (%)", cov_runs, _coverage_percent, "%"),
+        ("Time (s)", time_runs, _seconds, "s"),
+    ):
+        blocks.append(f"\n### {title}\n")
+        blocks.append(
+            _stats_table(_by_library(runs, value_fn), groups, unit=unit, metric=title)
+        )
+    blocks.append(f"\n{_STATS_NOTE}")
+    return "\n".join(blocks)
+
+
 def main():
     print(f"Scanning logs in: {LOG_DIR}\n")
-    data, time_data = parse_log_files(LOG_DIR)
+    cov_runs, time_runs = collect_runs(LOG_DIR)
+    data, time_data = average_runs(cov_runs, time_runs)
 
     print(f"\n--- Summary ---")
     for fuzzer, lib_data in data.items():
@@ -236,6 +375,9 @@ def main():
 
     print(f"\n--- Markdown Table ---")
     print(gen_markdown_table(data, time_data))
+
+    print()
+    print(gen_stats_tables(cov_runs, time_runs))
 
 
 if __name__ == "__main__":

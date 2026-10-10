@@ -9,11 +9,22 @@ report.py — RQ4 汇报脚本（新格式日志）
 最终只打印一个表格：行=模式(NL/NP/NSF/NCF/Full)，列=12个库(覆盖率%) + Average + #Time。
 """
 
-import re
 import glob
 import os
-from datetime import datetime
+import re
+import statistics
+import sys
 from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+
+#: 以脚本方式直接运行时补齐仓库根搜索路径（与 ``experiments/RQ1`` 各入口一致）
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from experiments.common.stats import format_stats_table, stats_rows_for
 
 COV_TOTAL_MAP = {
     'nltk': 52257,
@@ -135,39 +146,61 @@ def discover_logs(log_dir: str) -> dict[str, dict[str, list[str]]]:
     return dict(result)
 
 
-def build_data(log_dir: str) -> dict[str, dict[str, dict]]:
-    """构建按库分组的数据结构。
+def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
+    """扫描日志，返回**逐次运行**的原始值【MC3-2】。
 
-    同一 (library, mode) 的多份日志，对最终 coverage 和 time 取平均。
+    置信区间与效应量必须基于每次运行的样本，只有均值无从估计不确定性。
+
+    Returns:
+        {library: {mode: {"coverage": [..], "time_used": [..]}}, ...}
+    """
+    discovered = discover_logs(log_dir)
+    runs: dict[str, dict[str, dict[str, list[float]]]] = {}
+
+    for library in sorted(discovered.keys()):
+        runs[library] = {}
+        for mode in sorted(discovered[library].keys()):
+            covs: list[float] = []
+            times: list[float] = []
+            for log_path in discovered[library][mode]:
+                parsed = parse_log_file(log_path)
+                if parsed is None:
+                    print(f"WARNING: Failed to parse {log_path}, skipping.")
+                    continue
+                covs.append(float(parsed["coverage"]))
+                times.append(float(parsed["time_used"]))
+            if covs:
+                runs[library][mode] = {"coverage": covs, "time_used": times}
+    return runs
+
+
+def average_runs(
+    runs: dict[str, dict[str, dict[str, list[float]]]],
+) -> dict[str, dict[str, dict]]:
+    """同一 (library, mode) 的多份日志，对最终 coverage 和 time 取平均（原报表口径）。
 
     Returns:
         {library: {mode: {"coverage": float, "time_used": float}, ...}, ...}
     """
-    discovered = discover_logs(log_dir)
-    data = {}
-
-    for library in sorted(discovered.keys()):
-        data[library] = {}
-        for mode in sorted(discovered[library].keys()):
-            log_paths = discovered[library][mode]
-            cov_sum = 0.0
-            time_sum = 0.0
-            count = 0
-            for log_path in log_paths:
-                parsed = parse_log_file(log_path)
-                if parsed is not None:
-                    cov_sum += parsed["coverage"]
-                    time_sum += parsed["time_used"]
-                    count += 1
-                else:
-                    print(f"WARNING: Failed to parse {log_path}, skipping.")
-            if count > 0:
-                data[library][mode] = {
-                    "coverage": cov_sum / count,
-                    "time_used": time_sum / count,
-                }
-
+    data: dict[str, dict[str, dict]] = {}
+    for library, modes in runs.items():
+        data[library] = {
+            mode: {
+                "coverage": statistics.fmean(values["coverage"]),
+                "time_used": statistics.fmean(values["time_used"]),
+            }
+            for mode, values in modes.items()
+        }
     return data
+
+
+def build_data(log_dir: str) -> dict[str, dict[str, dict]]:
+    """构建按库分组的数据结构（历史接口：``collect_runs`` + ``average_runs``）。
+
+    Returns:
+        {library: {mode: {"coverage": float, "time_used": float}, ...}, ...}
+    """
+    return average_runs(collect_runs(log_dir))
 
 
 def get_final_stats(mode_data: dict) -> dict:
@@ -238,7 +271,7 @@ def gen_markdown_table(data: dict[str, dict[str, dict]]) -> str:
 
     同一库同一模式的多个日志自动取平均。时间四舍五入到整数秒。
     """
-    mode_order = ["NL", "NP", "NSF", "NCF", "Full"]
+    mode_order = list(MODE_ORDER)
     all_modes: list[str] = []
     lib_cov: dict[str, dict[str, str]] = {v: {} for v in COV_KEYS}
     lib_time: dict[str, dict[str, int]] = {v: {} for v in COV_KEYS}
@@ -343,7 +376,7 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
     print("RQ4 Report (New Format) — Per-Library Summary")
     print("=" * 70)
 
-    modes = ["NL", "NP", "NSF", "NCF", "Full"]
+    modes = list(MODE_ORDER)
 
     for library in sorted(data.keys()):
         print(f"\n--- {library} ---")
@@ -368,11 +401,127 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
     print("=" * 70)
 
 
+#: 报表行序（表 VI 的 5 个消融配置）
+MODE_ORDER = ["NL", "NP", "NSF", "NCF", "Full"]
+
+#: 效应量对照组：其余配置的均值差与 Cliff's δ 都相对它计算【MC3-2】
+REFERENCE_MODE = "Full"
+
+#: 跨库汇总行的 label（把各库均值当作独立样本）
+AVERAGE_LABEL = "Average"
+
+#: 统计表脚注
+_STATS_NOTE = (
+    "> 每行基于**每次独立运行**的样本：`mean±sd` 与 `95% CI`（percentile bootstrap，"
+    "B=2000，固定 seed 可复现）；`Δ` 是相对对照组的均值差及其 95% CI；`Cliff's δ` 是"
+    "效应量（>0 表示该配置更高；|δ|<0.147 negligible、<0.33 small、<0.474 medium、其余 large）。"
+    f"`{AVERAGE_LABEL}` 行只取**各配置都有数据**的库，把库均值当作独立样本；"
+    "函数层 / 库层的配对与分层 Bootstrap 见【MC3-4】。"
+)
+
+#: cov 分母 key → 报表显示名（``nltk`` → ``NLTK``）
+_COV_TO_DISPLAY = {cov: disp for disp, cov in DISPLAY_TO_COV.items()}
+
+
+def _display_library(lib: str) -> str:
+    """日志里的库名 → 报表显示名（``Nltk`` → ``NLTK``），未知名原样保留。"""
+    cov_key = LIB_TO_COV_KEY.get(lib, lib).lower()
+    return _COV_TO_DISPLAY.get(cov_key, lib)
+
+
+def _coverage_percent(value: float, lib: str) -> float:
+    """覆盖率计数 → 百分比（与 ``cov_percent`` 同一分母口径）。"""
+    cov_key = DISPLAY_TO_COV.get(lib, LIB_TO_COV_KEY.get(lib, lib))
+    total = COV_TOTAL_MAP.get(cov_key.lower())
+    return value / total * 100 if total else float(value)
+
+
+def _seconds(value: float, _lib: str) -> float:
+    """耗时秒数（占位换算，保持 ``value_fn`` 形状一致）。"""
+    return float(value)
+
+
+def _by_library(
+    runs: dict[str, dict[str, dict[str, list[float]]]],
+    metric: str,
+    value_fn: Callable[[float, str], float],
+) -> dict[str, dict[str, list[float]]]:
+    """``{library: {mode: {metric: [runs]}}}`` → ``{显示库名: {mode: [换算后的值]}}``。"""
+    by_lib: dict[str, dict[str, list[float]]] = {}
+    for library, modes in runs.items():
+        label = _display_library(library)
+        for mode, values in modes.items():
+            converted = [value_fn(v, label) for v in values[metric]]
+            if converted:
+                by_lib.setdefault(label, {})[mode] = converted
+    return by_lib
+
+
+def _stats_table(
+    by_lib: dict[str, dict[str, list[float]]],
+    groups: list[str],
+    *,
+    unit: str,
+    metric: str,
+) -> str:
+    """一个指标的统计表（n / mean±sd / 95% CI / Δ / Cliff's δ）。"""
+    labels = [lib for lib in by_lib if REFERENCE_MODE in by_lib[lib]]
+    skipped = [lib for lib in by_lib if REFERENCE_MODE not in by_lib[lib]]
+    if not labels:
+        return (
+            f"（缺少对照组 {REFERENCE_MODE} 的日志，{metric} 的效应量无法计算，已跳过）"
+        )
+    rows = stats_rows_for(
+        {lib: by_lib[lib] for lib in labels},
+        REFERENCE_MODE,
+        labels=DISPLAY_ORDER,
+        groups=groups,
+        average_label=AVERAGE_LABEL,
+    )
+    table = format_stats_table(
+        rows,
+        label_header="Library",
+        group_header="Configuration",
+        unit=unit,
+        reference=REFERENCE_MODE,
+        with_diff=True,
+    )
+    if skipped:
+        table += (
+            f"\n\n> 缺少 `{REFERENCE_MODE}` 日志、未列入的库：{', '.join(skipped)}。"
+        )
+    return table
+
+
+def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
+    """【MC3-2】覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
+    groups = list(MODE_ORDER)
+    blocks = ["## Run-level statistics 【MC3-2】"]
+    for title, metric, value_fn, unit in (
+        ("Coverage (%)", "coverage", _coverage_percent, "%"),
+        ("Time (s)", "time_used", _seconds, "s"),
+    ):
+        blocks.append(f"\n### {title}\n")
+        blocks.append(
+            _stats_table(
+                _by_library(runs, metric, value_fn),
+                groups,
+                unit=unit,
+                metric=title,
+            )
+        )
+    blocks.append(f"\n{_STATS_NOTE}")
+    return "\n".join(blocks)
+
+
 if __name__ == "__main__":
     log_dir = os.path.dirname(os.path.abspath(__file__))
 
-    data = build_data(log_dir)
+    runs = collect_runs(log_dir)
+    data = average_runs(runs)
 
     print_summary(data)
     print("\n--- Unified Coverage + Time Table ---\n")
     print(gen_markdown_table(data))
+    print()
+    print(gen_stats_tables(runs))

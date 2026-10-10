@@ -2,30 +2,23 @@
 
 - 函数层配对 bootstrap（percentile CI，B=2000，固定 rng 可复现）；
 - 库层 hierarchical bootstrap（先抽库、再库内抽函数，两级单位）；
-- Cliff's delta（效应量，Mann-Whitney U 的秩法 O(n log n)，避免 O(n²)）；
 - 描述统计（B8：5 run mean±sd/range）与 ED-14a 分层切分（F21）。
+
+Cliff's delta、描述统计与分位函数的**实现**统一在跨 RQ 共享层
+``experiments/common/stats.py``【MC3-2】，本模块 re-export，
+保持 RQ1 既有导入路径（``engine.stats.cliffs_delta`` 等）不变。
 """
 
 from __future__ import annotations
 
-import math
 import random
 import statistics
 from collections.abc import Sequence
 
+from experiments.common.stats import cliffs_delta, describe
+from experiments.common.stats import percentile as _percentile
+
 DEFAULT_N_BOOT = 2000
-
-
-def _percentile(sorted_values: list[float], q: float) -> float:
-    """线性插值分位（sorted_values 升序）。"""
-    if not sorted_values:
-        return float("nan")
-    idx = (len(sorted_values) - 1) * q
-    lo = math.floor(idx)
-    hi = math.ceil(idx)
-    if lo == hi:
-        return sorted_values[lo]
-    return sorted_values[lo] * (hi - idx) + sorted_values[hi] * (idx - lo)
 
 
 def paired_bootstrap_ci(
@@ -96,44 +89,6 @@ def hierarchical_bootstrap_ci(
     )
 
 
-def cliffs_delta(a: Sequence[float], b: Sequence[float]) -> float:
-    """Cliff's delta：eff = 2·U/|a||b| − 1（秩法 O(n log n)）。
-
-    a 相对 b 的优势效应量 ∈ [−1, 1]；空样本 → 0。
-    """
-    a = list(a)
-    b = list(b)
-    n, m = len(a), len(b)
-    if n == 0 or m == 0:
-        return 0.0
-    combined = sorted((x, 0) for x in a) + sorted((x, 1) for x in b)
-    combined.sort(key=lambda t: t[0])
-    rank_sum_a = 0.0
-    i = 0
-    total = len(combined)
-    while i < total:
-        j = i
-        while j < total and combined[j][0] == combined[i][0]:
-            j += 1
-        avg_rank = (i + 1 + j) / 2.0  # 联合平均秩（含并列）
-        for k in range(i, j):
-            if combined[k][1] == 0:  # a 组秩和（Mann-Whitney U_a）
-                rank_sum_a += avg_rank
-        i = j
-    u_a = rank_sum_a - n * (n + 1) / 2.0
-    return round(2.0 * u_a / (n * m) - 1.0, 6)
-
-
-def describe(samples: Sequence[float]) -> dict[str, float | None]:
-    """B8：描述统计（mean ± sd，range）。空 → 全 None。"""
-    s = list(samples)
-    if not s:
-        return {"mean": None, "sd": None, "min": None, "max": None}
-    mean = statistics.mean(s)
-    sd = statistics.stdev(s) if len(s) > 1 else 0.0
-    return {"mean": mean, "sd": sd, "min": min(s), "max": max(s)}
-
-
 def by_layer_diffs(
     diffs_by_func: dict[str, float],
     meta: dict[str, str],
@@ -143,3 +98,13 @@ def by_layer_diffs(
     for func, d in diffs_by_func.items():
         layers.setdefault(meta.get(func, "unknown"), []).append(d)
     return {k: (len(v), v) for k, v in layers.items()}
+
+
+__all__ = [
+    "DEFAULT_N_BOOT",
+    "by_layer_diffs",
+    "cliffs_delta",
+    "describe",
+    "hierarchical_bootstrap_ci",
+    "paired_bootstrap_ci",
+]
