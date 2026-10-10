@@ -15,7 +15,7 @@ import threading
 
 from loguru import logger
 from respfuzzer.lib.fuzz.execution_outcome import ExecutionOutcome
-from respfuzzer.lib.fuzz.semantic_check import check_variant
+from respfuzzer.lib.fuzz.semantic_check import has_valid_call
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import record_event
@@ -151,18 +151,21 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
 
 
 class LLMMutator:
-    """采用语义负反馈（编译失败、未调用目标函数、运行时异常）和覆盖率正反馈（覆盖率增长）的方式来为每一个种子优化变异算子的选择
-    当LLM变异产生语法/语义错误或执行期抛出运行时异常时，降低对应变异算子的选择概率，奖励初始值为-1
-    当传统变异产生覆盖率增长时，提高对应变异算子的选择概率，奖励初始值为+1
-    变异算子选择是从所有变异算子构成的概率分布中采样得到的
-    负反馈和正反馈都影响每一个变异算子的被选择概率
+    """基于指数平滑奖励的 softmax 采样：为每一个种子优化变异算子的选择。
 
-    主要想法（摘要）
+    采用语义负反馈（编译失败、未调用目标函数、运行时异常）和覆盖率正反馈
+    （覆盖率增长）两种信号：
+    - 当 LLM 变异产生语法/语义错误或执行期抛出运行时异常时，降低对应变异算子的
+      期望奖励 mu（奖励 0）；
+    - 当传统变异产生覆盖率增长时，提高对应变异算子的期望奖励 mu（奖励可达 1）；
+    - 语义有效但覆盖率未增长时奖励为 0.5（中性），使 mu 保持不变。
 
-    - 将每个变异算子 i 的选择看作多臂老虎机/多项选择问题（multi-armed bandit）。
-    - 为每个算子维护一个“期望收益估计”或一个概率后验（Dirichlet / Beta / Gaussian），使用贝叶斯采样或指数加权选择算子以在探索/利用间平衡。
-    - 设计统一的奖励 R ∈ [0,1]，把语法、语义、覆盖率增益等信号归一化并做加权和，作为单步观测到的回报。
-    """
+    选择策略不是标准多臂老虎机，而是一个简化实现：
+
+    - 为每个算子维护一个期望奖励估计 mu_i（指数移动平均 / EMA，alpha=0.1）；
+    - 采样时把 mu_i 通过 softmax（温度 tau=1.0）转成选择概率，再按分布采样。
+
+    设计动机见论文 Section ``Multi-armed Bandit Mutation Strategy``。"""
 
     def __init__(self, seed: Seed) -> None:
         self.seed = seed
@@ -173,10 +176,8 @@ class LLMMutator:
         self.rng = 0
 
     def select_mutation_type(self) -> int:
-        """
-        根据当前概率分布选择变异算子
-        """
-        # 计算每个算子的概率分布 (Softmax)
+        """根据 mu 的 softmax（温度 tau）分布采样选择变异算子。"""
+        # 把期望奖励 mu 转成选择概率（softmax / 玻尔兹曼探索）
         exp_mu = [math.exp(m / self.tau) for m in self.mu]
         total = sum(exp_mu)
         probs = [e / total for e in exp_mu]
@@ -185,9 +186,7 @@ class LLMMutator:
         return random.choices(population=self.mutation_types, weights=probs, k=1)[0]
 
     def update_reward(self, mutation_type: int, reward: float) -> None:
-        """
-        更新变异算子的期望奖励
-
+        """用指数移动平均（EMA）更新变异算子的期望奖励 mu。
         Arguments:
             mutation_type: 变异算子类型
             reward: 观察到的奖励值
@@ -284,7 +283,7 @@ class LLMMutator:
         if no_check_semantic:
             return res, mutation_type
 
-        check = check_variant(res)
+        check = has_valid_call(res)
         if not check.ok:
             # 无效的 LLM 输出同样占用一个变异预算槽（MC2-7）：不再重试，
             # 直接施加语义负反馈并跳过该槽的执行。

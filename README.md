@@ -8,7 +8,7 @@
  - Reflective Seed Generation
    - src/respfuzzer/lib/library_visitor.py
    - src/respfuzzer/lib/agentic_function_resolver.py
- - Semantic-Guided Mutation
+ - Semantic-Driven Mutation
    - src/respfuzzer/lib/fuzz/instrument.py
    - src/respfuzzer/lib/mutator.py
    - src/respfuzzer/lib/llm_mutator.py

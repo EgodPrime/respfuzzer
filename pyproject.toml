@@ -1,7 +1,7 @@
 [project]
 name = "respfuzzer"
 version = "0.2.0"
-description = "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
+description = "Reflective Seed Generation and Semantic-Driven Mutation for Python Library Fuzzing"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
