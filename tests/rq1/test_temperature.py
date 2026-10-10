@@ -1,18 +1,21 @@
 """RQ1 F4：温度统一 0.7 的静态回归闸 + llm_helper 默认值测试。
 
-- ut-F4-1 静态扫描：RQ1 种子生成链路的所有 `chat.completions.create` 调用点
-  都必须显式携带 `temperature`（缺省即失败）。范围：agentic_function_resolver
-  （RSG 的 Attempter/Reasoner/Judger）+ RQ1/LLM_testcases 旧脚本 + 未来的
-  `respfuzzer/lib/rq1/*`。RQ3/RQ4 的 fuzz 段（llm_mutator）不在本闸范围
-  （属 ER-21 重跑批次，评论见 llm_mutator.py F4 说明）。
+- ut-F4-1 静态扫描：RQ1 种子生成链路里所有 `chat.completions.create` 调用点
+  都必须显式携带 `temperature`（缺省即失败）。范围：`agentic_function_resolver`
+  （RSG 的 Attempter/Reasoner/Judger）+ `experiments/RQ1/engine/driver.py`
+  （ours 预热调用点）。`engine/counting.py` 的 create 走 `**kwargs` 注入，
+  由 ut-F5（`test_counting.py::test_f5_default_temperature_0_7`）单独断言 0.7。
+  RQ3/RQ4 的 fuzz 段（llm_mutator）不在本闸范围（属 ER-21 重跑批次）。
 - ut-F4-2 llm_helper.SimpleLLMClient 默认 temperature=0.7，chat() 缺省时注入。
 - ut-F4-5 调用方显式传非 0.7 时被尊重（不覆盖自定义 kwargs）。
+
+值语义：正式生成一律 0.7；`driver._warmup_llm` 的冷启动预热显式传 0.0
+（只为热服务、不产数据），因此本闸只校验"显式携带"，值由各调用点自述。
 """
 
 from __future__ import annotations
 
 import ast
-import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -25,8 +28,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # RQ1 种子生成链路文件（含未来的 lib/rq1/*，新增模块时追加）。
 RQ1_SOURCE_FILES = [
     _REPO_ROOT / "src/respfuzzer/lib/agentic_function_resolver.py",
-    _REPO_ROOT / "experiments/RQ1/LLM_testcases/generate_tests_from_apis.py",
-    _REPO_ROOT / "experiments/RQ1/LLM_testcases/generate_tests_from_apis_by_api.py",
+    _REPO_ROOT / "experiments/RQ1/engine/driver.py",
 ]
 
 
@@ -54,11 +56,11 @@ def test_f4_static_all_rq1_call_sites_explicit_temperature():
                 checked += 1
                 assert _call_exposes_temperature(node), (
                     f"{path.name}:{node.lineno} "
-                    "chat.completions.create 未显式 temperature（RQ1 F4 要求 0.7）"
+                    "chat.completions.create 未显式携带 temperature（RQ1 F4）"
                 )
-    # 至少扫到 3 处（agentic 的 Attempter/Reasoner/Judger），防止路径失效静默通过
-    assert checked >= 3, f"扫描到的 create 调用过少（{checked}），检查 RQ1_SOURCE_FILES"
-
+    # 至少扫到 4 处（agentic 的 Attempter/Reasoner/Judger + driver 预热），
+    # 防止路径失效让本闸静默通过
+    assert checked >= 4, f"扫描到的 create 调用过少（{checked}），检查 RQ1_SOURCE_FILES"
 
 class _FakeCompletions:
     """模拟 client.chat.completions：.create(**kwargs) 记录调用。"""
@@ -104,15 +106,3 @@ def test_f4_llmhelper_explicit_temperature_respected(fake_client):
     assert captured and captured[0]["temperature"] == 0.0
 
 
-def test_f4_legacy_scripts_no_nonzero_temperature_literal():
-    """ut-F4-4：旧 LLM_testcases 脚本硬编码温度已统一为 0.7（不允许 0.0/0.2 字面量）。"""
-    scripts = [
-        _REPO_ROOT / "experiments/RQ1/LLM_testcases/generate_tests_from_apis.py",
-        _REPO_ROOT / "experiments/RQ1/LLM_testcases/generate_tests_from_apis_by_api.py",
-    ]
-    for path in scripts:
-        text = path.read_text(encoding="utf-8")
-        for m in re.finditer(r'"temperature"\s*:\s*([\d.]+)', text):
-            assert float(m.group(1)) == 0.7, (
-                f"{path.name} temperature={m.group(1)} 应为 0.7"
-            )
