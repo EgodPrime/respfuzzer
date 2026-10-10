@@ -122,12 +122,35 @@ def run(mod, api, n):
         # return t
 
 
-def run_limit_n(mod, api, n, buget):
+def run_limit_n(mod, api, n, budget_mode=None, budget_value=None):
+    """
+    支持三种预算模式：
+    - llm_calls（默认）：固定执行次数
+    - wall_clock：固定wall-clock时间（秒）
+    - executions：固定实际执行测试数量（和llm_calls一致，因为DyFuzz没有LLM）
+    """
+    if budget_mode is None:
+        budget_mode = "llm_calls"
+    if budget_value is None:
+        budget_value = int(1e2 / 2)
+
     global totalAPI
     timeout_cnt = 0
-    for i in range(buget):
-        # s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
-        
+    start_time = time.time()
+    executions_done = 0
+
+    while True:
+        # 检查预算是否耗尽
+        if budget_mode == "llm_calls" and totalAPI >= budget_value:
+            break
+        elif budget_mode == "wall_clock":
+            elapsed = time.time() - start_time
+            if elapsed >= budget_value:
+                logger.info(f"Budget exhausted: {elapsed:.1f}s/{budget_value:.1f}s wall-clock reached for {mod}.{api}. (Total executions: {totalAPI})")
+                break
+        elif budget_mode == "executions" and executions_done >= budget_value:
+            break
+
         try:
             p = subprocess.Popen(
                 ["python", "apifuzzer.py", mod, api, str(n)],
@@ -143,11 +166,11 @@ def run_limit_n(mod, api, n, buget):
             if timeout_cnt >= 5:
                 logger.warning("Too many timeouts, skipping this API.")
                 break
-            
+
         s = p.returncode
         totalAPI = totalAPI + 1
+        executions_done += 1
         # gen_log(mod, api, n, s)
-
 
 # while True:
 #   run(mod,api,n)
@@ -165,6 +188,12 @@ open("log.txt", "a").write("\n")
 # run(mod,api,n)
 
 
+# 读取预算模式配置
+from respfuzzer.utils.config import get_config as _get_config
+_dyfuzz_cfg = _get_config("dyfuzz")
+budget_mode = _dyfuzz_cfg.get("budget_mode", "llm_calls")
+budget_value = _dyfuzz_cfg.get("budget_value", int(1e2 / 2))
+
 assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
 data_path = sys.argv[1]
 # ---- MC3-1：本次 DyFuzz 运行的 .log 与 *_checkpoint.json（统一命名）----
@@ -172,7 +201,7 @@ import atexit as _atexit
 from pathlib import Path as _Path
 
 from respfuzzer.lib.fuzz.fuzz_exp import _library_from_dataset
-from respfuzzer.utils.experiment_recorder import record_result, start_run
+from respfuzzer.utils.experiment_recorder import record_result, start_run, reset_llm_stats
 
 _RQ3_DIR = _Path(__file__).resolve().parent.parent  # experiments/RQ3
 recorder = start_run(
@@ -203,6 +232,9 @@ def _checkpoint_excepthook(tp, value, tb):
 
 sys.excepthook = _checkpoint_excepthook
 _atexit.register(_finish_checkpoint, "completed")
+# DyFuzz 没有 LLM 调用：token/调用次数永远为 0；这里只重置计数器并写并发数（N/A）。
+reset_llm_stats()
+record_result("concurrency", "N/A (no LLM)")
 logger.info(f"Loading seeds from {data_path}...", flush=True)
 data = json.load(open(data_path, "r"))
 from respfuzzer.models import Seed
@@ -243,7 +275,7 @@ for mod in list(moddic.keys()):
             continue
         else:
             n = moddic[mod][api]["pn"][1]
-            logger.info(f"DyFuzz {mod} {api} {n}")
+            logger.info(f"DyFuzz {mod} {api} {n}, budget_mode={budget_mode}, budget_value={budget_value}")
             if n == 0:
                 logger.debug(f"{mod}.{api} has 0 params, run once")
                 s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
@@ -251,7 +283,7 @@ for mod in list(moddic.keys()):
                 totalAPI = totalAPI + 1
             else:
                 logger.debug(f"{mod}.{api} has {n} params, run {int(1e2/2)} times")
-                run_limit_n(mod, api, n, int(1e2/2))
+                run_limit_n(mod, api, n, budget_mode=budget_mode, budget_value=budget_value)
             logger.info(f"Fuzz {mod}.{api} {n} done")
             logger.info(f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits")
 
@@ -266,6 +298,11 @@ for mod in list(moddic.keys()):
 t2 = time.time()
 record_result("total_api_calls", totalAPI)
 record_result("final_coverage", bm.count_bitmap_s())
+# DyFuzz 没有 LLM，token 数与调用次数固定为 0（显式写入便于论文/表格引用）。
+record_result("llm_calls", 0)
+record_result("input_tokens", 0)
+record_result("output_tokens", 0)
+record_result("total_tokens", 0)
 
 open("log.txt", "a").write(str(t2))
 open("log.txt", "a").write("\n")

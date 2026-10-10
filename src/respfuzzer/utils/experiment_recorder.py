@@ -636,6 +636,36 @@ def finish_run(status: str = "completed", error: Any = None) -> Path | None:
     return recorder.finish(status, error)
 
 
+def record_llm_stats(concurrency: int | None = None) -> None:
+    """把 LLM 调用次数、token 总数、并发数写入当前运行的 results。
+
+    用于 MC4-3 / MC4-6 统一上报：在驱动 ``finish_run`` 前调用一次。
+    未启动录制（no-op）时安全跳过；DyFuzz 这类无 LLM 的驱动可只传
+    ``concurrency``（或不传），token/调用次数都是 0。
+    """
+    try:
+        from respfuzzer.utils import llm_helper
+
+        record_result("llm_calls", llm_helper.get_total_llm_calls())
+        record_result("input_tokens", llm_helper.get_total_input_tokens())
+        record_result("output_tokens", llm_helper.get_total_output_tokens())
+        record_result("total_tokens", llm_helper.get_total_tokens())
+    except Exception as e:  # pragma: no cover - 采集失败不影响主流程
+        logger.warning(f"record_llm_stats: skip llm_helper stats: {e}")
+    if concurrency is not None:
+        record_result("concurrency", concurrency)
+
+
+def reset_llm_stats() -> None:
+    """在驱动 ``start_run`` 之后立即调用，把全局 LLM 计数器清零。"""
+    try:
+        from respfuzzer.utils import llm_helper
+
+        llm_helper.reset_statistics()
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"reset_llm_stats: skip: {e}")
+
+
 @contextmanager
 def run_session(name: str, **kwargs: Any) -> Iterator[RunRecorder]:
     """``with run_session("RQ3", group="respfuzzer", ...) as rec:`` 的便捷封装。

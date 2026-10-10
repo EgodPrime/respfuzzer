@@ -34,6 +34,7 @@ class SimpleLLMClient:
             **kwargs,
             extra_body={"chat_template_kwargs": {"enable_thinking": False},},
         )
+        _update_statistics(response)
         return response.choices[0].message.content
 
     def chat(self, messages, **kwargs) -> str:
@@ -46,6 +47,7 @@ class SimpleLLMClient:
         return self.chat(messages, **kwargs)
 
 
+
 def _chat(messages, **kwargs) -> str:
     response = client.chat.completions.create(
         model=MODEL_NAME,
@@ -53,8 +55,8 @@ def _chat(messages, **kwargs) -> str:
         stream=False,
         **kwargs,
     )
+    _update_statistics(response)
     return response.choices[0].message.content
-
 
 def chat(messages, **kwargs) -> str:
     if "temperature" not in kwargs:
@@ -79,3 +81,46 @@ def get_sys_llm() -> ChatOpenAI:
             extra_body={"chat_template_kwargs": {"enable_thinking": False},},
         )
     return _sys_llm
+
+
+# ==================== 指标统计 ====================
+_total_llm_calls: int = 0
+_total_input_tokens: int = 0
+_total_output_tokens: int = 0
+
+
+def get_total_llm_calls() -> int:
+    """获取总LLM调用次数"""
+    return _total_llm_calls
+
+
+def get_total_input_tokens() -> int:
+    """获取总输入token数量"""
+    return _total_input_tokens
+
+
+def get_total_output_tokens() -> int:
+    """获取总输出token数量"""
+    return _total_output_tokens
+
+
+def get_total_tokens() -> int:
+    """获取总token数量（输入+输出）"""
+    return _total_input_tokens + _total_output_tokens
+
+
+def reset_statistics() -> None:
+    """重置所有统计数据"""
+    global _total_llm_calls, _total_input_tokens, _total_output_tokens
+    _total_llm_calls = 0
+    _total_input_tokens = 0
+    _total_output_tokens = 0
+
+
+def _update_statistics(response) -> None:
+    """更新统计数据，从LLM响应中提取token信息"""
+    global _total_llm_calls, _total_input_tokens, _total_output_tokens
+    _total_llm_calls += 1
+    if hasattr(response, 'usage') and response.usage:
+        _total_input_tokens += response.usage.prompt_tokens
+        _total_output_tokens += response.usage.completion_tokens

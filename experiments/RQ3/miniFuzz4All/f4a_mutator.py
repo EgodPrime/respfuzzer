@@ -13,6 +13,40 @@ llm_cfg = get_config("llm")
 client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
+# miniFuzz4All 走的是 openai.Completion（不是 ChatCompletion），
+# 不能复用 respfuzzer.utils.llm_helper 的 _update_statistics（那个只对 chat 生效）。
+# 这里就地累计 token 数，通过 record_result 上报（MC4-3）。
+_f4a_llm_calls: int = 0
+_f4a_input_tokens: int = 0
+_f4a_output_tokens: int = 0
+
+
+def _update_f4a_stats(response) -> None:
+    global _f4a_llm_calls, _f4a_input_tokens, _f4a_output_tokens
+    _f4a_llm_calls += 1
+    usage = getattr(response, "usage", None)
+    if usage is not None:
+        # Completion API：prompt_tokens + completion_tokens 字段存在
+        _f4a_input_tokens += getattr(usage, "prompt_tokens", 0) or 0
+        _f4a_output_tokens += getattr(usage, "completion_tokens", 0) or 0
+
+
+def get_f4a_stats() -> dict:
+    return {
+        "llm_calls": _f4a_llm_calls,
+        "input_tokens": _f4a_input_tokens,
+        "output_tokens": _f4a_output_tokens,
+        "total_tokens": _f4a_input_tokens + _f4a_output_tokens,
+    }
+
+
+def reset_f4a_stats() -> None:
+    global _f4a_llm_calls, _f4a_input_tokens, _f4a_output_tokens
+    _f4a_llm_calls = 0
+    _f4a_input_tokens = 0
+    _f4a_output_tokens = 0
+
+
 class Fuzz4AllMutator:
     """
     从Fuzz4All源码中抽离出来的单独使用的变异器类。
@@ -171,6 +205,7 @@ class Fuzz4AllMutator:
             n=1,
             stop=self.stop_sequences,
         )
+        _update_f4a_stats(response)
         # logger.debug(f"LLM response: {response}")
         new_code = response.content.strip()
 
@@ -203,6 +238,7 @@ class Fuzz4AllMutator:
             ]
             for future in futures:
                 response = future.result()
+                _update_f4a_stats(response)
                 new_code = response.choices[0].text.strip()
                 mutant_code = (
                     self.prompt_used["begin"] + "\n" + self.clean_code(new_code)

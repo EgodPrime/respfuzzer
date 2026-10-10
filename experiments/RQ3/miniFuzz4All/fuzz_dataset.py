@@ -26,6 +26,7 @@ from respfuzzer.utils.experiment_recorder import (
     record_result,
     start_run,
 )
+from f4a_mutator import get_f4a_stats, reset_f4a_stats
 from respfuzzer.utils.process_helper import (
     kill_process_tree_linux,
     manage_process_with_timeout,
@@ -73,6 +74,9 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     llm_fuzz_per_seed = cfg.get("llm_fuzz_per_seed")
     concurrency = cfg.get("concurrency", 10)
 
+    # 预算模式配置
+    budget_mode = cfg.get("budget_mode", "llm_calls")  # llm_calls | wall_clock | executions
+    budget_value = cfg.get("budget_value", llm_fuzz_per_seed)
     logger.debug(f"seed is :\n{seed.function_call}")
 
     send, recv = Queue(), Queue()
@@ -86,14 +90,41 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
     f4a_mutator = Fuzz4AllMutator(seed)
     bm = BitmapManager(4398)
 
-    logger.info(f"Start fuzz seed {seed.id}.")
-    for i in range(0, llm_fuzz_per_seed, concurrency):
-        batch_size = min(concurrency, llm_fuzz_per_seed - i)
+    logger.info(f"Start fuzz seed {seed.id}, budget_mode={budget_mode}, budget_value={budget_value}")
+
+    # 初始化预算计数器
+    start_time = time.time()
+    llm_calls_done = 0
+    executions_done = 0
+
+    # 循环直到预算耗尽
+    while True:
+        # 检查预算是否耗尽
+        if budget_mode == "llm_calls" and llm_calls_done >= budget_value:
+            logger.info(f"Budget exhausted: {llm_calls_done}/{budget_value} LLM calls reached, stopping.")
+            break
+        elif budget_mode == "wall_clock":
+            elapsed = time.time() - start_time
+            if elapsed >= budget_value:
+                logger.info(f"Budget exhausted: {elapsed:.1f}s/{budget_value:.1f}s wall-clock time reached, stopping. (Total LLM calls: {llm_calls_done}, Total executions: {executions_done})")
+                break
+        elif budget_mode == "executions" and executions_done >= budget_value:
+            logger.info(f"Budget exhausted: {executions_done}/{budget_value} actual executions reached, stopping. (Total LLM calls: {llm_calls_done})")
+            break
+
+        # 剩余可调用次数不足并发数时，调整批次大小
+        if budget_mode == "llm_calls":
+            remaining = budget_value - llm_calls_done
+            batch_size = min(concurrency, remaining)
+        else:
+            batch_size = concurrency
+
         t0 = time.time()
         batch = f4a_mutator.generate_n(batch_size)
+        llm_calls_done += batch_size
         dt = time.time() - t0
         logger.info(
-            f"Generated mutants {i+1}-{i+batch_size} for seed {seed.id} in {dt:.2f} seconds."
+            f"Generated mutants {llm_calls_done - batch_size + 1}-{llm_calls_done} for seed {seed.id} in {dt:.2f} seconds."
         )
 
         for mutated_call in batch:
@@ -145,6 +176,8 @@ def fuzz_single_seed(seed: Seed, command: str) -> None:
                 th.start()
             del t_seed
             c1 = bm.count_bitmap_s()
+            # 实际执行完成后增加执行计数（对 executions 模式）
+            executions_done += 1
             if c1 > c0:
                 logger.info(
                     f"New coverage found by seed {seed.id}: {c1 - c0} new bits."
@@ -206,6 +239,9 @@ def fuzz_dataset(
             "dataset_path": str(dataset_path),
         },
     ):
+        reset_f4a_stats()
+        concurrency = get_config("fuzz4all").get("concurrency", 10)
+        record_result("concurrency", concurrency)
         logger.info(f"Starting fuzzing for dataset: {dataset_path}")
         with open(dataset_path, "r", encoding="utf-8") as f:
             seeds: list[dict] = json.load(f)
@@ -214,6 +250,10 @@ def fuzz_dataset(
         record_result("seed_count", len(seeds))
         record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
         _fuzz_dataset(seeds, "execute")
+        record_result("llm_calls", get_f4a_stats()["llm_calls"])
+        record_result("input_tokens", get_f4a_stats()["input_tokens"])
+        record_result("output_tokens", get_f4a_stats()["output_tokens"])
+        record_result("total_tokens", get_f4a_stats()["total_tokens"])
 
 
 def fuzz_dataset_infinite(
@@ -242,6 +282,8 @@ def fuzz_dataset_infinite(
             "mode": "infinite",
         },
     )
+    reset_f4a_stats()
+    record_result("concurrency", get_config("fuzz4all").get("concurrency", 10))
     interrupted = False
     try:
         logger.info(f"Starting fuzzing for dataset: {dataset_path}")
@@ -261,6 +303,11 @@ def fuzz_dataset_infinite(
         recorder.finish("failed", error=exc)
         raise
     else:
+        stats = get_f4a_stats()
+        record_result("llm_calls", stats["llm_calls"])
+        record_result("input_tokens", stats["input_tokens"])
+        record_result("output_tokens", stats["output_tokens"])
+        record_result("total_tokens", stats["total_tokens"])
         recorder.finish("interrupted" if interrupted else "completed")
 
 
