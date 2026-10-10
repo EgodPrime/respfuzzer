@@ -1,8 +1,9 @@
 import inspect
 from types import BuiltinFunctionType, FunctionType
-from typing import Optional
 
 import dill
+
+from respfuzzer.lib.function_tagger import tag_runtime
 from respfuzzer.models import Argument, Function
 
 
@@ -28,7 +29,7 @@ def _format_default_value(default: object) -> str:
         return "unknown"
 
 
-def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Optional[Function]:
+def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> Function | None:
     """
     convert a `FunctionType` to an `function` object
 
@@ -73,17 +74,30 @@ def from_function_type(obj: FunctionType, *, public_name: str | None = None) -> 
     else:
         ret_type_str = "unknown"
 
-    return Function(func_name=name, real_path=real_path, source=source, args=arg_list, ret_type=ret_type_str)
+    tags = tag_runtime(obj, args=arg_list, ret_type=ret_type_str)
+
+    return Function(
+        func_name=name,
+        real_path=real_path,
+        source=source,
+        args=arg_list,
+        ret_type=ret_type_str,
+        **tags,
+    )
 
 
 def from_builtin_function_type(pyi_dict: dict, obj: BuiltinFunctionType, *, public_name: str | None = None) -> Function:
     real_path = ".".join(dill.source._namespace(obj))
     name = public_name or real_path
+    args = pyi_dict["args"]
+    ret_type_str = pyi_dict["ret_type_str"]
+    tags = tag_runtime(obj, args=args, ret_type=ret_type_str)
     return Function(
         func_name=name,
         real_path=real_path,
         source=pyi_dict["source"],
-        args=pyi_dict["args"],
-        ret_type=pyi_dict["ret_type_str"],
+        args=args,
+        ret_type=ret_type_str,
         is_builtin=1,
+        **tags,
     )

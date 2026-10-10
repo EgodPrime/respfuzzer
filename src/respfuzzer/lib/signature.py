@@ -16,6 +16,7 @@ from inspect import Parameter, _ParameterKind
 from inspect import signature as _inspect_signature
 from typing import Any
 
+from respfuzzer.lib.function_tagger import tag_runtime
 from respfuzzer.lib.parsers.function_parser import _format_default_value
 from respfuzzer.models import Argument, Function
 
@@ -319,6 +320,7 @@ def _build_builtin_function(obj, real_path, public_name, parsed) -> Function:
         + ", ".join(_arg_sig(a) for a in args)
         + f") -> {ret_type}: ...\n    # signature resolved at runtime"
     )
+    tags = tag_runtime(obj, args=args, ret_type=ret_type)
     return Function(
         func_name=public_name,
         real_path=".".join(real_path),
@@ -326,6 +328,7 @@ def _build_builtin_function(obj, real_path, public_name, parsed) -> Function:
         args=args,
         ret_type=ret_type,
         is_builtin=1,
+        **tags,
     )
 
 
@@ -366,6 +369,7 @@ def resolve_builtin_signature(
         return _build_builtin_function(obj, real_path, public_name, parsed)
 
     # tier④ 三源全缺：不抛错、不丢弃——参数/返回类型留空并打标
+    tags = tag_runtime(obj, args=[], ret_type="unknown", signature_resolved=False)
     return Function(
         func_name=public_name,
         real_path=".".join(real_path) if real_path else "",
@@ -374,4 +378,5 @@ def resolve_builtin_signature(
         ret_type="",
         is_builtin=1,
         signature_resolved=False,
+        **tags,
     )

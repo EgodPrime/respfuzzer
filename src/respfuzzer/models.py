@@ -28,6 +28,13 @@ class Function(BaseModel):
     # 三源全缺时不再丢弃函数，而是留空 args/ret_type 并置 False（占位条目），
     # 由下游显式识别。旧数据（无该字段）缺省为 True，保持兼容。
     signature_resolved: bool = True
+    # ---- 函数分层打标【MC6-1】（纯静态、无 LLM）----
+    # 实现类型：pure-python（Python 源码可提取的纯 Python 函数）/ extended（C 扩展等内置实现）
+    implementation_type: str = "pure-python"
+    # 文档质量：with-docstring（docstring 去空白后非空）/ without-docstring
+    docstring_quality: str = "without-docstring"
+    # 类型注解完整性：完整注解（具名参数与返回值全部带注解）/ 不完整注解
+    type_annotation_completeness: str = "不完整注解"
 
     def __repr__(self):
         """
