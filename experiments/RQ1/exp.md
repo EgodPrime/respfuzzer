@@ -14,7 +14,8 @@ RQ1 的对照实验引擎位于 `experiments/RQ1/engine/`（实验专属代码�
 | `executor.py` | 共享覆盖判定（静态门控 + 调用成功口径【MC7-1】） |
 | `extended.py` / `rag_index.py` / `embedding_mock.py` | Extended 源码切片 / **RAG 检索索引【MC6-2】** / 本地 mock embedding 服务 |
 | `counting.py` `manifest.py` `seeding.py` | 资源计数、decode/manifest 快照、run 随机种子 |
-| `aggregate.py` `stats.py` `table.py` | 配对聚合、bootstrap 与 Cliff's delta、报表 |
+| `aggregate.py` `stats.py` `table.py` | 配对聚合、bootstrap 与 Cliff's delta、报表（含**分层多角度行**） |
+| `labels.py` | **函数分层标签数据【MC6-1】**：维度事实、`labels_*.json` 生成/读回、切层 |
 | `exec_lock.py` | 代码执行与模块加载的全局串行锁 |
 
 入口（仓库根目录执行，无需 `PYTHONPATH`）：
@@ -26,6 +27,11 @@ python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-em
 
   # 【MC6-5】先跑 ours 记录自省轮次，再让其余对照组尝试相同轮次
   python experiments/RQ1/rq1_seed.py --library yaml --runs 5 --k 10 --mc6-5
+
+  # 【MC6-1】多角度报告：总体表 + 按实现类型/文档质量/注解完整性分层的逐层表
+  python experiments/RQ1/rq1_report.py --library numpy
+  python experiments/RQ1/rq1_report.py --library numpy --write-labels   # 先重生成标签数据
+  python experiments/RQ1/rq1_report.py --library numpy --dimensions docstring_quality
 ```
 
 说明：
@@ -43,6 +49,14 @@ python experiments/RQ1/rq1_seed.py --mode rag    --library requests --no-fake-em
   可起本地 mock 服务；默认剔除目标函数自身，`--rag-include-self` 可切回；
 - 产物：`runs/RQ1/<mode>/<library>/r<run>_s<seed>/{manifest,decode_config,results}` 三件套，
   外加 `experiments/RQ1/rq1_<mode>_<library>_<ts>.log` + 同 stem 的 `*_checkpoint.json`【MC3-1】；
+- **分层标签与多角度报告【MC6-1】**：`run_experiment` 在**采样前**的整库函数池上落
+  `runs/RQ1/labels_<library>.json`（三维度计数/占比 + 两两交叉表 + 逐函数标签，
+  manifest 记 `label_dataset`），`--limit` 只缩小评测集、不缩小标签口径；报告入口
+  `rq1_report.py` 读这份数据出**总体表 + 每个维度的逐层表**（每层 n / FC(base) /
+  FC(ref) / Δ±95%CI / Cliff's delta，与总体行同一配对分母），维度可 `--dimensions`
+  挑选，产物 = json 报表 + `rq1_report_<library|all>_<ts>.log` + 同 stem checkpoint；
+  标签缺失时报告入口会从 `data/*_functions.json` 补生成并留痕（`unknown` 层单独成层，
+  不静默并入其它层）；
 - 测试在 `tests/rq1/`（由 `pyproject.toml` 的 `pythonpath = [".", "src"]` 提供搜索路径）。
 
 ## Purpose

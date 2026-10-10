@@ -49,6 +49,7 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
 
 from experiments.RQ1.engine.aggregate import function_covered
 from experiments.RQ1.engine.driver import merge_results, run_experiment
+from experiments.RQ1.engine.labels import label_path
 from experiments.RQ1.engine.manifest import build_decode_config
 from experiments.RQ1.engine.prompts import DEFAULT_MODE, MODES
 from experiments.RQ1.engine.seeding import ed4_quota
@@ -213,6 +214,8 @@ def _run_mode(
         rows = merge_results(args.outdir, mode, args.library)
         per_func = function_covered(rows, mode)
         usage = _usage_totals(args.outdir, mode, args.library)
+        # 【MC6-1】驱动在采样前函数池上落的分层标签数据集，随 checkpoint 一并留痕
+        labels_file = label_path(args.outdir, args.library)
         summary = {
             "mode": mode,
             "outdir": str(out),
@@ -232,6 +235,8 @@ def _run_mode(
             "concurrency": args.concurrency,
             "budget_source": budget_source or "k",
             "results_file": str(Path(args.outdir) / mode / (args.library or "all")),
+            # 分层标签数据集（驱动已落盘则记录路径；否则为 None，报告侧回退函数池）
+            "label_dataset": str(labels_file) if labels_file.exists() else None,
         }
         recorder.record_results(summary)
         recorder.record_event(

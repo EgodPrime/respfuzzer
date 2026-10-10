@@ -10,6 +10,7 @@
   - 产物 runs/RQ1/<mode>/<library>/r<run_index>_s<seed>/ 下
     manifest.json + decode_config.json + results.jsonl（每候选一行）
     + budget.json（每函数 LLM 调用明细，供对照组「相同次数」驱动【MC6-5】）。
+  - 标签数据 runs/RQ1/labels_<library>.json（函数分层标签，一次实验多角度报告）【MC6-1】。
 
 ours 的资源计数：agentic 使用模块级 openai client，driver 以计数 proxy 包装
 （不影响并发运行期逻辑；run 结束恢复原 client）。
@@ -36,6 +37,7 @@ from .counting import CountingLLM, UsageCounter, usage_bucket
 from .exec_lock import EXEC_LOCK
 from .executor import RQ1Executor
 from .extended import source_slice_for
+from .labels import write_label_dataset
 from .manifest import (
     build_decode_config,
     build_manifest,
@@ -289,6 +291,7 @@ def run_experiment(
     concurrency: int = 1,
     now: str | None = None,
     warmup: bool = True,  # 默认预热 LLM（消冷启动 r1 偏低）；测试注入零网络 fake 时禁用
+    write_labels: bool = True,  # 【MC6-1】落盘函数分层标签数据集（runs/RQ1/labels_*.json）
 ) -> Path:
     """执行 runs 次重复 run；返回输出根目录 runs/RQ1/<mode>/<library>。"""
     if mode == "rag" and library is None:
@@ -312,6 +315,12 @@ def run_experiment(
         sample_rng = seed_run(base_seed)
         functions = shuffled(functions, sample_rng)[:limit]
     outdir = Path(outdir)
+
+    # 【MC6-1】生成函数分层标签数据：口径 = **采样前**的整库函数池（--limit 只缩小
+    # 评测集，不缩小标签数据），落 runs/RQ1/labels_<library>.json 供多角度报告 join。
+    labels_path = None
+    if write_labels and index_corpus:
+        labels_path = write_label_dataset(outdir, index_corpus, library, now=now)
 
     # ours 资源计数 proxy；rag 每库索引
     original_client = None
@@ -347,6 +356,8 @@ def run_experiment(
             )
             manifest["run_id"] = run_id
             manifest["prompt_templates"] = {"version": "rq1-v1"}
+            if labels_path is not None:  # 【MC6-1】manifest 记录本次实验用的标签数据集
+                manifest["label_dataset"] = labels_path.name
             # 先写基本 manifest；usage 在函数全部跑完后更新（见 run 循环尾部）
             write_manifest(manifest, run_dir / "manifest.json")
             (run_dir / "decode_config.json").write_text(
