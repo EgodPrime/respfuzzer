@@ -465,3 +465,67 @@ def test_llm_failure_lands_in_checkpoint(tmp_path, monkeypatch):
     assert [e["event"] for e in payload["events"]] == ["llm_no_output"]
     assert payload["events"][0]["func_name"] == "math.ceil"
     assert payload["events"][0]["seed_id"] == seed.id
+
+
+# ---------------------------------------------------------------------------
+# MC3-5: decode_config 固化测试
+# ---------------------------------------------------------------------------
+
+
+def test_build_decode_config_defaults(monkeypatch, tmp_path):
+    """decode_config 使用 config.toml 的值或回退代码默认。"""
+    from respfuzzer.utils.experiment_recorder import build_decode_config
+    import os
+
+    # 使用默认 config.toml（[llm] 有 model_name/temperature，无 top_p/max_tokens）
+    cfg = build_decode_config()
+    assert isinstance(cfg, dict)
+    assert "llm" in cfg
+    assert "llm_mutator" in cfg
+    llm = cfg["llm"]
+    assert "model_name" in llm
+    assert "temperature" in llm
+    assert "top_p" in llm
+    assert "max_tokens" in llm
+    assert "base_url" in llm
+    assert "chat_template_kwargs" in llm
+    # chat_template_kwargs 固定
+    assert llm["chat_template_kwargs"]["enable_thinking"] is False
+
+
+def test_checkpoint_contains_decode_config(tmp_path):
+    """checkpoint 中自动包含 decode_config 字段。"""
+    rec = start_run(
+        "RQ3",
+        group="respfuzzer",
+        library="nltk",
+        out_dir=tmp_path,
+        timestamp="20260101T120000",
+        capture_stdout=False,
+    )
+    rec.finish()
+    payload = _checkpoint(rec)
+    assert "decode_config" in payload
+    dc = payload["decode_config"]
+    assert "llm" in dc
+    assert "llm_mutator" in dc
+    assert "model_name" in dc["llm"]
+    assert "temperature" in dc["llm"]
+    assert "top_p" in dc["llm"]
+    assert "max_tokens" in dc["llm"]
+    assert "chat_template_kwargs" in dc["llm"]
+    assert isinstance(dc["llm"]["model_name"], str)
+    assert isinstance(dc["llm"]["temperature"], float)
+    assert isinstance(dc["llm"]["top_p"], float)
+    assert isinstance(dc["llm"]["max_tokens"], int)
+
+
+def test_decode_config_no_secrets(monkeypatch, tmp_path):
+    """decode_config 不含敏感信息（api_key 等不应出现）。"""
+    from respfuzzer.utils.experiment_recorder import build_decode_config
+    cfg = build_decode_config()
+    raw = json.dumps(cfg)
+    assert "api_key" not in raw.lower()
+    assert "sk-" not in raw
+    assert "secret" not in raw.lower()
+    # base_url 可能包含 host 信息，但不包含 key

@@ -22,7 +22,8 @@
   的脚本（RQ1 生成脚本、第三方 DyFuzz）不改一行代码也能留下同样格式的日志。
 - ``*_checkpoint.json`` 是**运行结束时的状态与元数据**：状态（含异常）、起止时间与耗时、
   环境（argv/python/platform/hostname/git_commit）、脱敏后的 ``config.toml`` 快照、
-  运行元数据、结果数据（``results``）、事件计数（``event_counts``）、以及**内嵌的全部
+  运行元数据、结果数据（``results``）、事件计数（``event_counts``）、**解码设置**（``decode_config``，
+  含 model_name / temperature / top_p / max_tokens / chat_template），以及**内嵌的全部
   结构化事件** ``events[]``；``log`` 字段指向同 stem 的 ``.log``。
 
 设计要点：
@@ -191,7 +192,67 @@ def _git_commit() -> str | None:
     commit = proc.stdout.strip()
     return commit if proc.returncode == 0 and commit else None
 
+# ---------------------------------------------------------------------------
+# LLM 解码设置固化（MC3-5）
+# ---------------------------------------------------------------------------
+# 实验代码中不记录模型修订版本（commit hash），只记录模型名；
+# 修订版本在论文中说明。
 
+_CHAT_TEMPLATE_KWARGS: dict[str, Any] = {"enable_thinking": False}
+_TOP_P_DEFAULT: float = 1.0
+_MAX_TOKENS_DEFAULT: int = 32768
+_TEMPERATURE_DEFAULT: float = 0.7
+_BASE_URL_DEFAULT: str = "https://api.openai.com/v1"
+
+
+def _as_float(value: Any, default: float) -> float:
+    """配置值转 float；无效/缺失时回退默认。"""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_int(value: Any, default: int) -> int:
+    """配置值转 int；无效/缺失时回退默认。"""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def build_decode_config() -> dict[str, Any]:
+    """构建 LLM 解码设置快照（MC3-5）。
+
+    从 ``config.toml`` 的 ``[llm]`` 和 ``[llm_mutator]`` 两个节中提取
+    ``model_name``、``temperature``、``top_p``、``max_tokens``，
+    缺失值回退代码默认。始终包含 ``chat_template_kwargs``。
+    """
+    llm_cfg = get_config("llm") or {}
+    llm_mut_cfg = get_config("llm_mutator") or {}
+    return {
+        "llm": {
+            "model_name": str(llm_cfg.get("model_name", "")),
+            "temperature": _as_float(llm_cfg.get("temperature", _TEMPERATURE_DEFAULT), _TEMPERATURE_DEFAULT),
+            "top_p": _as_float(llm_cfg.get("top_p", _TOP_P_DEFAULT), _TOP_P_DEFAULT),
+            "max_tokens": _as_int(llm_cfg.get("max_tokens", _MAX_TOKENS_DEFAULT), _MAX_TOKENS_DEFAULT),
+            "base_url": str(llm_cfg.get("base_url", _BASE_URL_DEFAULT)),
+            "chat_template_kwargs": dict(_CHAT_TEMPLATE_KWARGS),
+        },
+        "llm_mutator": {
+            "model_name": str(llm_mut_cfg.get("model_name", "")),
+            "temperature": _as_float(llm_mut_cfg.get("temperature", _TEMPERATURE_DEFAULT), _TEMPERATURE_DEFAULT),
+            "top_p": _as_float(llm_mut_cfg.get("top_p", _TOP_P_DEFAULT), _TOP_P_DEFAULT),
+            "max_tokens": _as_int(llm_mut_cfg.get("max_tokens", _MAX_TOKENS_DEFAULT), _MAX_TOKENS_DEFAULT),
+            "base_url": str(llm_mut_cfg.get("base_url", _BASE_URL_DEFAULT)),
+            "chat_template_kwargs": dict(_CHAT_TEMPLATE_KWARGS),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# 环境信息
+# ---------------------------------------------------------------------------
 def _environment() -> dict[str, Any]:
     return {
         "argv": [str(a) for a in sys.argv],
@@ -340,6 +401,8 @@ class RunRecorder:
             if config is not None
             else _config_snapshot()
         )
+        # MC3-5: 解码设置快照（模型名、temperature、top_p、max_tokens、chat_template）
+        self.decode_config: dict[str, Any] = _scrub_secrets(_json_safe(build_decode_config()))
         self.results: dict[str, Any] = {}
         self.events: list[dict[str, Any]] = []
         self.event_counts: dict[str, int] = {}
@@ -475,6 +538,7 @@ class RunRecorder:
             "duration_seconds": round((finished - self.started_at).total_seconds(), 3),
             "environment": _environment(),
             "config": self.config,
+            "decode_config": self.decode_config,
             "metadata": self.metadata,
             "results": self.results,
             "event_counts": dict(sorted(self.event_counts.items())),
