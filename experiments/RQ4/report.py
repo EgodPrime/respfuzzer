@@ -24,6 +24,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from experiments.common.pairing import align_paired, checkpoint_pair_key
 from experiments.common.stats import format_stats_table, stats_rows_for
 
 COV_TOTAL_MAP = {
@@ -172,6 +173,41 @@ def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
             if covs:
                 runs[library][mode] = {"coverage": covs, "time_used": times}
     return runs
+
+def collect_paired_runs(log_dir: str) -> tuple[dict, dict, list[str]]:
+    """按**相同随机种子**收集逐次运行【MC3-3】。
+
+    每条日志用同 stem 的 ``*_checkpoint.json`` 取配对键（``run_index`` 优先、缺则
+    ``seed``），按 ``(mode, library, 配对键)`` 收集，供 :func:`gen_paired_stats_tables`
+    按键交集对齐成等长样本。
+
+    Returns (cov_keyed, time_keyed, unpaired):
+      cov_keyed: {mode: {library: {配对键: [coverage, ...]}}}
+      unpaired:  取不到配对键的日志文件名（不进配对表，表下会列出来）
+    """
+    discovered = discover_logs(log_dir)
+    cov_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    time_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    unpaired: list[str] = []
+
+    for library in sorted(discovered.keys()):
+        for mode in sorted(discovered[library].keys()):
+            for log_path in discovered[library][mode]:
+                parsed = parse_log_file(log_path)
+                if parsed is None:
+                    continue
+                key = checkpoint_pair_key(log_path)
+                if key is None:
+                    unpaired.append(os.path.basename(log_path))
+                    continue
+                cov_keyed[mode][library][key].append(float(parsed["coverage"]))
+                time_keyed[mode][library][key].append(float(parsed["time_used"]))
+
+    return (
+        {m: dict(libs) for m, libs in cov_keyed.items()},
+        {m: dict(libs) for m, libs in time_keyed.items()},
+        unpaired,
+    )
 
 
 def average_runs(
@@ -463,6 +499,7 @@ def _stats_table(
     *,
     unit: str,
     metric: str,
+    paired: bool = False,
 ) -> str:
     """一个指标的统计表（n / mean±sd / 95% CI / Δ / Cliff's δ）。"""
     labels = [lib for lib in by_lib if REFERENCE_MODE in by_lib[lib]]
@@ -477,6 +514,7 @@ def _stats_table(
         labels=DISPLAY_ORDER,
         groups=groups,
         average_label=AVERAGE_LABEL,
+        paired=paired,
     )
     table = format_stats_table(
         rows,
@@ -513,6 +551,67 @@ def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
     blocks.append(f"\n{_STATS_NOTE}")
     return "\n".join(blocks)
 
+#: 配对表脚注【MC3-3】
+_PAIRED_NOTE = (
+    "> **配对口径【MC3-3】**：每行只取**同一个 `run_index`（同一个随机种子）都跑过**的配置，"
+    "按 `(库, run_index)` 对齐成等长样本后再算 `Δ` 的 95% CI（配对差值 bootstrap，"
+    "B=2000，固定 seed 可复现）；`n` = 配对完整的运行数。缺 checkpoint 配对键、"
+    "配对键重复或没有共同键的库不进入本表（原因列在表下）。"
+    "种子只控制本地随机性（参数变异、变异算子采样、策略、数据集采样），LLM 采样与线程调度"
+    "仍非确定，因此配对是「共同随机数」式的实验设计，**不承诺逐位复现**。"
+    f"`{AVERAGE_LABEL}` 行把库均值当作独立样本（未配对）；函数层 / 库层的配对与分层 "
+    "Bootstrap 见【MC3-4】。"
+)
+
+
+def _convert_keyed(runs: dict, value_fn: Callable[[float, str], float]) -> dict:
+    """``{配置: {库: {配对键: [值]}}}`` → 库名转显示名、值经 ``value_fn`` 换算。"""
+    return {
+        mode: {
+            _display_library(library): {
+                key: [value_fn(value, _display_library(library)) for value in values]
+                for key, values in keyed.items()
+            }
+            for library, keyed in libraries.items()
+        }
+        for mode, libraries in runs.items()
+    }
+
+
+def gen_paired_stats_tables(
+    cov_keyed: dict, time_keyed: dict, unpaired: list[str] | None = None
+) -> str:
+    """【MC3-3】相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
+    blocks = ["## Same-seed paired statistics 【MC3-3】"]
+    for title, runs, value_fn, unit in (
+        ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
+        ("Time (s)", time_keyed, _seconds, "s"),
+    ):
+        blocks.append(f"\n### {title}\n")
+        aligned, notes = align_paired(
+            _convert_keyed(runs, value_fn),
+            reference=REFERENCE_MODE,
+            groups=MODE_ORDER,
+        )
+        if not aligned:
+            blocks.append(
+                "（没有可配对的运行：所有库都缺少共同的随机种子键；"
+                "用 `batch_run.sh` 传 `RUN_INDEX` 重跑后再生成本表）"
+            )
+            continue
+        blocks.append(
+            _stats_table(aligned, MODE_ORDER, unit=unit, metric=title, paired=True)
+        )
+        if notes:
+            blocks.append("\n> 未参与配对的库：" + "；".join(notes) + "。")
+    blocks.append(f"\n{_PAIRED_NOTE}")
+    if unpaired:
+        blocks.append(
+            "\n> 没有配对键（缺 checkpoint）而未进入本表的日志："
+            + ", ".join(sorted(unpaired))
+        )
+    return "\n".join(blocks)
+
 
 if __name__ == "__main__":
     log_dir = os.path.dirname(os.path.abspath(__file__))
@@ -525,3 +624,6 @@ if __name__ == "__main__":
     print(gen_markdown_table(data))
     print()
     print(gen_stats_tables(runs))
+    print()
+    cov_keyed, time_keyed, unpaired = collect_paired_runs(log_dir)
+    print(gen_paired_stats_tables(cov_keyed, time_keyed, unpaired))

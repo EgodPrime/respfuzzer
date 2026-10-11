@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 from experiments.RQ4 import report as rq4
@@ -137,3 +138,59 @@ def test_original_coverage_table_still_renders(tmp_path):
     assert "Average | #Time" in header
     assert len(table.splitlines()) == 4  # 表头 + 分隔线 + NL + Full
     assert any(line.split("|")[1].strip() == "Full" for line in table.splitlines())
+
+
+def _write_checkpoint(
+    directory, log_name: str, *, run_index: int, seed: int = 0
+) -> None:
+    """给同 stem 的日志写带配对键的 checkpoint【MC3-3】。"""
+    checkpoint = directory / log_name.replace(".log", "_checkpoint.json")
+    checkpoint.write_text(
+        json.dumps({"metadata": {"run_index": run_index, "seed": seed}}),
+        encoding="utf-8",
+    )
+
+
+def _paired_dataset(directory) -> None:
+    """1 个库 × 2 个配置 × 3 次运行，每条日志带 ``run_index=1..3`` 的 checkpoint。"""
+    coverages = {"Full": [10000, 12000, 14000], "NL": [2000, 4000, 6000]}
+    for mode, values in coverages.items():
+        for index, coverage in enumerate(values):
+            stamp = f"20260101T00000{index}"
+            _write_log(directory, "Nltk", mode, coverage, stamp=stamp)
+            suffix = f"_mode-{mode.lower()}" if mode != "Full" else ""
+            _write_checkpoint(
+                directory,
+                f"rq4_respfuzzer_Nltk_{stamp}{suffix}.log",
+                run_index=index + 1,
+            )
+
+
+def test_collect_paired_runs_and_paired_table(tmp_path):
+    """ut-MC3-3-RQ4-A：按 run_index 收集并对齐，配对 Δ 走配对差值口径。"""
+    _paired_dataset(tmp_path)
+    # 老产物：没有 checkpoint 的一条日志
+    _write_log(tmp_path, "Nltk", "Full", 15000, stamp="20260101T000009")
+
+    cov_keyed, time_keyed, unpaired = rq4.collect_paired_runs(str(tmp_path))
+
+    assert cov_keyed["Full"]["Nltk"] == {
+        "run_index=1": [10000.0],
+        "run_index=2": [12000.0],
+        "run_index=3": [14000.0],
+    }
+    assert unpaired == ["rq4_respfuzzer_Nltk_20260101T000009.log"]
+
+    table = rq4.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
+    assert "## Same-seed paired statistics 【MC3-3】" in table
+    assert "配对口径【MC3-3】" in table
+    assert "不承诺逐位复现" in table
+
+    by_key = {
+        (row["Library"], row["Configuration"]): row for row in _coverage_section(table)
+    }
+    assert by_key[("NLTK", "Full")]["n"] == "3"
+    assert by_key[("NLTK", "NL")]["n"] == "3"
+    assert by_key[("NLTK", "NL")]["Δ vs Full (%) 95% CI"].startswith("-")
+    # 未配对的老日志被显式列出
+    assert "rq4_respfuzzer_Nltk_20260101T000009.log" in table

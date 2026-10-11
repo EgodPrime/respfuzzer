@@ -21,6 +21,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from experiments.common.pairing import align_paired, checkpoint_pair_key
 from experiments.common.stats import format_stats_table, stats_rows_for
 
 COV_TOTAL_MAP = {
@@ -110,6 +111,49 @@ def extract_final_coverage_and_time(log_path: str):
     return last_coverage, elapsed
 
 
+#: 日志文件名里的 fuzzer 段 → 报表显示名
+FUZZER_DISPLAY = {
+    "dyfuzz": "DyFuzz",
+    "fuzz4all": "Fuzz4All",
+    "respfuzzer": "RespFuzzer",
+}
+
+
+def _iter_log_runs(log_dir: str, *, quiet: bool = False):
+    """逐个 ``rq3_*.log`` 产出 ``(fuzzer, library, coverage, elapsed, log_path)``。
+
+    ``collect_runs``（逐次样本【MC3-2】）与 ``collect_paired_runs``（相同随机种子
+    配对【MC3-3】）共用同一套文件名解析与日志解析，避免两份口径漂移。
+    """
+    log_files = sorted(glob.glob(os.path.join(log_dir, "rq3_*.log")))
+
+    for log_path in log_files:
+        filename = os.path.basename(log_path)
+        m = FILENAME_PATTERN.match(filename)
+        if not m:
+            if not quiet:
+                print(f"  SKIP (no match): {filename}")
+            continue
+
+        fuzzer_raw = m.group(1)  # dyfuzz, fuzz4all, respfuzzer
+        library = m.group(2)     # Nltk, Yaml, etc.
+
+        fuzzer_name = FUZZER_DISPLAY.get(fuzzer_raw, fuzzer_raw)
+
+        # Normalize library name to canonical display form
+        library = LIB_TO_COV_KEY.get(library, library)
+
+        coverage, elapsed = extract_final_coverage_and_time(log_path)
+        if coverage is None:
+            if not quiet:
+                print(f"  WARN: no coverage found in {filename}")
+            continue
+
+        if not quiet:
+            print(f"  {fuzzer_name:12s} | {library:12s} -> cov={coverage:>6d}  time={elapsed}s")
+        yield fuzzer_name, library, coverage, elapsed, log_path
+
+
 def collect_runs(
     log_dir: str,
 ) -> tuple[dict[str, dict[str, list[int]]], dict[str, dict[str, list[int]]]]:
@@ -127,42 +171,49 @@ def collect_runs(
     cov_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
     time_accum: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
 
-    log_files = sorted(glob.glob(os.path.join(log_dir, "rq3_*.log")))
-
-    for log_path in log_files:
-        filename = os.path.basename(log_path)
-        m = FILENAME_PATTERN.match(filename)
-        if not m:
-            print(f"  SKIP (no match): {filename}")
-            continue
-
-        fuzzer_raw = m.group(1)  # dyfuzz, fuzz4all, respfuzzer
-        library = m.group(2)     # Nltk, Yaml, etc.
-
-        # Normalize fuzzer display name
-        fuzzer_map = {
-            "dyfuzz": "DyFuzz",
-            "fuzz4all": "Fuzz4All",
-            "respfuzzer": "RespFuzzer",
-        }
-        fuzzer_name = fuzzer_map.get(fuzzer_raw, fuzzer_raw)
-
-        # Normalize library name to canonical display form
-        library = LIB_TO_COV_KEY.get(library, library)
-
-        coverage, elapsed = extract_final_coverage_and_time(log_path)
-        if coverage is None:
-            print(f"  WARN: no coverage found in {filename}")
-            continue
-
+    for fuzzer_name, library, coverage, elapsed, _log_path in _iter_log_runs(log_dir):
         cov_accum[fuzzer_name][library].append(coverage)
         if elapsed is not None:
             time_accum[fuzzer_name][library].append(elapsed)
-        print(f"  {fuzzer_name:12s} | {library:12s} -> cov={coverage:>6d}  time={elapsed}s")
 
     return (
         {fuzzer: dict(libs) for fuzzer, libs in cov_accum.items()},
         {fuzzer: dict(libs) for fuzzer, libs in time_accum.items()},
+    )
+
+
+def collect_paired_runs(
+    log_dir: str,
+) -> tuple[dict, dict, list[str]]:
+    """按**相同随机种子**收集逐次运行【MC3-3】。
+
+    每条日志用同 stem 的 ``*_checkpoint.json`` 取配对键（``run_index`` 优先、
+    缺则 ``seed``），按 ``(fuzzer, library, 配对键)`` 收集，供
+    :func:`gen_paired_stats_tables` 按键交集对齐成等长样本。
+
+    Returns (cov_keyed, time_keyed, unpaired):
+      cov_keyed: {fuzzer: {library: {配对键: [coverage_per_run, ...]}}}
+      unpaired:  取不到配对键的日志文件名（不进配对表，表下会列出来）
+    """
+    cov_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    time_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    unpaired: list[str] = []
+
+    for fuzzer_name, library, coverage, elapsed, log_path in _iter_log_runs(
+        log_dir, quiet=True
+    ):
+        key = checkpoint_pair_key(log_path)
+        if key is None:
+            unpaired.append(os.path.basename(log_path))
+            continue
+        cov_keyed[fuzzer_name][library][key].append(coverage)
+        if elapsed is not None:
+            time_keyed[fuzzer_name][library][key].append(elapsed)
+
+    return (
+        {fuzzer: dict(libs) for fuzzer, libs in cov_keyed.items()},
+        {fuzzer: dict(libs) for fuzzer, libs in time_keyed.items()},
+        unpaired,
     )
 
 
@@ -317,6 +368,7 @@ def _stats_table(
     *,
     unit: str,
     metric: str,
+    paired: bool = False,
 ) -> str:
     """一个指标的统计表（n / mean±sd / 95% CI / Δ / Cliff's δ）。"""
     labels = [lib for lib in by_lib if REFERENCE_FUZZER in by_lib[lib]]
@@ -329,6 +381,7 @@ def _stats_table(
         labels=DISPLAY_ORDER,
         groups=groups,
         average_label=AVERAGE_LABEL,
+        paired=paired,
     )
     table = format_stats_table(
         rows,
@@ -364,6 +417,68 @@ def gen_stats_tables(
     return "\n".join(blocks)
 
 
+#: 配对表脚注【MC3-3】
+_PAIRED_NOTE = (
+    "> **配对口径【MC3-3】**：每行只取**同一个 `run_index`（同一个随机种子）都跑过**的运行，"
+    "按 `(库, run_index)` 对齐成等长样本后再算 `Δ` 的 95% CI（配对差值 bootstrap，"
+    "B=2000，固定 seed 可复现）；`n` = 配对完整的运行数。缺 checkpoint 配对键、"
+    "配对键重复或没有共同键的库不进入本表（原因列在表下）。"
+    "种子只控制本地随机性（参数变异、变异算子采样、策略、数据集采样），LLM 采样与线程调度"
+    "仍非确定，因此配对是「共同随机数」式的实验设计，**不承诺逐位复现**。"
+    f"`{AVERAGE_LABEL}` 行把库均值当作独立样本（未配对）；函数层 / 库层的配对与分层 "
+    "Bootstrap 见【MC3-4】。"
+)
+
+
+def _convert_keyed(runs: dict, value_fn: Callable[[int, str], float]) -> dict:
+    """``{组: {库: {配对键: [值]}}}`` → 同结构但值经 ``value_fn`` 换算。"""
+    return {
+        group: {
+            lib: {
+                key: [value_fn(value, lib) for value in values]
+                for key, values in keyed.items()
+            }
+            for lib, keyed in libraries.items()
+        }
+        for group, libraries in runs.items()
+    }
+
+
+def gen_paired_stats_tables(
+    cov_keyed: dict, time_keyed: dict, unpaired: list[str] | None = None
+) -> str:
+    """【MC3-3】相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
+    blocks = ["## Same-seed paired statistics 【MC3-3】"]
+    for title, runs, value_fn, unit in (
+        ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
+        ("Time (s)", time_keyed, _seconds, "s"),
+    ):
+        blocks.append(f"\n### {title}\n")
+        aligned, notes = align_paired(
+            _convert_keyed(runs, value_fn),
+            reference=REFERENCE_FUZZER,
+            groups=FUZZER_ORDER,
+        )
+        if not aligned:
+            blocks.append(
+                "（没有可配对的运行：所有库都缺少共同的随机种子键；"
+                "用 `batch_run.sh` 传 `RUN_INDEX` 重跑后再生成本表）"
+            )
+            continue
+        blocks.append(
+            _stats_table(aligned, FUZZER_ORDER, unit=unit, metric=title, paired=True)
+        )
+        if notes:
+            blocks.append("\n> 未参与配对的库：" + "；".join(notes) + "。")
+    blocks.append(f"\n{_PAIRED_NOTE}")
+    if unpaired:
+        blocks.append(
+            "\n> 没有配对键（缺 checkpoint）而未进入本表的日志："
+            + ", ".join(sorted(unpaired))
+        )
+    return "\n".join(blocks)
+
+
 def main():
     print(f"Scanning logs in: {LOG_DIR}\n")
     cov_runs, time_runs = collect_runs(LOG_DIR)
@@ -378,6 +493,9 @@ def main():
 
     print()
     print(gen_stats_tables(cov_runs, time_runs))
+    print()
+    cov_keyed, time_keyed, unpaired = collect_paired_runs(LOG_DIR)
+    print(gen_paired_stats_tables(cov_keyed, time_keyed, unpaired))
 
 
 if __name__ == "__main__":

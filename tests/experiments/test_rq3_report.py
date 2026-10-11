@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 
 from experiments.RQ3 import report as rq3
@@ -148,3 +149,81 @@ def test_missing_reference_library_is_annotated(tmp_path):
     libraries = {row["Library"] for row in coverage_rows}
     assert libraries == {"Dask", "Average"}  # NLTK 被排除
     assert "未列入的库：NLTK" in table
+
+
+def _write_checkpoint(
+    directory, log_name: str, *, run_index: int, seed: int = 0
+) -> None:
+    """给同 stem 的日志写带配对键的 checkpoint【MC3-3】。"""
+    checkpoint = directory / log_name.replace(".log", "_checkpoint.json")
+    checkpoint.write_text(
+        json.dumps({"metadata": {"run_index": run_index, "seed": seed}}),
+        encoding="utf-8",
+    )
+
+
+def _paired_dataset(directory) -> None:
+    """1 个库 × 3 个 fuzzer × 3 次运行，每条日志带 ``run_index=1..3`` 的 checkpoint。"""
+    coverages = {
+        "dyfuzz": [1000, 2000, 3000],
+        "fuzz4all": [4000, 5000, 6000],
+        "respfuzzer": [7000, 8000, 9000],
+    }
+    for fuzzer, values in coverages.items():
+        for index, coverage in enumerate(values):
+            stamp = f"20260101T00000{index}"
+            _write_log(directory, fuzzer, "NLTK", coverage, stamp=stamp)
+            _write_checkpoint(
+                directory, f"rq3_{fuzzer}_NLTK_{stamp}.log", run_index=index + 1
+            )
+
+
+def test_collect_paired_runs_reads_run_index_from_checkpoint(tmp_path):
+    """ut-MC3-3-RQ3-A：配对键取 checkpoint 的 ``run_index``；缺 checkpoint → unpaired。"""
+    _paired_dataset(tmp_path)
+    # 再补一条没有 checkpoint 的日志（老产物 / 未接线的运行）
+    _write_log(tmp_path, "dyfuzz", "Dask", 5000, stamp="20260101T000009")
+
+    cov_keyed, _time_keyed, unpaired = rq3.collect_paired_runs(str(tmp_path))
+
+    assert cov_keyed["RespFuzzer"]["NLTK"] == {
+        "run_index=1": [7000],
+        "run_index=2": [8000],
+        "run_index=3": [9000],
+    }
+    assert unpaired == ["rq3_dyfuzz_Dask_20260101T000009.log"]
+    # 没有配对键的运行不进配对数据（而不是被当成同一个键）
+    assert "Dask" not in cov_keyed["DyFuzz"]
+
+
+def test_paired_stats_table_aligns_on_run_index(tmp_path):
+    """ut-MC3-3-RQ3-B：按 run_index 对齐后走配对差值口径，缺件被显式列出。"""
+    _paired_dataset(tmp_path)
+    _write_log(
+        tmp_path, "dyfuzz", "Dask", 5000, stamp="20260101T000009"
+    )  # 无 checkpoint
+    cov_keyed, time_keyed, unpaired = rq3.collect_paired_runs(str(tmp_path))
+    table = rq3.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
+
+    assert "## Same-seed paired statistics 【MC3-3】" in table
+    assert "配对口径【MC3-3】" in table
+    assert "不承诺逐位复现" in table  # LLM 非确定性边界写在脚注里
+
+    rows = _parse_rows(table.split("### Time (s)")[0].split("### Coverage (%)")[1])
+    by_key = {(row["Library"], row["Fuzzer"]): row for row in rows}
+
+    assert by_key[("NLTK", "RespFuzzer")]["n"] == "3"
+    assert by_key[("NLTK", "DyFuzz")]["n"] == "3"
+
+    # 三轮差值恒定 → 配对 Δ 的 95% CI 塌缩成同一个点（配对差值重采样的必然结果）
+    point, interval = by_key[("NLTK", "DyFuzz")]["Δ vs RespFuzzer (%) 95% CI"].split(
+        " ", 1
+    )
+    low, high = (float(v.rstrip("%")) for v in interval.strip("[]").split(", "))
+    assert point.startswith("-")
+    assert low == high
+    # 点估计与 CI 只差格式化位数（Δ 用 3 位小数、CI 用 2 位）
+    assert abs(float(point.rstrip("%")) - low) < 0.01
+
+    # 没有配对键的日志在表下被列出来
+    assert "没有配对键（缺 checkpoint）而未进入本表的日志" in table

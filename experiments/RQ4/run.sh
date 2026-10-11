@@ -22,6 +22,16 @@ source "$config_file"
 # .log 与 *_checkpoint.json 由 experiment_recorder 按统一命名写入 experiments/RQ4/（MC3-1）
 
 
+# 【MC3-3】配对运行：SEED / RUN_INDEX 由 batch_run.sh（或手工）传入，
+# 同一 RUN_INDEX 在各消融配置与 RQ3 三个 fuzzer 上派生出同一个随机种子。
+pair_args=""
+if [ -n "${SEED:-}" ]; then
+    pair_args="$pair_args --seed $SEED"
+fi
+if [ -n "${RUN_INDEX:-}" ]; then
+    pair_args="$pair_args --run-index $RUN_INDEX"
+fi
+
 for library in "${libraries[@]}"; do
     input_file="$DATA_DIR/${library}_seeds_sampled.json"
     if [ ! -f "$input_file" ]; then
@@ -29,7 +39,7 @@ for library in "${libraries[@]}"; do
         continue
     fi
 
-    cmd="uv run $exp_script_path $input_file --mode $mode"
+    cmd="uv run $exp_script_path $input_file --mode $mode $pair_args"
     echo "cmd: $cmd"
     eval "$cmd"
 done

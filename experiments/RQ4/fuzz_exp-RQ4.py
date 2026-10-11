@@ -21,6 +21,7 @@ from respfuzzer.utils.experiment_recorder import (
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
+from respfuzzer.utils.run_seed import prepare_run_seed
 
 RQ4_DIR = Path(__file__).resolve().parent
 
@@ -307,6 +308,8 @@ def fuzz_dataset(
     rq: str = "RQ4",
     group: str = "respfuzzer",
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file.
 
@@ -323,12 +326,16 @@ def fuzz_dataset(
               "NL,NP,NCF" - No LLM, no data fuzzing, no coverage feedback (seed execution only)
         rq/group/out_dir: 决定本次运行的 ``.log`` 与 ``*_checkpoint.json`` 命名与位置
               （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在本目录。
+        seed/run_index: 随机种子与轮次序号【MC3-3】；同一 ``run_index`` 在所有消融配置
+              派生出同一个种子，并写入 checkpoint 的 ``metadata`` 供同种子配对比较。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
+    # 种子先行：生效种子写进 checkpoint，报表按它配对【MC3-3】
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     with start_run(
         rq,
         group=group,
@@ -339,6 +346,8 @@ def fuzz_dataset(
             "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
             "dataset_path": str(dataset_path),
             "mode": mode or "Full",
+            "seed": run_seed,
+            "run_index": run_index,
         },
     ):
         logger.info(
@@ -366,6 +375,8 @@ def fuzz_one_library(
     rq: str = "RQ4",
     group: str = "respfuzzer",
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """
     Fuzz the specified library with seeds from the database.
@@ -374,6 +385,7 @@ def fuzz_one_library(
         library_name: Name of the library to fuzz.
         mode: Comma-separated ablation mode. Same options as fuzz_dataset.
         rq/group/out_dir: 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置。
+        seed/run_index: 同 :func:`fuzz_dataset`【MC3-3】，生效种子写入 checkpoint。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
@@ -382,6 +394,7 @@ def fuzz_one_library(
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     with start_run(
         rq,
         group=group,
@@ -392,6 +405,8 @@ def fuzz_one_library(
             "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
             "library_name": str(library_name),
             "mode": mode or "Full",
+            "seed": run_seed,
+            "run_index": run_index,
         },
     ):
         logger.info(
@@ -401,17 +416,18 @@ def fuzz_one_library(
         with ThreadPoolExecutor(max_workers=max_workers) as exc:
             futures = []
             sub_key = 4399
-            for seed in get_seeds(library_name):
+            # 循环变量用 seed_item，避免与 ``--seed`` 形参同名（PLR1704）
+            for seed_item in get_seeds(library_name):
                 fut = exc.submit(
                     fuzz_single_seed,
-                    seed,
+                    seed_item,
                     sub_key,
                     no_llm=no_llm,
                     no_data_fuzz=no_data_fuzz,
                     no_semantic_filter=no_semantic_filter,
                     no_cov_feedback=no_cov_feedback,
                 )
-                futures.append((fut, seed.func_name))
+                futures.append((fut, seed_item.func_name))
                 sub_key += 1
             final_coverage: int | None = None
             for fut, func_name in futures:

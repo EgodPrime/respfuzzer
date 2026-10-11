@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import random
 
+from respfuzzer.utils.run_seed import derive_run_seed  # noqa: F401  # re-export
+
 
 def seed_run(seed: int) -> random.Random:
   """由 run 种子构造独立 RNG（与全局 random 隔离，保证可复现）。"""
@@ -30,10 +32,8 @@ def shuffled(functions: list, rng: random.Random) -> list:
   return items
 
 
-def derive_run_seed(base_seed: int, run_index: int) -> int:
-  """按 run 序次派生稳定种子（1..runs），同 base+run 恒同值（可复现）。"""
-  return (base_seed * 1000003 + run_index) % (2**31 - 1)
-
+# ``derive_run_seed`` 由 ``respfuzzer.utils.run_seed`` re-export【MC3-3】：
+# 「run 序次 → 种子」全仓库只有一个实现，跨 RQ / 跨实验组的配对键才不会漂移。
 
 def ed4_quota(pool_len: int, threshold: int = 250, ratio: float = 0.2) -> int:
     """ED-4 采样配额：len<250 → min(50, len)；len≥250 → round(0.2·len)。

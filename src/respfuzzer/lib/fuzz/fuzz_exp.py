@@ -26,6 +26,7 @@ from respfuzzer.utils.experiment_recorder import (
 from respfuzzer.utils.paths import DATA_DIR
 from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
+from respfuzzer.utils.run_seed import prepare_run_seed
 
 
 def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
@@ -381,6 +382,8 @@ def fuzz_dataset(
     library: str | None = None,
     mode: str | None = None,
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file.
 
@@ -388,11 +391,16 @@ def fuzz_dataset(
     与 ``*_checkpoint.json`` 命名（见 ``respfuzzer.utils.experiment_recorder``）。
     ``library`` 缺省从数据集文件名推导，``rq`` 缺省 ``adhoc``（临时运行，产物落
     ``run_data/``）；RQ3 的 ``run_respfuzzer.sh`` 会显式传 ``--rq RQ3`` 与 ``--out-dir``。
+    ``seed`` / ``run_index`` 是随机种子与轮次序号【MC3-3】：同一 ``run_index`` 在所有
+    实验组派生出同一个种子（``derive_run_seed``），并连同生效种子写入 checkpoint 的
+    ``metadata``，供报表按「相同随机种子」做配对比较。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
+    # 种子先行：本次运行的生效种子要同时写进 checkpoint 供报表配对【MC3-3】
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     with start_run(
         rq or "adhoc",
         group=group,
@@ -402,6 +410,8 @@ def fuzz_dataset(
         metadata={
             "entry": "respfuzzer.cmd.fuzz:fuzz_dataset",
             "dataset_path": str(dataset_path),
+            "seed": run_seed,
+            "run_index": run_index,
         },
     ):
         reset_llm_stats()
@@ -424,6 +434,8 @@ def fuzz_one_library(
     group: str = "respfuzzer",
     mode: str | None = None,
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """
     Fuzz the specified library with seeds from the database.
@@ -437,6 +449,7 @@ def fuzz_one_library(
     bm_parent.clear_bitmap()
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     with start_run(
         rq or "adhoc",
         group=group,
@@ -446,6 +459,8 @@ def fuzz_one_library(
         metadata={
             "entry": "respfuzzer.cmd.fuzz:fuzz_library",
             "library_name": str(library_name),
+            "seed": run_seed,
+            "run_index": run_index,
         },
     ):
         reset_llm_stats()
@@ -457,13 +472,14 @@ def fuzz_one_library(
         with ThreadPoolExecutor(max_workers=max_workers) as exc:
             futures = []
             sub_key = 4399
-            for seed in seeds:
+            # 循环变量用 seed_item，避免与 ``--seed`` 形参同名（PLR1704）
+            for seed_item in seeds:
                 fut = exc.submit(
                     fuzz_single_seed,
-                    seed,
+                    seed_item,
                     sub_key,
                 )
-                futures.append((fut, seed.func_name, seed.library_name))
+                futures.append((fut, seed_item.func_name, seed_item.library_name))
                 sub_key += 1
             final_coverage: int | None = None
             for fut, func_name, seed_library in futures:

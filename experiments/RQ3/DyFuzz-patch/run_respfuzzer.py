@@ -194,16 +194,38 @@ _dyfuzz_cfg = _get_config("dyfuzz")
 budget_mode = _dyfuzz_cfg.get("budget_mode", "llm_calls")
 budget_value = _dyfuzz_cfg.get("budget_value", int(1e2 / 2))
 
-assert len(sys.argv) == 2, "Usage: python run_respfuzzer.py <data_path>"
-data_path = sys.argv[1]
+# 用法：python run_respfuzzer.py <data_path> [--seed N] [--run-index N]
+_argv = sys.argv[1:]
+if not _argv:
+    raise SystemExit(
+        "Usage: python run_respfuzzer.py <data_path> [--seed N] [--run-index N]"
+    )
+data_path = _argv[0]
+_opts = _argv[1:]
+if len(_opts) % 2:
+    raise SystemExit(
+        "Usage: python run_respfuzzer.py <data_path> [--seed N] [--run-index N]"
+    )
+_cli: dict[str, int] = {}
+for _i in range(0, len(_opts), 2):
+    _opt_key, _opt_value = _opts[_i], _opts[_i + 1]
+    if _opt_key not in ("--seed", "--run-index"):
+        raise SystemExit(f"unknown option: {_opt_key}")
+    _cli[_opt_key] = int(_opt_value)
 # ---- MC3-1：本次 DyFuzz 运行的 .log 与 *_checkpoint.json（统一命名）----
 import atexit as _atexit
 from pathlib import Path as _Path
 
 from respfuzzer.lib.fuzz.fuzz_exp import _library_from_dataset
 from respfuzzer.utils.experiment_recorder import record_result, start_run, reset_llm_stats
+from respfuzzer.utils.run_seed import prepare_run_seed
 
 _RQ3_DIR = _Path(__file__).resolve().parent.parent  # experiments/RQ3
+# 【MC3-3】DyFuzz 与 RespFuzzer / Fuzz4All 取同一个 run_index → 同一个种子；
+# DyFuzz 的参数变异（apifuzzer.random）与另外两个 fuzzer 一样由该种子播种。
+_run_seed = prepare_run_seed(
+    _cli.get("--seed"), _cli.get("--run-index"), section="dyfuzz"
+)
 recorder = start_run(
     "RQ3",
     group="dyfuzz",
@@ -212,6 +234,8 @@ recorder = start_run(
     metadata={
         "entry": "experiments/RQ3/DyFuzz-patch/run_respfuzzer.py",
         "data_path": str(data_path),
+        "seed": _run_seed,
+        "run_index": _cli.get("--run-index"),
     },
 )
 

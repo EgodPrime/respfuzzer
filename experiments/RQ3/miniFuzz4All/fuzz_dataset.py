@@ -31,6 +31,7 @@ from respfuzzer.utils.process_helper import (
     kill_process_tree_linux,
     manage_process_with_timeout,
 )
+from respfuzzer.utils.run_seed import prepare_run_seed
 
 F4A_DIR = Path(__file__).resolve().parent.parent  # experiments/RQ3
 
@@ -217,18 +218,23 @@ def fuzz_dataset(
     rq: str = "RQ3",
     group: str = "fuzz4all",
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """
     Fuzz the dataset.
 
     ``rq`` / ``group`` / ``out_dir`` 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置
     （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在 ``experiments/RQ3/``。
+    ``seed`` / ``run_index`` 是随机种子与轮次序号【MC3-3】：同一 ``run_index`` 在三个
+    fuzzer 上派生出同一个种子，并写入 checkpoint 的 ``metadata`` 供同种子配对比较。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     bm = BitmapManager(4398)
     bm.clear_bitmap()
     bm.write()
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz4all")
     with start_run(
         rq,
         group=group,
@@ -237,6 +243,8 @@ def fuzz_dataset(
         metadata={
             "entry": "experiments/RQ3/miniFuzz4All/fuzz_dataset.py",
             "dataset_path": str(dataset_path),
+            "seed": run_seed,
+            "run_index": run_index,
         },
     ):
         reset_f4a_stats()
@@ -261,6 +269,8 @@ def fuzz_dataset_infinite(
     rq: str = "RQ3",
     group: str = "fuzz4all",
     out_dir: str | None = None,
+    seed: int | None = None,
+    run_index: int | None = None,
 ) -> None:
     """
     Fuzz the dataset in an infinite loop.
@@ -271,6 +281,7 @@ def fuzz_dataset_infinite(
     logger.add(sys.__stderr__, level="INFO")
     dcov.open_bitmap_py()
     dcov.clear_bitmap_py()
+    run_seed = prepare_run_seed(seed, run_index, section="fuzz4all")
     recorder = start_run(
         rq,
         group=group,
@@ -280,6 +291,8 @@ def fuzz_dataset_infinite(
             "entry": "experiments/RQ3/miniFuzz4All/fuzz_dataset.py",
             "dataset_path": str(dataset_path),
             "mode": "infinite",
+            "seed": run_seed,
+            "run_index": run_index,
         },
     )
     reset_f4a_stats()

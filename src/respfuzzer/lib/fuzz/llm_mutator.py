@@ -20,12 +20,14 @@ from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import record_event
 from respfuzzer.utils.llm_helper import get_sys_llm
+from respfuzzer.utils.run_seed import resolve_run_seed
 
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 
-random.seed(4399)
+# 【MC3-3】运行级种子：入口用 --seed / --run-index 覆盖（见 utils.run_seed）
+random.seed(resolve_run_seed(section="fuzz"))
 
 llm_cfg = get_config("llm_mutator")
 
