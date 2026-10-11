@@ -1,20 +1,17 @@
-"""跨 RQ 共享的**运行级**统计【MC3-2】。
+"""跨 RQ 共享的**运行级 + 分层/配对 Bootstrap** 统计【MC3-2/MC3-4】。
 
 评审主要意见 3（表 V / VI 只报均值）要求报告**置信区间与效应量（Cliff's delta）**。
 本模块是 ② 环节统一交付的算法层，供各 RQ 的 report 脚本复用：
 
 - :func:`describe` / :func:`summarize` —— 描述统计（n、mean、sd、min/max）；
 - :func:`mean_ci` —— 均值的 95% 置信区间（percentile bootstrap，B=2000，固定 seed 可复现）；
+- :func:`paired_bootstrap_ci` —— 配对差值的百分位 bootstrap CI（函数层 MC3-4）；
+- :func:`hierarchical_bootstrap_ci` —— 分层 bootstrap CI（先抽库、再库内抽函数，库层 MC3-4）；
 - :func:`cliffs_delta` —— 效应量 Cliff's delta ∈ [−1, 1]（秩法 O(n log n)，含并列）；
 - :func:`cliffs_magnitude` —— 按 Romano et al. (2006) 阈值给效应量分级；
 - :func:`mean_diff_ci` —— 两组独立样本均值差的 bootstrap CI（非配对）；
 - :func:`compare_to_reference` / :func:`stats_rows` —— 逐组对比行（报表直接用）；
 - :func:`format_stats_table` —— 把对比行渲染成 markdown 表。
-
-与 ``experiments/RQ1/engine/stats.py`` 的边界：本模块是**运行级、组间（非配对）**统计，
-服务 RQ3 / RQ4 这类「同一配置重复 5 次」的表；RQ1 引擎的**函数级配对** bootstrap
-（``paired_bootstrap_ci`` / ``hierarchical_bootstrap_ci``，MC3-4）仍留在引擎侧，
-但 ``cliffs_delta`` / ``describe`` / ``percentile`` 由本模块统一实现并被其复用。
 """
 
 from __future__ import annotations
@@ -24,7 +21,7 @@ import random
 import statistics
 from collections.abc import Mapping, Sequence
 
-#: bootstrap 重采样次数（与 RQ1 引擎一致）
+#: bootstrap 重采样次数（跨 RQ 统一）
 DEFAULT_N_BOOT = 2000
 
 #: 默认显著性水平（95% CI）
@@ -40,7 +37,6 @@ CLIFFS_THRESHOLDS: tuple[tuple[float, str], ...] = (
     (0.474, "medium"),
     (math.inf, "large"),
 )
-
 
 def percentile(sorted_values: Sequence[float], q: float) -> float:
     """线性插值分位（``sorted_values`` 必须升序）。空 → NaN。"""
@@ -86,6 +82,34 @@ def mean_ci(
     ]
     means.sort()
     return percentile(means, alpha / 2), percentile(means, 1 - alpha / 2), point
+
+def paired_bootstrap_ci(
+    diffs: Sequence[float],
+    *,
+    n_boot: int = DEFAULT_N_BOOT,
+    rng: random.Random | None = None,
+    alpha: float = 0.05,
+) -> tuple[float | None, float | None, float]:
+    """配对差值的百分位 bootstrap CI（函数层 MC3-4）。
+
+    返回 ``(ci_low, ci_high, point_mean)``；样本量 ≤ 1 → ``(None, None, mean)``。
+    用于 RQ1/RQ2 函数级配对 bootstrap：对每个函数的配对差值 d(f) 重采样。
+    """
+    vals = list(diffs)
+    point = statistics.fmean(vals) if vals else 0.0
+    if len(vals) <= 1:
+        return None, None, point
+    rng = rng if rng is not None else random.Random(DEFAULT_SEED)
+    means = [
+        statistics.fmean(rng.choices(vals, k=len(vals))) for _ in range(n_boot)
+    ]
+    means.sort()
+    return (
+        percentile(means, alpha / 2),
+        percentile(means, 1 - alpha / 2),
+        point,
+    )
+
 
 
 def summarize(
@@ -173,6 +197,50 @@ def mean_diff_ci(
     ]
     diffs.sort()
     return percentile(diffs, alpha / 2), percentile(diffs, 1 - alpha / 2), point
+
+
+def hierarchical_bootstrap_ci(
+    by_lib: Mapping[str, Sequence[float]],
+    *,
+    n_boot: int = DEFAULT_N_BOOT,
+    rng: random.Random | None = None,
+    alpha: float = 0.05,
+) -> tuple[float | None, float | None, float]:
+    """分层 bootstrap CI：先抽库（放回）、再库内抽函数（放回）。
+
+    返回 ``(ci_low, ci_high, point)``；单库时退化为函数层 bootstrap；无数据 → (None, None, 0)。
+    用于 RQ1/RQ3/RQ4 库层 bootstrap MC3-4。
+    """
+    libs = {k: list(v) for k, v in by_lib.items()}
+    total_n = sum(len(v) for v in libs.values())
+    point = sum(sum(v) for v in libs.values()) / total_n if total_n else 0.0
+    if total_n == 0:
+        return None, None, point
+    if len(libs) <= 1:
+        only = next(iter(libs.values()))
+        return paired_bootstrap_ci(only, n_boot=n_boot, rng=rng, alpha=alpha)
+    rng = rng if rng is not None else random.Random(DEFAULT_SEED)
+    keys = list(libs)
+    n_keys = len(keys)
+    means = []
+    for _ in range(n_boot):
+        total = 0.0
+        n = 0
+        for _ in range(n_keys):  # 抽库
+            k = keys[rng.randrange(n_keys)]
+            vals = libs[k]
+            if not vals:
+                continue
+            picked = rng.choices(vals, k=len(vals))
+            total += sum(picked)
+            n += len(picked)
+        means.append(total / n if n else point)
+    means.sort()
+    return (
+        percentile(means, alpha / 2),
+        percentile(means, 1 - alpha / 2),
+        point,
+    )
 
 
 def compare_to_reference(

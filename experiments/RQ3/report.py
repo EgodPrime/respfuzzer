@@ -22,7 +22,12 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from experiments.common.pairing import align_paired, checkpoint_pair_key
-from experiments.common.stats import format_stats_table, stats_rows_for
+from experiments.common.stats import (
+    DEFAULT_N_BOOT,
+    format_stats_table,
+    hierarchical_bootstrap_ci,
+    stats_rows_for,
+)
 
 COV_TOTAL_MAP = {
     'nltk': 52257,
@@ -333,7 +338,7 @@ _STATS_NOTE = (
     "B=2000，固定 seed 可复现）；`Δ` 是相对对照组的均值差及其 95% CI；`Cliff's δ` 是"
     "效应量（>0 表示该组更高；|δ|<0.147 negligible、<0.33 small、<0.474 medium、其余 large）。"
     f"`{AVERAGE_LABEL}` 行只取**各组都有数据**的库，把库均值当作独立样本；"
-    "函数层 / 库层的配对与分层 Bootstrap 见【MC3-4】。"
+    "库层分层 Bootstrap 见下方。"
 )
 
 
@@ -361,6 +366,56 @@ def _by_library(
                 by_lib.setdefault(lib, {})[fuzzer] = converted
     return by_lib
 
+
+
+def _mc34_hierarchical_bootstrap(
+    by_lib: dict[str, dict[str, list[float]]],
+    groups: list[str],
+    *,
+    metric: str = "Coverage",
+) -> str:
+    """【MC3-4】RQ3 库层分层 Bootstrap：逐库 Δ 做 hierarchical bootstrap。
+
+    对每组（fuzzer）相对于参照组，用逐库的逐运行配对差值做分层 bootstrap，
+    报告库层 CI。RQ3 数据为运行级覆盖率，无函数级明细。
+    """
+    lines: list[str] = [f"## Library-level Hierarchical Bootstrap 【MC3-4】"]
+    lines.append(
+        "> RQ3 数据为运行级覆盖率，无函数级明细；此处报告**库层**分层 bootstrap CI。"
+    )
+    lines.append("")
+
+    non_ref = [g for g in groups if g != REFERENCE_FUZZER]
+    for other in non_ref:
+        # 逐库计算逐运行配对差值序列（对齐后）
+        lib_diffs: dict[str, list[float]] = {}
+        for lib in by_lib:
+            ref_vals = by_lib[lib].get(REFERENCE_FUZZER, [])
+            other_vals = by_lib[lib].get(other, [])
+            if ref_vals and other_vals:
+                # 用较短序列做配对（实际实验中相同种子数量一致）
+                n = min(len(ref_vals), len(other_vals))
+                diffs = [ref_vals[i] - other_vals[i] for i in range(n)]
+                if diffs:
+                    lib_diffs[lib] = diffs
+
+        if len(lib_diffs) < 2:
+            lines.append(f"### {other} vs {REFERENCE_FUZZER} ({metric})")
+            lines.append("> 逐库 Δ 数据不足（<2 库），bootstrap 无法计算。")
+            lines.append("")
+            continue
+
+        hl_lo, hl_hi, hl_point = hierarchical_bootstrap_ci(
+            lib_diffs, n_boot=DEFAULT_N_BOOT, alpha=0.05
+        )
+        hl_ci_str = f"[{hl_lo:+.4f}, {hl_hi:+.4f}]" if hl_lo is not None else "(n/a)"
+        lines.append(f"### {other} vs {REFERENCE_FUZZER} ({metric})")
+        lines.append(
+            f"- 库层: Δ={hl_point:+.4f} 95% CI={hl_ci_str} ({len(lib_diffs)} 库)"
+        )
+        lines.append("")
+
+    return "\n".join(lines)
 
 def _stats_table(
     by_lib: dict[str, dict[str, list[float]]],
@@ -414,6 +469,17 @@ def gen_stats_tables(
             _stats_table(_by_library(runs, value_fn), groups, unit=unit, metric=title)
         )
     blocks.append(f"\n{_STATS_NOTE}")
+
+    # MC3-4: Library-level hierarchical bootstrap (RQ3 uses run-level coverage only)
+    mc34_blocks: list[str] = []
+    for title, runs, value_fn, unit in (
+        ("Coverage (%)", cov_runs, _coverage_percent, "%"),
+        ("Time (s)", time_runs, _seconds, "s"),
+    ):
+        mc34_blocks.append(
+            _mc34_hierarchical_bootstrap(_by_library(runs, value_fn), groups, metric=title)
+        )
+    blocks.append("\n".join(mc34_blocks))
     return "\n".join(blocks)
 
 
@@ -425,8 +491,7 @@ _PAIRED_NOTE = (
     "配对键重复或没有共同键的库不进入本表（原因列在表下）。"
     "种子只控制本地随机性（参数变异、变异算子采样、策略、数据集采样），LLM 采样与线程调度"
     "仍非确定，因此配对是「共同随机数」式的实验设计，**不承诺逐位复现**。"
-    f"`{AVERAGE_LABEL}` 行把库均值当作独立样本（未配对）；函数层 / 库层的配对与分层 "
-    "Bootstrap 见【MC3-4】。"
+    f"`{AVERAGE_LABEL}` 行把库均值当作独立样本（未配对）；库层分层 Bootstrap 见下方。"
 )
 
 
@@ -471,6 +536,23 @@ def gen_paired_stats_tables(
         if notes:
             blocks.append("\n> 未参与配对的库：" + "；".join(notes) + "。")
     blocks.append(f"\n{_PAIRED_NOTE}")
+
+    # MC3-4: Library-level hierarchical bootstrap for paired tables
+    mc34_blocks: list[str] = []
+    for title, runs, value_fn, unit in (
+        ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
+        ("Time (s)", time_keyed, _seconds, "s"),
+    ):
+        aligned, _notes = align_paired(
+            _convert_keyed(runs, value_fn),
+            reference=REFERENCE_FUZZER,
+            groups=FUZZER_ORDER,
+        )
+        if aligned:
+            mc34_blocks.append(
+                _mc34_hierarchical_bootstrap(aligned, FUZZER_ORDER, metric=title)
+            )
+    blocks.append("\n".join(mc34_blocks))
     if unpaired:
         blocks.append(
             "\n> 没有配对键（缺 checkpoint）而未进入本表的日志："

@@ -20,7 +20,13 @@ for _path in (str(_REPO_ROOT), str(_REPO_ROOT / "src")):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from experiments.common.stats import format_stats_table, stats_rows_for
+from experiments.common.stats import (
+    DEFAULT_N_BOOT,
+    format_stats_table,
+    hierarchical_bootstrap_ci,
+    paired_bootstrap_ci,
+    stats_rows_for,
+)
 from respfuzzer.models import Function, Seed
 from respfuzzer.utils.db_tools import get_data_for_view
 from respfuzzer.utils.paths import PROJECT_DIR
@@ -106,8 +112,7 @@ _STATS_NOTE = (
     "`95% CI` 为 percentile bootstrap（B=2000，固定 seed）。"
     "`Δ vs Full` 是**同一批函数的配对差值**均值及其 95% CI；`Cliff's δ` 是配置间效应量"
     "（>0 表示该配置更高；|δ|<0.147 negligible、<0.33 small、<0.474 medium、其余 large）。"
-    "`Average` 行只取**各配置都有数据**的库的库均值（未配对汇总）；"
-    "库层 / 函数层的分层 Bootstrap 见【MC3-4】。"
+    "`Average` 行只取**各配置都有数据**的库的库均值（未配对汇总）。"
 )
 
 
@@ -177,6 +182,77 @@ def align_outcomes(
     return ordered, vectors
 
 
+
+def _mc34_bootstrap_analysis(
+    outcomes: dict[str, dict[str, dict[str, bool]]],
+) -> str:
+    """【MC3-4】RQ2 分层/配对 Bootstrap 分析：函数层 + 库层。
+
+    对每对配置（对照 vs 消融），报告：
+    - 函数层配对 bootstrap CI（全库函数 pooled 的 Δ 值重采样）
+    - 库层分层 bootstrap CI（先抽库再抽函数）
+    """
+    lines: list[str] = ["## Paired & Hierarchical Bootstrap Analysis 【MC3-4】"]
+    lines.append(
+        "> 函数层：对全库配对完整函数的 Δ 做 percentile bootstrap（B=2000）；"
+        "库层：对逐库 Δ 做分层 bootstrap（先抽库、再库内抽函数）。"
+    )
+    lines.append("")
+
+    ablations = [c for c in CONFIG_ORDER if c != REFERENCE_CONFIG]
+    for abl in ablations:
+        # 收集该消融配置 vs Full 的逐函数 Δ
+        func_diffs: list[float] = []
+        lib_deltas: dict[str, float] = {}
+
+        for lib_name in library_map:
+            full_outcomes = outcomes.get(REFERENCE_CONFIG, {}).get(lib_name, {})
+            abl_outcomes = outcomes.get(abl, {}).get(lib_name, {})
+            common_funcs = set(full_outcomes) & set(abl_outcomes)
+            lib_full: list[float] = []
+            lib_abl: list[float] = []
+            for func in common_funcs:
+                f_val = 100.0 if full_outcomes[func] else 0.0
+                a_val = 100.0 if abl_outcomes[func] else 0.0
+                func_diffs.append(f_val - a_val)
+                lib_full.append(f_val)
+                lib_abl.append(a_val)
+            if lib_full and lib_abl:
+                delta = sum(lib_full) / len(lib_full) - sum(lib_abl) / len(lib_abl)
+                lib_deltas[library_map[lib_name]] = delta
+
+        if not func_diffs:
+            lines.append(f"### {abl} vs {REFERENCE_CONFIG}")
+            lines.append("> 无配对完整函数，bootstrap 无法计算。")
+            lines.append("")
+            continue
+
+        # 函数层配对 bootstrap
+        fl_lo, fl_hi, fl_point = paired_bootstrap_ci(
+            func_diffs, n_boot=DEFAULT_N_BOOT, alpha=0.05
+        )
+        lines.append(f"### {abl} vs {REFERENCE_CONFIG}")
+        fl_ci_str = (
+            f"[{fl_lo:+.2f}, {fl_hi:+.2f}]" if fl_lo is not None else "(n/a)"
+        )
+        lines.append(f"- 函数层: Δ={fl_point:+.2f}% 95% CI={fl_ci_str} (n={len(func_diffs)})")
+
+        # 库层分层 bootstrap
+        if len(lib_deltas) >= 2:
+            hl_lo, hl_hi, hl_point = hierarchical_bootstrap_ci(
+                {lib: [d] for lib, d in lib_deltas.items()},
+                n_boot=DEFAULT_N_BOOT,
+                alpha=0.05,
+            )
+            hl_ci_str = (
+                f"[{hl_lo:+.2f}, {hl_hi:+.2f}]" if hl_lo is not None else "(n/a)"
+            )
+            lines.append(f"- 库层: Δ={hl_point:+.2f}% 95% CI={hl_ci_str} ({len(lib_deltas)} 库)")
+        else:
+            lines.append(f"- 库层: 仅 {len(lib_deltas)} 库，退化为函数层 bootstrap")
+        lines.append("")
+
+    return "\n".join(lines)
 def gen_stats_tables(dirs: Mapping[str, str | Path]) -> str:
     """【MC3-2/MC3-6】逐库 + Average 的函数级统计表：FC% 的 95% CI、配对 Δ、Cliff's δ。
 
@@ -224,7 +300,8 @@ def gen_stats_tables(dirs: Mapping[str, str | Path]) -> str:
         reference=REFERENCE_CONFIG,
         with_diff=True,
     )
-    notes = [f"\n\n{_STATS_NOTE}"]
+    mc34_section = _mc34_bootstrap_analysis(outcomes)
+    notes = [f"\n\n{_STATS_NOTE}", f"\n{mc34_section}"]
     if skipped:
         notes.append(
             f"\n> 缺少 `{REFERENCE_CONFIG}` 函数池、未列入的库：{', '.join(skipped)}。"
