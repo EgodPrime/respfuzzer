@@ -30,7 +30,7 @@ def _seed() -> Seed:
     return Seed(
         func_id=1,
         library_name="math",
-        func_name="math.ceil",
+        func_path="math.ceil",
         args=[],
         function_call=VALID_CODE,
     )

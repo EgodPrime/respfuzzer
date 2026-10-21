@@ -17,7 +17,10 @@ from inspect import signature as _inspect_signature
 from typing import Any
 
 from respfuzzer.lib.function_tagger import tag_runtime
-from respfuzzer.lib.parsers.function_parser import _format_default_value
+from respfuzzer.lib.parsers.function_parser import (
+    _format_default_value,
+    annotation_to_type_str,
+)
 from respfuzzer.models import Argument, Function
 
 
@@ -286,11 +289,7 @@ def _signature_from_inspect(obj: Any):
         return None
     args: list[Argument] = []
     for k, v in sig.parameters.items():
-        arg_type = (
-            str(v.annotation)[8:-2]
-            if v.annotation is not Parameter.empty
-            else "unknown"
-        )
+        arg_type = annotation_to_type_str(v.annotation, empty=Parameter.empty)
         args.append(
             Argument(
                 arg_name=k,
@@ -299,11 +298,7 @@ def _signature_from_inspect(obj: Any):
                 default_value=_format_default_value(v.default),
             )
         )
-    ret_type = (
-        str(sig.return_annotation)[8:-2]
-        if sig.return_annotation is not Parameter.empty
-        else "unknown"
-    )
+    ret_type = annotation_to_type_str(sig.return_annotation, empty=Parameter.empty)
     return {"args": args, "ret_type": ret_type}
 
 
@@ -322,7 +317,7 @@ def _build_builtin_function(obj, real_path, public_name, parsed) -> Function:
     )
     tags = tag_runtime(obj, args=args, ret_type=ret_type)
     return Function(
-        func_name=public_name,
+        func_path=public_name,
         real_path=".".join(real_path),
         source=source,
         args=args,
@@ -371,7 +366,7 @@ def resolve_builtin_signature(
     # tier④ 三源全缺：不抛错、不丢弃——参数/返回类型留空并打标
     tags = tag_runtime(obj, args=[], ret_type="unknown", signature_resolved=False)
     return Function(
-        func_name=public_name,
+        func_path=public_name,
         real_path=".".join(real_path) if real_path else "",
         source="",
         args=[],

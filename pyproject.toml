@@ -12,6 +12,8 @@ dependencies = [
     "fire>=0.7.1",
     "langchain>=1.2.18",
     "langchain-openai>=1.2.1",
+    "llama-index>=0.14.25",
+    "llama-index-embeddings-openai-like>=0.4.0",
     "loguru>=0.7.3",
     "openai>=1.109.1",
     "psutil>=7.1.0",
@@ -47,7 +49,8 @@ default = true
 
 [project.scripts]
 db_tools = "respfuzzer.cmd.db_tools:main"
-reflective_seeder = "respfuzzer.cmd.reflective_seeder:main"
+extract = "respfuzzer.lib.library_visitor:extract_functions_from_library"
+solve = "respfuzzer.lib.agentic_function_resolver:main"
 fuzz = "respfuzzer.cmd.fuzz:main"
 replay_mutation = "respfuzzer.cmd.replay_mutation:main"
-# RQ1 引擎在 experiments/ 下（非安装包），入口用 `python experiments/RQ1/rq1_seed.py`
+# 旧的 experiments/RQ1 引擎已废弃；RQ3/RQ4 入口用 `python experiments/RQ*/…py`

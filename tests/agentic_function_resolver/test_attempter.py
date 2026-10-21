@@ -1,17 +1,17 @@
 from unittest import mock
 
 import pytest
-from respfuzzer.lib.agentic_function_resolver import Attempter
+from respfuzzer.lib.agentic_function_resolver import AttempterRespFuzzer
 from respfuzzer.models import Function
 
 
 class MockFunction(Function):
     def __init__(self):
-        super().__init__(func_name="example.func", source="mock", args=[])
+        super().__init__(func_path="example.func", source="mock", args=[])
 
 
 def test_generate_extracts_code_tag_and_returns_inner_content():
-    at = Attempter()
+    at = AttempterRespFuzzer()
 
     mock_response = mock.Mock()
     # mimic new-style client response used in the file: choices[0].message.content
@@ -29,7 +29,7 @@ def test_generate_extracts_code_tag_and_returns_inner_content():
 
 
 def test_generate_accepts_triple_backticks_fallback():
-    at = Attempter()
+    at = AttempterRespFuzzer()
     mock_response = mock.Mock()
     mock_response.choices = [
         mock.Mock(message=mock.Mock(content="```py\nprint('bk')\n```"))
@@ -45,7 +45,7 @@ def test_generate_accepts_triple_backticks_fallback():
 
 
 def test_generate_raises_after_retries_on_errors():
-    at = Attempter()
+    at = AttempterRespFuzzer()
 
     with mock.patch(
         "respfuzzer.lib.agentic_function_resolver.client.chat.completions.create",

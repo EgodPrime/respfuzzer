@@ -2,8 +2,23 @@ import uuid
 from enum import IntEnum
 from typing import Protocol
 
-from pydantic import AliasChoices, BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
+
+
+def split_public_name(public_name: str) -> tuple[str, str]:
+    """把公开限定名拆成 ``(module_path, func_name)``。
+
+    约定 ``func_path = module_path + '.' + func_name``；裸名（无包前缀）时
+    ``module_path`` 为空串。
+
+    >>> split_public_name("spacy.blank")
+    ('spacy', 'blank')
+    >>> split_public_name("scipy.integrate.solve_ivp")
+    ('scipy.integrate', 'solve_ivp')
+    """
+    module_path, _, func_name = public_name.rpartition(".")
+    return module_path, func_name
 
 class Argument(BaseModel):
     arg_name: str
@@ -18,10 +33,15 @@ class Argument(BaseModel):
 class Function(BaseModel):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str | None = None
-    # 兼容旧数据集键名【MC6-2】：存量 data/*_functions.json（历史分支产物）用
-    # ``func_path`` 存公开导出路径，新提取路径与代码统一用 ``func_name``；
-    # 两者语义相同，读入时任一键都接受（序列化仍只写 ``func_name``）。
-    func_name: str = Field(validation_alias=AliasChoices("func_name", "func_path"))
+    # 完整公开路径（如 'spacy.blank'），即 module_path + '.' + func_name
+    func_path: str
+    # 模块/包路径（如 'spacy'），func_path 的前缀；构造时可省略，由
+    # func_path 自动派生（见 set_module_and_name）
+    module_path: str = ""
+    # 函数名部分（如 'blank'），func_path = module_path + '.' + func_name；
+    # 构造时可省略，由 func_path 自动派生
+    func_name: str = ""
+    # 实际源码所在模块路径（可能因别名/`__all__`/re-export 与 func_path 不同）
     real_path: str = ""
     source: str
     args: list[Argument]
@@ -32,21 +52,16 @@ class Function(BaseModel):
     # 由下游显式识别。旧数据（无该字段）缺省为 True，保持兼容。
     signature_resolved: bool = True
     # ---- 函数分层打标【MC6-1】（纯静态、无 LLM）----
-    # 实现类型：pure-python（Python 源码可提取的纯 Python 函数）/ extended（C 扩展等内置实现）
     implementation_type: str = "pure-python"
-    # 文档质量：with-docstring（docstring 去空白后非空）/ without-docstring
     docstring_quality: str = "without-docstring"
-    # 类型注解完整性：完整注解（具名参数与返回值全部带注解）/ 不完整注解
     type_annotation_completeness: str = "不完整注解"
-    # 函数原始 docstring 文本【MC6-2】：RQ1 的 RAG 基线以「限定名 + docstring」
-    # 作为检索 query，prompt 也需要它；存量数据集带该字段，旧数据缺失时默认空串。
     docstring: str = ""
 
     def __repr__(self):
         """
         Return a string representation of the function signature.
         """
-        return f"{self.func_name}({', '.join(f'{arg.arg_name}[{arg.pos_type}]:{arg.type}' for arg in self.args)})->{self.ret_type}"
+        return f"{self.func_path}({', '.join(f'{arg.arg_name}[{arg.pos_type}]:{arg.type}' for arg in self.args)})->{self.ret_type}"
 
     def __str__(self):
         """
@@ -55,9 +70,26 @@ class Function(BaseModel):
         return self.__repr__()
 
     @model_validator(mode="after")
+    def set_module_and_name(self) -> "Function":
+        """强制不变量 ``func_path == module_path + '.' + func_name``。
+
+        ``module_path``/``func_name`` 留空时按 ``func_path`` 派生（单一真源），
+        两者都给但与 ``func_path`` 不一致时以 ``func_path`` 为准重算。
+        """
+        module_path, func_name = split_public_name(self.func_path)
+        if not self.module_path:
+            self.module_path = module_path
+        if not self.func_name:
+            self.func_name = func_name
+        if f"{self.module_path}.{self.func_name}".lstrip(".") != self.func_path:
+            # 显式传入与路径矛盾：回到 func_path 的真源，避免下游拿到错名字
+            self.module_path, self.func_name = module_path, func_name
+        return self
+
+    @model_validator(mode="after")
     def set_library_name(self) -> "Function":
-        if self.library_name is None and "." in self.func_name:
-            self.library_name = self.func_name.split(".")[0]
+        if self.library_name is None and "." in self.func_path:
+            self.library_name = self.func_path.split(".")[0]
         return self
 
 
@@ -65,7 +97,7 @@ class Seed(BaseModel):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     func_id: int
     library_name: str
-    func_name: str
+    func_path: str
     args: list[Argument]
     function_call: str
 
@@ -75,7 +107,7 @@ class Mutant(BaseModel):
     func_id: int
     seed_id: int
     library_name: str
-    func_name: str
+    func_path: str
     args: list[Argument]
     function_call: str
 
@@ -83,7 +115,7 @@ class Mutant(BaseModel):
 class HasCode(Protocol):
     id: int = Field(default_factory=lambda: uuid.uuid4().int >> 64)
     library_name: str
-    func_name: str
+    func_path: str
     function_call: str
 
 

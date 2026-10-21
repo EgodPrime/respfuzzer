@@ -1,6 +1,6 @@
 """MC3-3：运行级随机种子（``src/respfuzzer/utils/run_seed.py``）。
 
-- ut-MC3-3-S-A ``derive_run_seed`` 与 RQ1 引擎是**同一个** re-export 实现。
+- ut-MC3-3-S-A ``derive_run_seed`` 派生公式固定，跨 RQ 配对键不漂移。
 - ut-MC3-3-S-B ``resolve_run_seed`` 优先级：显式 > 进程内 > 环境变量 > 默认。
 - ut-MC3-3-S-C ``prepare_run_seed``：派生 + ``random.seed`` + 记录生效值。
 - ut-MC3-3-S-D ``stable_random_state``：稳定、可区分、落在 63 位内。
@@ -30,11 +30,8 @@ def _isolate_run_seed(monkeypatch):
     yield
 
 
-def test_derive_run_seed_is_the_rq1_reexport():
-    """ut-MC3-3-S-A：RQ1 引擎与共享层是同一个实现（跨 RQ 配对键不漂移）。"""
-    from experiments.RQ1.engine.seeding import derive_run_seed as rq1_derive
-
-    assert rq1_derive is derive_run_seed
+def test_derive_run_seed_is_stable():
+    """ut-MC3-3-S-A：派生公式固定（跨 RQ 配对键不漂移）。"""
     assert derive_run_seed(7, 2) == (7 * 1000003 + 2) % (2**31 - 1)
 
 

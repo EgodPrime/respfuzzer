@@ -10,7 +10,7 @@
    因此能捕获 ``ast.parse`` 放过、但 ``compile`` 拒绝的错误，例如模块级
    ``return`` / ``break`` / ``yield``、模块级 ``nonlocal``、重复形参、赋值给
    ``__debug__`` 等。
-3. **目标调用存在性检查**：确认变体代码中存在对目标函数（``Mutant.func_name``，
+3. **目标调用存在性检查**：确认变体代码中存在对目标函数（``Mutant.func_path``，
    限定路径，例如 ``numpy.linalg.norm``）的调用。
 
 第 3 步的判定顺序（尽量静态、必要时才 import）：
@@ -36,7 +36,7 @@ from functools import lru_cache
 
 from loguru import logger
 
-from respfuzzer.models import Mutant
+from respfuzzer.models import Function, Mutant
 
 REASON_OK = "ok"
 REASON_SYNTAX_ERROR = "syntax_error"
@@ -193,8 +193,28 @@ def has_valid_call(mutant: Mutant) -> CheckResult:
         CheckResult: 检查结果；``ok`` 为 True 表示变体同时通过编译检查与目标调用
         存在性检查
     """
-    code = mutant.function_call
-    target = mutant.func_name
+    return _check_valid_call(mutant.function_call, mutant.func_path)
+
+
+def is_valid_call(code: str, function: Function) -> CheckResult:
+    """算法2 ``IsValidSemantic`` 的 ``(code, function)`` 签名入口（静态门控）。
+
+    与 ``has_valid_call(mutant)`` 共用同一检查核心：``compile`` 通过 + 代码中
+    存在对 ``function.func_path``（限定路径）的有效调用。供种子生成侧（如
+    ``agentic_function_resolver.Judger``）直接用「生成代码 + 目标函数」判定，
+    无需为了检查而构造 ``Mutant``。
+
+    Returns:
+        CheckResult: ``ok`` 为 True 表示通过；否则 ``reason`` 取
+        ``REASON_SYNTAX_ERROR`` / ``REASON_COMPILE_ERROR`` /
+        ``REASON_NO_TARGET_CALL`` 之一（``detail``/``error_line`` 附细节），
+        可直接回填自省历史作为负面反馈。
+    """
+    return _check_valid_call(code, function.func_path)
+
+
+def _check_valid_call(code: str, target: str) -> CheckResult:
+    """检查核心：输入（代码, 目标函数限定路径），输出编译 + 目标调用存在性判定。"""
 
     try:
         tree = ast.parse(code, filename="<variant>")

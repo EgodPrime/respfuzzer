@@ -2,7 +2,7 @@
 
 - ut-MC3-2-A 均值 95% CI：常量样本坍缩为点、双值样本非退化且包含点估计、n<2 → None。
 - ut-MC3-2-B CI 逐位可复现（固定 seed 默认值）。
-- ut-MC3-2-C Cliff's delta 手算值（与 RQ1 引擎同一实现，re-export 不改口径）。
+- ut-MC3-2-C Cliff's delta 手算值（共享层唯一实现，不出现两套口径）。
 - ut-MC3-2-D 效应量分级阈值（Romano et al. 2006）。
 - ut-MC3-2-E 对照组比较行：对照自身 δ=0、缺对照组抛错、空样本 → δ=None。
 - ut-MC3-2-F ``stats_rows_for``：行序 + Average 行只用「各组都齐全」的 label。
@@ -23,7 +23,6 @@ from experiments.common.stats import (
     stats_rows_for,
     summarize,
 )
-from experiments.RQ1.engine.stats import cliffs_delta as rq1_cliffs_delta
 
 
 def test_mean_ci_constant_collapses_to_point():
@@ -59,11 +58,6 @@ def test_cliffs_delta_hand_computed():
     assert cliffs_delta([0, 1], [1, 2]) == -0.75  # a 劣势（含 1-1 并列）
     assert cliffs_delta([1, 2], [0, 3]) == 0.0  # 均衡
     assert cliffs_delta([], [1, 2]) == 0.0  # 空样本
-
-
-def test_rq1_engine_reexports_shared_implementation():
-    """ut-MC3-2-C2：RQ1 引擎与共享层是**同一** Cliff's delta 实现，不出现两套口径。"""
-    assert rq1_cliffs_delta is cliffs_delta
 
 
 def test_cliffs_magnitude_thresholds():

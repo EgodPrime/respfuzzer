@@ -260,7 +260,7 @@ def test_legacy_json_without_default_value_loads_as_empty():
 def test_seed_propagates_default_value_and_attempter_payload_contains_it():
     """Function.args → Seed.args 保留默认值；Attempter 用的 model_dump_json 含该字段。"""
     function = Function(
-        func_name="m.f",
+        func_path="m.f",
         library_name="m",
         source="def f(a=1): ...",
         args=[
@@ -275,7 +275,7 @@ def test_seed_propagates_default_value_and_attempter_payload_contains_it():
     seed = Seed(
         func_id=function.id,
         library_name=function.library_name,
-        func_name=function.func_name,
+        func_path=function.func_name,
         args=function.args,
         function_call="import m\nres = m.f()",
     )

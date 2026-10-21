@@ -36,12 +36,12 @@ def get_data_for_view(
             with open(seed_data_file, 'r') as f:
                 seed_data = json.load(f)
             seed_data = [Seed.model_validate(sd) for sd in seed_data]
-            seed_data = {sd.func_name:sd for sd in seed_data}
+            seed_data = {sd.func_path:sd for sd in seed_data}
         except FileNotFoundError:
             seed_data = {}
 
         for function in function_data:
-            func_name = function.func_name
+            func_name = function.func_path
             function_table[library_name][func_name] = function
             seed_table[library_name][func_name] = seed_data.get(func_name, None)
 

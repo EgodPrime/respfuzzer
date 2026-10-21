@@ -19,7 +19,7 @@ def _seed() -> Seed:
     return Seed(
         func_id=1,
         library_name="math",
-        func_name="math.ceil",
+        func_path="math.ceil",
         args=[],
         function_call="import math\nresult = math.ceil(1.5)",
     )

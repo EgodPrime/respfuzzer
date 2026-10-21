@@ -3,12 +3,15 @@ import json
 import os
 import shutil
 import signal
+import argparse
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextvars import ContextVar
 from pathlib import Path
 from typing import List, Optional
 
@@ -17,13 +20,13 @@ from loguru import logger
 
 from respfuzzer.models import ExecutionResultType, Function, Seed
 from respfuzzer.lib.retriever import Retriever
+from respfuzzer.lib.fuzz.semantic_check import is_valid_call
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
-from respfuzzer.utils.experiment_recorder import record_event, record_result, start_run
+from respfuzzer.utils.logging import setup_logging
 from respfuzzer.utils.paths import DATA_DIR, PROJECT_DIR
 
-#: RQ2 的 .log / *_checkpoint.json 落盘目录（experiments/RQ2/）
-RQ2_DIR = PROJECT_DIR / "experiments" / "RQ2"
+OUTPUT_DIR = PROJECT_DIR / "experiments" / "function_solutions"
 
 #: 种子执行沙箱根（``run_data/``，可用 ``RESPFUZZER_RUN_DATA`` 覆盖）。
 #: QueitExecutor 的子进程 cwd 指向其中的一次性目录，seed 的相对路径产物
@@ -57,6 +60,37 @@ llm_cfg = get_config("llm")
 
 client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
+
+#: ---- LLM 资源计数【MC4-3】：全局累计 + 每函数归因桶（ContextVar 按线程隔离）----
+_usage_lock = threading.Lock()
+_usage_total: dict[str, int] = {
+    "calls": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+}
+_usage_bucket_var: ContextVar[dict[str, int] | None] = ContextVar(
+    "agentic_usage_bucket", default=None
+)
+
+
+def _record_usage(response) -> None:
+    """记录一次 LLM response 的资源消耗：进程内累计 + 当前线程的每函数桶。
+
+    usage 缺失（部分端点/异常路径）时 token 记 0，不抛。
+    """
+    usage = getattr(response, "usage", None)
+    delta = {
+        "calls": 1,
+        "prompt_tokens": int(getattr(usage, "prompt_tokens", 0) or 0),
+        "completion_tokens": int(getattr(usage, "completion_tokens", 0) or 0),
+    }
+    with _usage_lock:
+        for key, value in delta.items():
+            _usage_total[key] += value
+    bucket = _usage_bucket_var.get()
+    if bucket is not None:
+        for key, value in delta.items():
+            bucket[key] = bucket.get(key, 0) + value
 class AbstractAttempter:
     def make_prompt(self, function: Function, history: list) -> str:
         raise NotImplementedError("Subclasses must implement make_prompt")
@@ -82,6 +116,7 @@ class AbstractAttempter:
                         "reasoning": {"enabled": False}
                     },
                 )
+                _record_usage(response)
                 code = response.choices[0].message.content
                 if code is None:
                     raise ValueError("模型返回空内容 (content is None)")
@@ -111,9 +146,9 @@ class AbstractAttempter:
     
 class AttempterRespFuzzer(AbstractAttempter):
     def make_prompt(self, function: Function, history: list) -> str:
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -154,7 +189,7 @@ class AttempterWithoutDocs(AbstractAttempter):
     def make_prompt(self, function: Function, history: list) -> str:
         from inspect import _ParameterKind
 
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         func_args = function.args
         func_sig = f"def {func_name}("
         if func_args:
@@ -173,7 +208,7 @@ class AttempterWithoutDocs(AbstractAttempter):
                     func_sig += "**" + arg.arg_name
         func_sig += "): ..."
         prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`history`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -212,9 +247,9 @@ res = c(x, y)
 
 class AttempterWithoutFeedback(AbstractAttempter):
     def make_prompt(self, function: Function, history: list) -> str:
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         prompt = f"""任务:
-请根据`function`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -248,7 +283,7 @@ class AttempterWithoutDocsAndFeedback(AbstractAttempter):
     def make_prompt(self, function: Function, history: list) -> str:
         from inspect import _ParameterKind
 
-        package_path, func_name = function.func_name.rsplit(".", 1)
+        package_path, func_name = function.func_path.rsplit(".", 1)
         func_args = function.args
         func_sig = f"def {func_name}("
         if func_args:
@@ -267,7 +302,7 @@ class AttempterWithoutDocsAndFeedback(AbstractAttempter):
                     func_sig += "**" + arg.arg_name
         func_sig += "): ..."
         prompt = f"""任务:
-请根据`function`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`中的信息来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -303,10 +338,10 @@ class AttempterRAG(AbstractAttempter):
         self.retriever = retriever
 
     def make_prompt(self, function: Function, history: list) -> str:
-        package_path, func_name = function.func_name.rsplit(".", 1)
-        related_ctx: str = self.retriever.retrieve(function.func_name)
+        package_path, func_name = function.func_path.rsplit(".", 1)
+        related_ctx: str = self.retriever.retrieve(function.func_path)
         prompt = f"""任务:
-请根据`function`和`related_ctx`中的信息以及相关上下文来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+请根据`function`和`related_ctx`中的信息以及相关上下文来为{function.func_path}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
 注意：
 1. 你生成的代码应该用<code></code>包裹。
@@ -466,6 +501,7 @@ class Reasoner:
                         "reasoning": {"enabled": False}
                     },
                 )
+                _record_usage(response)
                 explanation = response.choices[0].message.content
                 if explanation is None:
                     raise ValueError("模型返回空内容 (content is None)")
@@ -486,80 +522,39 @@ class Reasoner:
 
 
 class Judger:
-    """Use the LLM to judge whether a generated code string contains a valid call to the target function.
+    """确定性静态门控（算法2 的 ``IsValidSemantic``），取代原基于 LLM 的判定。
 
-    The `judge` method returns a dict: {"valid": bool, "reason": str}.
+    同一 ``(code, function)`` 恒定结论、零 LLM 调用；未通过时给出结构化
+    ``reason`` 回填自省历史，指导 attempter 下一轮修正。
     """
 
     def judge(self, code: str, function: Function) -> dict:
-        package_path, func_name = function.func_name.rsplit(".", 1)
-        prompt = (
-            f"<function>\n{function.model_dump_json()}\n</function>\n"
-            f"<code>\n{code}\n</code>\n"
-            "请判断上面的 `code` 是否包含对 `function` 的有效调用（例如完整包路径的函数调用或显式的通过别名能够唯一映射到目标函数的调用）。"
-            ' 输出应为 JSON 对象，形如 {"valid": true, "reason": "..."}。'
-            f'合理的import形式为"from {package_path} import {func_name}"'
-            f'合理的调用形式为"{func_name}(...) "'
-        )
+        """返回 ``{"valid": bool, "reason": str}``（与原 LLM Judger 同契约）。
 
-        last_exc = None
-        for attempt in range(3):
-            try:
-                response = client.chat.completions.create(
-                    model=llm_cfg["model_name"],
-                    temperature=0.7,  # RQ1/RSG 解码设置统一 0.7（与 CountingLLM 一致）
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "你是一个代码审核助手，判断生成的代码是否包含对目标函数的有效调用。",
-                        },
-                        {"role": "user", "content": prompt},
-                    ],
-                    max_tokens=8000,
-                    extra_body={
-                        "chat_template_kwargs": {"enable_thinking": False},
-                        "reasoning": {"enabled": False}
-                    },
-                )
-
-                text = response.choices[0].message.content
-                if text is None:
-                    raise ValueError("模型返回空内容 (content is None)")
-                text = text.strip()
-                # try to extract json blob
-                try:
-                    # find first '{' and last '}' to extract JSON
-                    start = text.find("{")
-                    end = text.rfind("}")
-                    if start != -1 and end != -1 and end > start:
-                        j = json.loads(text[start : end + 1])
-                        return {
-                            "valid": bool(j.get("valid")),
-                            "reason": str(j.get("reason", "")),
-                        }
-                except Exception:
-                    # fall through and attempt simple parsing
-                    pass
-
-                # fallback heuristics
-                lowered = text.lower()
-                if "true" in lowered or "yes" in lowered or "valid" in lowered:
-                    return {"valid": True, "reason": text}
-                else:
-                    return {"valid": False, "reason": text}
-            except Exception as e:
-                last_exc = e
-                logger.debug(f"Judger.judge attempt {attempt+1} failed: {e}")
-                time.sleep(1 + attempt)
-                continue
-
-        tb = traceback.format_exception_only(type(last_exc), last_exc)
-        raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
-
+        判定为纯本地静态检查（ast/compile + 目标调用存在性），不会因
+        LLM 服务故障而重试或抛错。
+        """
+        check = is_valid_call(code, function)
+        if check.ok:
+            return {"valid": True, "reason": ""}
+        package_path, func_name = function.func_path.rsplit(".", 1)
+        if check.target_called is False:
+            reason = (
+                f"未找到对目标函数 {function.func_path} 的有效调用；"
+                f'合理的import形式为"from {package_path} import {func_name}"，'
+                f'合理的调用形式为"{func_name}(...)"'
+            )
+        else:
+            loc = f"第{check.error_line}行" if check.error_line else "未知行"
+            detail = check.detail or check.reason
+            reason = f"代码未通过静态门控（{check.reason}，{loc}）: {detail}"
+        return {"valid": False, "reason": reason}
+    
 class Solver:
-    def __init__(self, library_name: str):
+    def __init__(self, library_name: str, mode: str = "respfuzzer"):
         self.library_name = library_name
-        match cfg.get("mode"):
+        self.mode = mode
+        match mode:
             case "respfuzzer":
                 self.attempter = AttempterRespFuzzer()
                 self.use_reasoner = True
@@ -578,16 +573,21 @@ class Solver:
                 self.attempter = AttempterRAG(retriever)
                 self.use_reasoner = False
             case _:
-                raise ValueError(f"Unknown mode: {cfg.get('mode')}")
+                raise ValueError(f"Unknown mode: {mode!r}")
 
         self.budget = int(cfg.get("budget", 10))
+        # 逐函数实验开销账本【MC4-3】：solve_library_functions 收尾写 seeds_meta.json
+        self._func_stats: dict[str, dict] = {}
+        self._stats_lock = threading.Lock()
         self.judger = Judger()
         self.executor = QueitExecutor()
         self.reasoner = Reasoner()
         
 
-    def solve(self, function: Function) -> Optional[str]:
-        initial_budget = self.budget
+    def solve(self, function: Function, stats: dict | None = None) -> Optional[str]:
+        # 预算取本地副本：并发求解时 self.budget 不被改动（每函数各自独立预算，
+        # 此前 self.budget -= 1 在 ThreadPool 下被多函数共享递减，账目互相污染）
+        budget = self.budget
         rounds = 0
         history: List[dict] = []
         solved = False
@@ -601,8 +601,8 @@ class Solver:
                 err_msg = f"Attempter error: {str(e)}"
                 logger.debug(err_msg)
                 history.append({"role": "attempter_error", "content": err_msg})
-                self.budget -= 1
-                if self.budget <= 0:
+                budget -= 1
+                if budget <= 0:
                     break
                 continue
 
@@ -620,20 +620,20 @@ class Solver:
                             "content": f"Judger rejected the code: {judgment['reason']}",
                         }
                     )
-                    self.budget -= 1
-                    if self.budget <= 0:
+                    budget -= 1
+                    if budget <= 0:
                         break
                     continue
             except Exception as e:
                 err_msg = f"Judger error: {str(e)}"
                 logger.debug(err_msg)
                 history.append({"role": "judger", "content": err_msg})
-                self.budget -= 1
-                if self.budget <= 0:
+                budget -= 1
+                if budget <= 0:
                     break
                 continue
 
-            result = self.executor.execute(code, function.func_name)
+            result = self.executor.execute(code, function.func_path)
 
             if result["result_type"] == ExecutionResultType.OK:
                 solved = True
@@ -651,11 +651,15 @@ class Solver:
                 logger.debug(f"reason:\n{reason}")
                 history.append({"role": "executor", "content": result.get("stderr")})
                 history.append({"role": "reasoner", "content": reason})
-                self.budget -= 1
-                if self.budget == 0:
+                budget -= 1
+                if budget == 0:
                     break
                 continue
 
+        if stats is not None:
+            # 预算消耗次数 = 自省轮次（含成功那一轮；与 MC6-5「成功 → 成功那一轮」
+            # 的等预算口径一致；失败每轮扣 1，故 rounds ≤ 初始预算）
+            stats["budget_used"] = rounds
         if solved:
             return code
         else:
@@ -663,39 +667,49 @@ class Solver:
         
 
     def solve_function(self, function: Function) -> Optional[Seed]:
-        logger.info(f"Try solving {function.func_name} ...")
+        logger.info(f"Try solving {function.func_path} ...")
+        # 每函数资源归因桶：ContextVar 按线程隔离，并发函数不串账
+        bucket_token = _usage_bucket_var.set(
+            {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0}
+        )
+        stats: dict = {}
         code = None
         try:
-            code = self.solve(function)
+            code = self.solve(function, stats=stats)
             seed = Seed(
                 func_id=function.id,
                 library_name=function.library_name,
-                func_name=function.func_name,
+                func_name=function.func_path,
                 args=function.args,
                 function_call=code,
             )
-            logger.success(f"Seed found for {function.func_name}:\n{code}")
+            logger.success(f"Seed found for {function.func_path}:\n{code}")
             return seed
         except Exception as e:
-            logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
+            logger.info(f"Failed to solve {function.func_path}:\n{str(e)}")
+        finally:
+            bucket = _usage_bucket_var.get() or {}
+            _usage_bucket_var.reset(bucket_token)
+            with self._stats_lock:
+                # 失败函数同样入账：失败也消耗了预算与 LLM，等预算对照需要这笔账
+                self._func_stats[function.func_path] = {
+                    "budget_used": int(stats.get("budget_used", 0)),
+                    "llm_calls": int(bucket.get("calls", 0)),
+                    "token_input": int(bucket.get("prompt_tokens", 0)),
+                    "token_output": int(bucket.get("completion_tokens", 0)),
+                }
 
     def solve_library_functions(self) -> None:
-        mode = cfg.get("mode")
-        match mode:
-            case "respfuzzer":
-                attempter = AttempterRespFuzzer()
-            case "respfuzzer-wodoc":
-                attempter = AttempterWithoutDocs()
-            case "respfuzzer-wofb":
-                attempter = AttempterWithoutFeedback()
-            case "respfuzzer-woboth":
-                attempter = AttempterWithoutDocsAndFeedback()
-            case "respfuzzer-rag":
-                retriever = Retriever(self.library_name)
-                attempter = AttempterRAG(retriever)
-            case _:
-                raise ValueError(f"Unknown mode: {mode}")
-
+        # 统一日志初始化【框架级 logging】：控制台 INFO + 实验 .log（文件 sink DEBUG
+        # 全量细节）落 RQ2 目录；文件名 <self.mode>_<library>_<ts>.log，同秒重复启动为追加写
+        log_file = (
+            OUTPUT_DIR / f"{self.mode}_{self.library_name}_{time.strftime('%Y%m%dT%H%M%S')}.log"
+        )
+        setup_logging(level=str(cfg.get("log_level", "INFO")), log_file=log_file)
+        logger.info(
+            f"Seeding library {self.library_name} (mode={self.mode}, "
+            f"concurrency={cfg.get('concurrency', 4)}) -> {log_file}"
+        )
         functions = get_functions(self.library_name)
         concurrency = int(cfg.get("concurrency", 4))
 
@@ -709,12 +723,45 @@ class Solver:
                 if seed is not None:
                     seeds.append(seed)
 
+        # 实验开销元数据 → seeds_meta.json（与 seeds.json 同路径同 stem 对齐）；
+        # 无论最终是否有 seed 都落盘（失败函数的开销同样要入账）
+        (DATA_DIR / f"{self.mode}").mkdir(parents=True, exist_ok=True)
+        meta = {
+            "metadata": {
+                "model_name": str(llm_cfg.get("model_name", "")),
+                "temperature": llm_cfg.get("temperature", 0.7),
+                "concurrency": concurrency,
+                "library": self.library_name,
+                "mode": self.mode,
+            },
+            # 逐函数开销：预算消耗次数、LLM 调用次数、输入/输出 token 总量
+            "per_function": dict(self._func_stats),
+        }
+        meta_file = DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds_meta.json"
+        with open(meta_file, "w") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+        logger.info(f"Per-function cost meta -> {meta_file}")
+
         # Save all seeds to a JSON file
         if len(seeds) == 0:
             logger.info(f"No seeds generated for library {self.library_name}")
             return
         seeds_data = [seed.model_dump() for seed in seeds]
-        (DATA_DIR / f"{mode}").mkdir(parents=True, exist_ok=True)
-        output_file = DATA_DIR / f"{mode}" / f"{self.library_name}_seeds.json"
+        output_file = DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds.json"
         with open(output_file, "w") as f:
             json.dump(seeds_data, f, indent=2)
+
+def solve_library(library_name: str, mode: str = "respfuzzer") -> None:
+    solver = Solver(library_name, mode=mode)
+    solver.solve_library_functions()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="RespFuzzer library seeding")
+    parser.add_argument("library", help="Library name to seed (e.g., numpy, json)")
+    parser.add_argument("--mode", default="respfuzzer", choices=[
+        "respfuzzer", "respfuzzer-wodoc", "respfuzzer-wofb",
+        "respfuzzer-woboth", "respfuzzer-rag",
+    ], help="Seeding mode (default: %(default)s)")
+    args = parser.parse_args()
+    solve_library(args.library, mode=args.mode)

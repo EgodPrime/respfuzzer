@@ -19,7 +19,7 @@ def _mutant(
         func_id=1,
         seed_id=1,
         library_name=library_name,
-        func_name=func_name,
+        func_path=func_name,
         args=[],
         function_call=code,
     )

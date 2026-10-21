@@ -86,7 +86,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
                     outcome = ExecutionOutcome()
                     try:
                         with instrument_function_via_path_ctx(
-                            seed.func_name, data_fuzz_per_seed
+                            seed.func_path, data_fuzz_per_seed
                         ):
                             exec(seed.function_call)
                     except Exception as e:
@@ -118,7 +118,7 @@ def fuzz_single_seed(
     budget_mode = config.get("budget_mode", "llm_calls")  # llm_calls | wall_clock | executions
     budget_value = config.get("budget_value", config.get("llm_fuzz_per_seed"))
     
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}, budget_mode={budget_mode}, budget_value={budget_value}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}, budget_mode={budget_mode}, budget_value={budget_value}")
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -160,7 +160,7 @@ def fuzz_single_seed(
             record_event(
                 "budget_slot_skipped",
                 seed_id=seed.id,
-                func_name=seed.func_name,
+                func_name=seed.func_path,
                 slot=llm_calls_done - 1,
                 process_index=process_index,
             )
@@ -171,7 +171,7 @@ def fuzz_single_seed(
         cov_before = bm.count_bitmap_s()
         logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
         logger.info(
-            f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}"
+            f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_path}"
         )
         try:
             send.put(("fuzz", mutant))
@@ -186,7 +186,7 @@ def fuzz_single_seed(
                 "mutant_timeout",
                 seed_id=seed.id,
                 mutant_id=mutant.id,
-                func_name=mutant.func_name,
+                func_name=mutant.func_path,
                 slot=llm_calls_done - 1,
                 timeout=execution_timeout,
             )
@@ -213,7 +213,7 @@ def fuzz_single_seed(
             "mutant_executed",
             seed_id=seed.id,
             mutant_id=mutant.id,
-            func_name=mutant.func_name,
+            func_name=mutant.func_path,
             slot=llm_calls_done - 1,
             mutation_type=mutation_type,
             cov_before=cov_before,
@@ -267,7 +267,7 @@ def fuzz_single_seed(
     record_event(
         "seed_finished",
         seed_id=seed.id,
-        func_name=seed.func_name,
+        func_name=seed.func_path,
         process_index=process_index,
         merged_coverage=bm2.count_bitmap(),
         mutation_type_expectations=list(Mutator.mu),
@@ -284,7 +284,7 @@ def _fuzz_dataset(
     seeds: list[tuple[str, Seed]] = []
     shm_key_start = 4399
     for seed in dataset:
-        seeds.append((shm_key_start, seed.func_name, seed))
+        seeds.append((shm_key_start, seed.func_path, seed))
         shm_key_start += 1
 
     # 并行执行 fuzz_single_seed（使用线程池以避免多进程嵌套的 pickling 问题）
@@ -342,7 +342,7 @@ def calc_initial_seed_coverage_dataset(
             outcome = recv.get(timeout=10)
             if isinstance(outcome, ExecutionOutcome) and outcome.has_runtime_error:
                 logger.debug(
-                    f"Seed {seed.id} ({seed.func_name}) raised during initial execution: "
+                    f"Seed {seed.id} ({seed.func_path}) raised during initial execution: "
                     f"{outcome.describe()}"
                 )
         except Exception:
@@ -479,7 +479,7 @@ def fuzz_one_library(
                     seed_item,
                     sub_key,
                 )
-                futures.append((fut, seed_item.func_name, seed_item.library_name))
+                futures.append((fut, seed_item.func_path, seed_item.library_name))
                 sub_key += 1
             final_coverage: int | None = None
             for fut, func_name, seed_library in futures:

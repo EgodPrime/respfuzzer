@@ -29,8 +29,10 @@ temperature = 0.7
 
 [reflective_seeder]
 concurrency = 4 # number of threads for seeding
+budget=10
 use_reasoner = true
 use_docs = true
+mode = "respfuzzer" # ["respfuzzer", "respfuzzer-wodoc", "respfuzzer-wofb", "respfuzzer-woboth", "rag"]
 
 [fuzz4all]
 strategy = 1

@@ -402,7 +402,7 @@ def test_invalid_llm_output_lands_in_checkpoint(tmp_path, monkeypatch):
     seed = Seed(
         func_id=1,
         library_name="math",
-        func_name="math.ceil",
+        func_path="math.ceil",
         args=[],
         function_call=VALID_CODE,
     )
@@ -444,7 +444,7 @@ def test_llm_failure_lands_in_checkpoint(tmp_path, monkeypatch):
     seed = Seed(
         func_id=1,
         library_name="math",
-        func_name="math.ceil",
+        func_path="math.ceil",
         args=[],
         function_call=VALID_CODE,
     )

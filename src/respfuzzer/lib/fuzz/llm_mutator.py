@@ -116,7 +116,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
             res = _invoke_with_timeout(
                 mutate_chain,
                 input_dict={
-                    "func_name": seed.func_name,
+                    "func_name": seed.func_path,
                     "func_call": seed.function_call,
                     "mutation_instruction": str(rng) + prompt,
                 },
@@ -140,7 +140,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
             func_id=seed.func_id,
             seed_id=seed.id,
             library_name=seed.library_name,
-            func_name=seed.func_name,
+            func_name=seed.func_path,
             args=seed.args,
             function_call=res.code,
         )
@@ -277,7 +277,7 @@ class LLMMutator:
             record_event(
                 "llm_no_output",
                 seed_id=self.seed.id,
-                func_name=self.seed.func_name,
+                func_name=self.seed.func_path,
                 mutation_type=mutation_type,
             )
             return None
@@ -300,7 +300,7 @@ class LLMMutator:
             record_event(
                 "invalid_llm_output",
                 seed_id=self.seed.id,
-                func_name=self.seed.func_name,
+                func_name=self.seed.func_path,
                 mutation_type=mutation_type,
                 reason=check.reason,
                 detail=check.detail,

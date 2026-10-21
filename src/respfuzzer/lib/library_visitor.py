@@ -14,7 +14,7 @@ from respfuzzer.lib.parsers.pyi_parser import (
     parse_pyi_files,
 )
 from respfuzzer.lib.signature import resolve_builtin_signature
-from respfuzzer.models import Function
+from respfuzzer.models import Function, split_public_name
 from respfuzzer.utils.paths import DATA_DIR
 
 logger.level("INFO")
@@ -213,9 +213,16 @@ class LibraryVisitor:
                             public_name=public_name,
                         )
                         self._builtin_resolve_cache[rp_key] = function
-                    elif function.func_name != public_name:
+                    elif function.func_path != public_name:
+                        # model_copy 不跑 validator：显式重算派生字段，
+                        # 保持 func_path == module_path + '.' + func_name
+                        alias_module, alias_name = split_public_name(public_name)
                         function = function.model_copy(
-                            update={"func_name": public_name}
+                            update={
+                                "func_path": public_name,
+                                "module_path": alias_module,
+                                "func_name": alias_name,
+                            }
                         )
                     yield function
 
@@ -237,7 +244,7 @@ def _deduplicate_functions(functions: list[Function]) -> list[Function]:
             # 没有 real_path 的条目直接跳过（旧数据兼容，不会被保留）
             continue
 
-        seg_count = func.func_name.count(".") + 1
+        seg_count = func.func_path.count(".") + 1
 
         if rp not in best:
             best[rp] = (func, seg_count)
