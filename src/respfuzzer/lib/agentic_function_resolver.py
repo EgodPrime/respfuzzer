@@ -1,6 +1,8 @@
+import contextlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -14,6 +16,7 @@ import openai
 from loguru import logger
 
 from respfuzzer.models import ExecutionResultType, Function, Seed
+from respfuzzer.lib.retriever import Retriever
 from respfuzzer.repos import get_functions
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import record_event, record_result, start_run
@@ -30,122 +33,42 @@ def _run_data_root() -> Path:
     root.mkdir(parents=True, exist_ok=True)
     return root
 
+#: 超时强制清理：SIGKILL 整个进程组（start_new_session 下含孙进程），再 reap 防僵尸。
+#:
+#: ``proc.kill()`` 只杀直接子进程——seed 内 Popen 派生的孙进程持有管道会逃逸并
+#: 拖垮整 run（paddle ours 卡死根因之一）；按进程组整组强杀才是闭环超时控制。
+#: 随 RQ1 引擎 ``experiments/RQ1/engine/executor.py`` 移植。
+def _kill_process_group(proc: subprocess.Popen) -> None:
+    with contextlib.suppress(ProcessLookupError, PermissionError):
+        pgid = os.getpgid(proc.pid)
+        if pgid and pgid > 1:
+            os.killpg(pgid, signal.SIGKILL)
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+        proc.wait(timeout=5)
+
 cfg = get_config("reflective_seeder")
 llm_cfg = get_config("llm")
 
 client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
+class AbstractAttempter:
+    def make_prompt(self, function: Function, history: list) -> str:
+        raise NotImplementedError("Subclasses must implement make_prompt")
 
-class Attempter:
     def generate(self, function: Function, history: list) -> str:
-        """构造一个包含function中信息的prompt来驱使大模型生成可能正确的function调用，利用history中的信息增强prompt中的引导
-
-        Raises:
-            Exception: If code generation fails or response format is invalid.
-        """
-        package_path, func_name = function.func_name.rsplit(".", 1)
-        prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
-
-注意：
-1. 你生成的代码应该用<code></code>包裹。
-2. 不要生成``` 
-3. 不要生成`code`以外的任何内容 
-4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
-5. 生成的`code`以"from {package_path} import {func_name}"开头
-6. 生成的`code`中函数调用形式为"{func_name}(...)"
-
-例子：
-<function>
-{{
-    func_name: "a.b.c",
-    ...  // 其他字段省略
-}}
-</function>
-<history>
-...
-</history>
-<code>
-from a.b import c
-x = 2
-y = "str"
-res = c(x, y)
-</code>
-
-现在任务开始：
-<function>
-{function.model_dump_json()}
-</function>
-<history>
-{history}
-</history>
-"""
-
-        if cfg.get("use_docs", True) is False:
-            from inspect import _ParameterKind
-
-            func_name = function.func_name
-            func_args = function.args
-            func_sig = f"def {func_name}("
-            if func_args:
-                for i, arg in enumerate(func_args):
-                    if i > 0:
-                        func_sig += ", "
-                    if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
-                        func_sig += arg.arg_name
-                    elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
-                        func_sig += arg.arg_name
-                    elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
-                        func_sig += "*" + arg.arg_name
-                    elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
-                        func_sig += arg.arg_name
-                    elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
-                        func_sig += "**" + arg.arg_name
-            func_sig += "): ..."
-            prompt = f"""任务:
-请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
-
-注意：
-1. 你生成的代码应该用<code></code>包裹。
-2. 不要生成```
-3. 不要生成`code`以外的任何内容
-4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
-5. 生成的`code`以"from {package_path} import {func_name}"开头
-6. 生成的`code`中函数调用形式为"{func_name}(...)"
-
-例子：
-<function>
-{{
-    func_name: "a.b.c",
-    ...  // 其他字段省略
-}}
-</function>
-<history>
-...
-</history>
-<code>
-from a.b import c
-x = 2
-y = "str"
-res = c(x, y)
-</code>
-
-现在任务开始：
-<function>
-{func_sig}
-</function>
-<history>
-{history}
-</history>
-"""
-
-        # Add a small retry loop for transient API errors
+        prompt = self.make_prompt(function, history)
         last_exc = None
         for attempt in range(3):
             try:
                 response = client.chat.completions.create(
                     model=llm_cfg["model_name"],
-                    temperature=0.7,  # RQ1/RSG 解码设置统一 0.7（与 CountingLLM 一致）
+                    temperature=0.7,
                     messages=[
                         {
                             "role": "system",
@@ -185,7 +108,240 @@ res = c(x, y)
         # after retries, raise a clear exception with traceback
         tb = traceback.format_exception_only(type(last_exc), last_exc)
         raise Exception(f"生成函数调用时发生错误，最后一次错误: {''.join(tb)}")
+    
+class AttempterRespFuzzer(AbstractAttempter):
+    def make_prompt(self, function: Function, history: list) -> str:
+        package_path, func_name = function.func_name.rsplit(".", 1)
+        prompt = f"""任务:
+请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
 
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成``` 
+3. 不要生成`code`以外的任何内容 
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<history>
+...
+</history>
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{function.model_dump_json()}
+</function>
+<history>
+{history}
+</history>
+"""
+        return prompt
+    
+class AttempterWithoutDocs(AbstractAttempter):
+    def make_prompt(self, function: Function, history: list) -> str:
+        from inspect import _ParameterKind
+
+        package_path, func_name = function.func_name.rsplit(".", 1)
+        func_args = function.args
+        func_sig = f"def {func_name}("
+        if func_args:
+            for i, arg in enumerate(func_args):
+                if i > 0:
+                    func_sig += ", "
+                if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+                    func_sig += "*" + arg.arg_name
+                elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+                    func_sig += "**" + arg.arg_name
+        func_sig += "): ..."
+        prompt = f"""任务:
+请根据`function`和`history`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成```
+3. 不要生成`code`以外的任何内容
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<history>
+...
+</history>
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{func_sig}
+</function>
+<history>
+{history}
+</history>
+"""
+        return prompt
+
+class AttempterWithoutFeedback(AbstractAttempter):
+    def make_prompt(self, function: Function, history: list) -> str:
+        package_path, func_name = function.func_name.rsplit(".", 1)
+        prompt = f"""任务:
+请根据`function`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成```
+3. 不要生成`code`以外的任何内容
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{function.model_dump_json()}
+</function>
+"""
+        return prompt
+
+class AttempterWithoutDocsAndFeedback(AbstractAttempter):
+    def make_prompt(self, function: Function, history: list) -> str:
+        from inspect import _ParameterKind
+
+        package_path, func_name = function.func_name.rsplit(".", 1)
+        func_args = function.args
+        func_sig = f"def {func_name}("
+        if func_args:
+            for i, arg in enumerate(func_args):
+                if i > 0:
+                    func_sig += ", "
+                if arg.pos_type == _ParameterKind.POSITIONAL_ONLY.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.POSITIONAL_OR_KEYWORD.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.VAR_POSITIONAL.name:
+                    func_sig += "*" + arg.arg_name
+                elif arg.pos_type == _ParameterKind.KEYWORD_ONLY.name:
+                    func_sig += arg.arg_name
+                elif arg.pos_type == _ParameterKind.VAR_KEYWORD.name:
+                    func_sig += "**" + arg.arg_name
+        func_sig += "): ..."
+        prompt = f"""任务:
+请根据`function`中的信息来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成```
+3. 不要生成`code`以外的任何内容
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{func_sig}
+</function>
+"""
+        return prompt
+
+class AttempterRAG(AbstractAttempter):
+    def __init__(self, retriever: Retriever):
+        self.retriever = retriever
+
+    def make_prompt(self, function: Function, history: list) -> str:
+        package_path, func_name = function.func_name.rsplit(".", 1)
+        related_ctx: str = self.retriever.retrieve(function.func_name)
+        prompt = f"""任务:
+请根据`function`和`related_ctx`中的信息以及相关上下文来为{function.func_name}生成一段完整的调用代码，应该包含import过程、函数参数创建和初始化过程以及最终的函数调用过程。
+
+注意：
+1. 你生成的代码应该用<code></code>包裹。
+2. 不要生成```
+3. 不要生成`code`以外的任何内容
+4. 不要生成与`function`无关的代码(例如打印、注释、画图等)
+5. 生成的`code`以"from {package_path} import {func_name}"开头
+6. 生成的`code`中函数调用形式为"{func_name}(...)"
+
+例子：
+<function>
+{{
+    func_name: "a.b.c",
+    ...  // 其他字段省略
+}}
+</function>
+<related_ctx>
+...
+</related_ctx>
+<code>
+from a.b import c
+x = 2
+y = "str"
+res = c(x, y)
+</code>
+
+现在任务开始：
+<function>
+{function.model_dump_json()}
+</function>
+<related_ctx>
+{related_ctx}
+</related_ctx>
+"""
+        return prompt
 
 class QueitExecutor:
     def gen_code(self, code: str, full_name: str) -> str:
@@ -253,7 +409,8 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
                     result_type = ExecutionResultType.TIMEOUT
                     try:
                         if proc is not None:
-                            proc.kill()
+                            # 整组强杀（含孙进程），防逃逸管道拖垮 run
+                            _kill_process_group(proc)
                             out, err = proc.communicate(timeout=1)
                             stdout = (stdout or "") + (out or "")
                             stderr = (stderr or "") + (err or "")
@@ -399,186 +556,153 @@ class Judger:
         tb = traceback.format_exception_only(type(last_exc), last_exc)
         raise Exception(f"判断代码调用有效性时发生错误，最后一次错误: {''.join(tb)}")
 
+class Solver:
+    def __init__(self, library_name: str):
+        self.library_name = library_name
+        match cfg.get("mode"):
+            case "respfuzzer":
+                self.attempter = AttempterRespFuzzer()
+                self.use_reasoner = True
+            case "respfuzzer-wodoc":
+                self.attempter = AttempterWithoutDocs()
+                self.use_reasoner = True
+            case "respfuzzer-wofb":
+                self.attempter = AttempterWithoutFeedback()
+                self.use_reasoner = False
+            case "respfuzzer-woboth":
+                self.attempter = AttempterWithoutDocsAndFeedback()
+                self.use_reasoner = False
+            case "respfuzzer-rag":
+                from respfuzzer.lib.retriever import Retriever
+                retriever = Retriever(library_name)
+                self.attempter = AttempterRAG(retriever)
+                self.use_reasoner = False
+            case _:
+                raise ValueError(f"Unknown mode: {cfg.get('mode')}")
 
-def solve(
-    function: Function, budget: int = 10, stats: dict | None = None
-) -> Optional[str]:
-    """反射式种子生成主循环（SCE + RCM 自省）。
+        self.budget = int(cfg.get("budget", 10))
+        self.judger = Judger()
+        self.executor = QueitExecutor()
+        self.reasoner = Reasoner()
+        
 
-    Args:
-        function: 目标函数。
-        budget: 自省预算——每轮失败扣 1，扣到 0 停（默认 10 保持历史行为）。
-        stats: 可选出参，回填本次自省的计量：``rounds``（实际自省轮次）、
-            ``budget``（给定预算）、``budget_left``、``solved``、``exhausted``
-            （是否耗尽预算）。RQ1 用它把「ours 成功用了几轮 / 是否耗尽」记账，
-            从而驱动对照组的尝试轮次【MC6-5】——**单位是轮次，不是 LLM 调用次数**。
+    def solve(self, function: Function) -> Optional[str]:
+        initial_budget = self.budget
+        rounds = 0
+        history: List[dict] = []
+        solved = False
+        code = None
 
-    Returns:
-        成功的代码字符串；失败返回 ``None``。
-    """
-    attempter = Attempter()
-    judger = Judger()
-    executor = QueitExecutor()
-    reasoner = Reasoner()
-    initial_budget = budget
-    rounds = 0
-
-    history: List[dict] = []
-    solved = False
-    code = None
-    while True:
-        rounds += 1  # 一轮自省 = attempter → judger → executor(+reasoner) 一个来回
-        # generate may raise; handle and record the error into history so we can save it later
-        try:
-            code = attempter.generate(function, history)
-        except Exception as e:
-            err_msg = f"Attempter error: {str(e)}"
-            logger.debug(err_msg)
-            history.append({"role": "attempter_error", "content": err_msg})
-            budget -= 1
-            if budget <= 0:
-                break
-            continue
-
-        history.append({"role": "attempter", "content": code})
-
-        # judge may raise; handle and record the error into history so we can save it later
-        try:
-            judgment = judger.judge(code, function)
-            if judgment["valid"]:
-                logger.debug(f"Judger accepted the code:\n{code}")
-            else:
-                logger.debug(f"Judger rejected the code: {judgment['reason']}")
-                history.append(
-                    {
-                        "role": "judger",
-                        "content": f"Judger rejected the code: {judgment['reason']}",
-                    }
-                )
-                budget -= 1
-                if budget <= 0:
+        while True:
+            rounds += 1
+            try:
+                code = self.attempter.generate(function, history)
+            except Exception as e:
+                err_msg = f"Attempter error: {str(e)}"
+                logger.debug(err_msg)
+                history.append({"role": "attempter_error", "content": err_msg})
+                self.budget -= 1
+                if self.budget <= 0:
                     break
                 continue
-        except Exception as e:
-            err_msg = f"Judger error: {str(e)}"
-            logger.debug(err_msg)
-            history.append({"role": "judger", "content": err_msg})
-            budget -= 1
-            if budget <= 0:
-                break
-            continue
 
-        result = executor.execute(code, function.func_name)
-
-        if result["result_type"] == ExecutionResultType.OK:
-            solved = True
-            break
-        else:
-            if cfg.get("use_reasoner", True) is False:
-                break
+            history.append({"role": "attempter", "content": code})
 
             try:
-                reason = reasoner.explain(code, result)
+                judgment = self.judger.judge(code, function)
+                if judgment["valid"]:
+                    logger.debug(f"Judger accepted the code:\n{code}")
+                else:
+                    logger.debug(f"Judger rejected the code: {judgment['reason']}")
+                    history.append(
+                        {
+                            "role": "judger",
+                            "content": f"Judger rejected the code: {judgment['reason']}",
+                        }
+                    )
+                    self.budget -= 1
+                    if self.budget <= 0:
+                        break
+                    continue
             except Exception as e:
-                reason = f"Reasoner error: {str(e)}"
-                logger.debug(reason)
+                err_msg = f"Judger error: {str(e)}"
+                logger.debug(err_msg)
+                history.append({"role": "judger", "content": err_msg})
+                self.budget -= 1
+                if self.budget <= 0:
+                    break
+                continue
 
-            logger.debug(f"reason:\n{reason}")
-            history.append({"role": "executor", "content": result.get("stderr")})
-            history.append({"role": "reasoner", "content": reason})
-            budget -= 1
-            if budget == 0:
+            result = self.executor.execute(code, function.func_name)
+
+            if result["result_type"] == ExecutionResultType.OK:
+                solved = True
                 break
-            continue
+            else:
+                if self.use_reasoner is False:
+                    break
 
-    if stats is not None:
-        stats.update(
-            {
-                "rounds": rounds,
-                "budget": initial_budget,
-                "budget_left": budget,
-                "solved": solved,
-                "exhausted": budget <= 0,  # 耗尽预算 → 对照组按约定拿满预算轮次【MC6-5】
-            }
-        )
+                try:
+                    reason = self.reasoner.explain(code, result)
+                except Exception as e:
+                    reason = f"Reasoner error: {str(e)}"
+                    logger.debug(reason)
 
-    if solved:
-        return code
-    else:
-        return None
+                logger.debug(f"reason:\n{reason}")
+                history.append({"role": "executor", "content": result.get("stderr")})
+                history.append({"role": "reasoner", "content": reason})
+                self.budget -= 1
+                if self.budget == 0:
+                    break
+                continue
 
+        if solved:
+            return code
+        else:
+            return None
+        
 
-def solve_function(function: Function) -> Optional[Seed]:
-    logger.info(f"Try solving {function.func_name} ...")
-    code = None
-    try:
-        code = solve(function)
-        seed = Seed(
-            func_id=function.id,
-            library_name=function.library_name,
-            func_name=function.func_name,
-            args=function.args,
-            function_call=code,
-        )
-        logger.success(f"Seed found for {function.func_name}:\n{code}")
-        record_event(
-            "seed_generated",
-            func_name=function.func_name,
-            library_name=function.library_name,
-            seed_id=seed.id,
-        )
-        return seed
-    except Exception as e:
-        logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
-        record_event(
-            "seed_failed",
-            func_name=function.func_name,
-            library_name=function.library_name,
-            error=repr(e),
-        )
+    def solve_function(self, function: Function) -> Optional[Seed]:
+        logger.info(f"Try solving {function.func_name} ...")
+        code = None
+        try:
+            code = self.solve(function)
+            seed = Seed(
+                func_id=function.id,
+                library_name=function.library_name,
+                func_name=function.func_name,
+                args=function.args,
+                function_call=code,
+            )
+            logger.success(f"Seed found for {function.func_name}:\n{code}")
+            return seed
+        except Exception as e:
+            logger.info(f"Failed to solve {function.func_name}:\n{str(e)}")
 
+    def solve_library_functions(self) -> None:
+        mode = cfg.get("mode")
+        match mode:
+            case "respfuzzer":
+                attempter = AttempterRespFuzzer()
+            case "respfuzzer-wodoc":
+                attempter = AttempterWithoutDocs()
+            case "respfuzzer-wofb":
+                attempter = AttempterWithoutFeedback()
+            case "respfuzzer-woboth":
+                attempter = AttempterWithoutDocsAndFeedback()
+            case "respfuzzer-rag":
+                retriever = Retriever(self.library_name)
+                attempter = AttempterRAG(retriever)
+            case _:
+                raise ValueError(f"Unknown mode: {mode}")
 
-def _rq2_group() -> str:
-    """按 reflective_seeder 配置推导 RQ2 实验组（见 ``experiments/RQ2/exp.md``）。
-
-    配置项与实验组的对应：docs = SCE、reasoner = RCM；两者都开是 Full 配置（文件名里
-    记作 ``respfuzzer``），只开 docs 是 ``sce-only``，只开 reasoner 是 ``rcm-only``，
-    都关是 ``baseline``。
-    """
-    use_docs = bool(cfg.get("use_docs", False))
-    use_reasoner = bool(cfg.get("use_reasoner", False))
-    if use_docs and use_reasoner:
-        return "respfuzzer"
-    if use_docs:
-        return "sce-only"
-    if use_reasoner:
-        return "rcm-only"
-    return "baseline"
-
-
-def solve_library_functions(library_name: str) -> None:
-    """Load all functions of the given library from the database and attempt to generate seeds for them."""
-    with start_run(
-        "RQ2",
-        group=_rq2_group(),
-        library=library_name,
-        out_dir=RQ2_DIR,
-        metadata={
-            "entry": "respfuzzer.cmd.reflective_seeder:generate_seeds",
-            "library_name": str(library_name),
-            "use_docs": bool(cfg.get("use_docs", False)),
-            "use_reasoner": bool(cfg.get("use_reasoner", False)),
-            "concurrency": int(cfg.get("concurrency", 4)),
-        },
-    ):
-        functions = get_functions(library_name)
+        functions = get_functions(self.library_name)
         concurrency = int(cfg.get("concurrency", 4))
-        record_result("function_count", len(functions))
 
         seeds: List[Seed] = []
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
             futures = [
-                executor.submit(solve_function, function) for function in functions
+                executor.submit(self.solve_function, function) for function in functions
             ]
             for future in as_completed(futures):
                 seed = future.result()
@@ -586,12 +710,11 @@ def solve_library_functions(library_name: str) -> None:
                     seeds.append(seed)
 
         # Save all seeds to a JSON file
-        record_result("seed_count", len(seeds))
         if len(seeds) == 0:
-            logger.info(f"No seeds generated for library {library_name}")
+            logger.info(f"No seeds generated for library {self.library_name}")
             return
         seeds_data = [seed.model_dump() for seed in seeds]
-        output_file = DATA_DIR / f"{library_name}_seeds.json"
+        (DATA_DIR / f"{mode}").mkdir(parents=True, exist_ok=True)
+        output_file = DATA_DIR / f"{mode}" / f"{self.library_name}_seeds.json"
         with open(output_file, "w") as f:
             json.dump(seeds_data, f, indent=2)
-        record_result("output_file", str(output_file))
