@@ -409,9 +409,14 @@ with instrument_function_via_path_check_ctx("{full_name}") as f:
         stderr = ""
         proc = None
         # 沙箱 cwd：seed 的相对路径产物落 run_data/ 一次性目录，执行完即删
-        # （避免在项目根写出 numpy.so / paddle/ 等遮蔽真实包）
+        # 沙箱：每次执行前 mkdtemp 新建一次性隔离目录（cwd + 脚本都在其中），
+        # 执行完 finally 里 rmtree 删除 —— 单次执行的一切产物（含临时脚本）
+        # 都不落沙箱之外，防止 /tmp 或项目根的同名 .py/.so/包目录遮蔽真实包
+        # （事故根因：脚本曾默认写 /tmp，sys.path[0]=/tmp，某 seed 写入的
+        #  /tmp/numpy.cpython-*.so 全零垃圾使所有依赖 numpy 的执行全部 ImportError）
         sandbox = Path(tempfile.mkdtemp(prefix="fz-", dir=_run_data_root()))
-        with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=True) as f:
+        # 脚本同样写进沙箱：sys.path[0]=脚本目录，落 /tmp 会被其中同名模块遮蔽
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", dir=sandbox, delete=True) as f:
             f.write(self.gen_code(code, full_name))
             f.flush()
             # sys.executable：与父进程同一解释器（.venv），系统 python3 缺本项目依赖
@@ -712,6 +717,16 @@ class Solver:
         )
         functions = get_functions(self.library_name)
         concurrency = int(cfg.get("concurrency", 4))
+
+        # 开跑前清空历史残留沙箱：正常执行即建即删（execute 的 finally rmtree），
+        # 被 SIGKILL 的进程会留下 fz-* 目录。注意本设计要求同一 run_data 下
+        # 串行执行 solve——并发多进程会互删对方的活动沙箱。
+        root = _run_data_root()
+        stale = [d for d in root.glob("fz-*") if d.is_dir()]
+        for d in stale:
+            shutil.rmtree(d, ignore_errors=True)
+        if stale:
+            logger.info(f"Cleared {len(stale)} stale sandbox dirs under {root}")
 
         seeds: List[Seed] = []
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
