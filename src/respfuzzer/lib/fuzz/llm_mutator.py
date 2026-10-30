@@ -140,7 +140,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
             func_id=seed.func_id,
             seed_id=seed.id,
             library_name=seed.library_name,
-            func_name=seed.func_path,
+            func_path=seed.func_path,
             args=seed.args,
             function_call=res.code,
         )

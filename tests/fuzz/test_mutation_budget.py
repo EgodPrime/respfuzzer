@@ -79,7 +79,7 @@ def test_successful_mutation_calls_llm_once(install_stub):
     mutant = llm_mutate(seed, mutation_type=0, rng=1)
     assert mutant is not None
     assert mutant.function_call == VALID_CODE
-    assert mutant.func_name == seed.func_name
+    assert mutant.func_path == seed.func_path
     assert stub.calls == 1, "成功时应立即返回，而不是继续调用 LLM"
 
 

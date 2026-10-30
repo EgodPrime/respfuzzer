@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import random
 import shutil
 import signal
 import argparse
@@ -556,9 +557,11 @@ class Judger:
         return {"valid": False, "reason": reason}
     
 class Solver:
-    def __init__(self, library_name: str, mode: str = "respfuzzer"):
+    def __init__(self, library_name: str, mode: str = "respfuzzer", rs: Optional[int] = None):
         self.library_name = library_name
         self.mode = mode
+        # 重复实验的随机种子（--rs）：用于产物文件名防覆盖与可追溯，None 时不加后缀
+        self.rs = rs
         match mode:
             case "respfuzzer":
                 self.attempter = AttempterRespFuzzer()
@@ -681,10 +684,15 @@ class Solver:
         code = None
         try:
             code = self.solve(function, stats=stats)
+            # solve() 返回 None 表示预算内未解出：直接判失败返回，不能拿 None
+            # 去构造 Seed（pydantic 会抛 function_call 类型错，掩盖真实失败原因）
+            if code is None:
+                logger.info(f"Failed to solve {function.func_path}: no seed within budget")
+                return None
             seed = Seed(
                 func_id=function.id,
                 library_name=function.library_name,
-                func_name=function.func_path,
+                func_path=function.func_path,
                 args=function.args,
                 function_call=code,
             )
@@ -706,9 +714,15 @@ class Solver:
 
     def solve_library_functions(self) -> None:
         # 统一日志初始化【框架级 logging】：控制台 INFO + 实验 .log（文件 sink DEBUG
-        # 全量细节）落 RQ2 目录；文件名 <self.mode>_<library>_<ts>.log，同秒重复启动为追加写
+        # 全量细节）落 RQ2 目录；文件名 <self.mode>_<model>_<library>_<ts>[_rs<N>].log，
+        # 含所用模型名以区分不同模型的实验；同秒重复启动为追加写；
+        # --rs 给定随机种子时追加 _rs<N> 后缀，避免重复实验互相覆盖
+        rs_suffix = "" if self.rs is None else f"_rs{self.rs}"
+        # 模型名可能含路径不安全字符（如 "org/model"），替换为 "-"
+        model_tag = str(llm_cfg.get("model_name", "unknown")).replace("/", "-").replace(" ", "-")
         log_file = (
-            OUTPUT_DIR / f"{self.mode}_{self.library_name}_{time.strftime('%Y%m%dT%H%M%S')}.log"
+            OUTPUT_DIR
+            / f"{self.mode}_{model_tag}_{self.library_name}_{time.strftime('%Y%m%dT%H%M%S')}{rs_suffix}.log"
         )
         setup_logging(level=str(cfg.get("log_level", "INFO")), log_file=log_file)
         logger.info(
@@ -738,8 +752,8 @@ class Solver:
                 if seed is not None:
                     seeds.append(seed)
 
-        # 实验开销元数据 → seeds_meta.json（与 seeds.json 同路径同 stem 对齐）；
-        # 无论最终是否有 seed 都落盘（失败函数的开销同样要入账）
+        # 实验开销元数据 → seeds_meta_<model>.json（与 seeds_<model>.json 同路径同 stem 对齐，
+        # 文件名含模型名以区分不同模型的实验）；无论最终是否有 seed 都落盘（失败函数的开销同样要入账）
         (DATA_DIR / f"{self.mode}").mkdir(parents=True, exist_ok=True)
         meta = {
             "metadata": {
@@ -748,11 +762,14 @@ class Solver:
                 "concurrency": concurrency,
                 "library": self.library_name,
                 "mode": self.mode,
+                "random_seed": self.rs,
             },
             # 逐函数开销：预算消耗次数、LLM 调用次数、输入/输出 token 总量
             "per_function": dict(self._func_stats),
         }
-        meta_file = DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds_meta.json"
+        meta_file = (
+            DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds_meta_{model_tag}{rs_suffix}.json"
+        )
         with open(meta_file, "w") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
         logger.info(f"Per-function cost meta -> {meta_file}")
@@ -762,12 +779,14 @@ class Solver:
             logger.info(f"No seeds generated for library {self.library_name}")
             return
         seeds_data = [seed.model_dump() for seed in seeds]
-        output_file = DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds.json"
+        output_file = DATA_DIR / f"{self.mode}" / f"{self.library_name}_seeds_{model_tag}{rs_suffix}.json"
         with open(output_file, "w") as f:
             json.dump(seeds_data, f, indent=2)
 
-def solve_library(library_name: str, mode: str = "respfuzzer") -> None:
-    solver = Solver(library_name, mode=mode)
+def solve_library(
+    library_name: str, mode: str = "respfuzzer", rs: Optional[int] = None
+) -> None:
+    solver = Solver(library_name, mode=mode, rs=rs)
     solver.solve_library_functions()
 
 
@@ -778,5 +797,13 @@ def main():
         "respfuzzer", "respfuzzer-wodoc", "respfuzzer-wofb",
         "respfuzzer-woboth", "respfuzzer-rag",
     ], help="Seeding mode (default: %(default)s)")
+    parser.add_argument(
+        "--rs", type=int, default=None, metavar="INT",
+        help="随机种子：启动时立即 random.seed(INT)，并在 2 个 json 与 1 个 log "
+             "文件名后追加 _rs<INT> 后缀（默认不设种子、不加后缀）",
+    )
     args = parser.parse_args()
-    solve_library(args.library, mode=args.mode)
+    # 随机种子必须在任何求解动作之前设置，保证同一 --rs 的重跑可复现
+    if args.rs is not None:
+        random.seed(args.rs)
+    solve_library(args.library, mode=args.mode, rs=args.rs)
