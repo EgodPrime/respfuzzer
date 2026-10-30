@@ -52,3 +52,8 @@ AGETNS.md
 # （覆盖上面的 **/*.log 与 experiments/RQ4/*.json；其余 json / 深层日志仍忽略）
 # !experiments/RQ[1-4]/*.log
 # !experiments/RQ[1-4]/*_checkpoint.json
+
+# RQ1 实验生成物：track 文档、分析输出表、进度表（与 data/ 日志同级，不入库）
+rq1_*track*.md
+experiments/**/results_*/
+campaign_progress_*.tsv

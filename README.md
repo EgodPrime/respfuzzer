@@ -62,6 +62,26 @@ cp config.toml.default config.toml
 vim config.toml
 ```
 
+7. Download the NLTK datasets (**required** — many nltk functions need
+   external datasets; without pre-downloading they try to fetch at call time,
+   which stalls the fuzzing sandbox on network timeouts and wastes LLM budget):
+
+   ```bash
+   # Direct connection (may be slow in restricted networks):
+   uv run python scripts/download_nltk_data.py
+   # Or via proxy (recommended; NLTK data lives on GitHub raw):
+   all_proxy=http://<proxy-host>:<port> uv run python scripts/download_nltk_data.py
+   ```
+
+   The script downloads ~50 datasets (tokenizers/taggers/chunkers/sentiment/
+   common corpora/grammars) into `~/nltk_data` (NLTK's first-priority search
+   path, visible to the fuzzing sandbox), removes stale `.lock`/`.tmp`
+   leftovers from interrupted downloads, skips anything already present
+   (idempotent), and finishes with a proxy-free smoke check that the key
+   resources actually load. Note: NLTK >= 3.10 refuses proxied downloads by
+   default (SSRF guard); the script opts in via `nltk.pathsec.ALLOW_PROXIED_FETCH`
+   for trusted proxies.
+
 ## Configuration
 
 The framework uses `config.toml` for configuration. Key settings include:
