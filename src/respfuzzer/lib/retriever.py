@@ -23,7 +23,6 @@ class Retriever:
     def __init__(self, library_name: str):
         self.library_name = library_name
         vector_path = DATA_DIR / f"{library_name}_vector_storage"
-        vector_path = DATA_DIR / f"{library_name}_vector_storage"
         if vector_path.exists():
             # 已有持久化索引: 只加载，不再依赖 <lib>_source
             storage_context = StorageContext.from_defaults(persist_dir=vector_path)
@@ -39,9 +38,10 @@ class Retriever:
             # persist_dir 不能提前传给 from_defaults: 它会立刻去读 docstore.json 而崩溃
             self.index.storage_context.persist(persist_dir=str(vector_path))
 
-        self.query_engine = self.index.as_query_engine(similarity_top_k=3)
+        # 用 retriever 而非 query_engine：检索结果原样拼进 solver 提示词，
+        # 无需 LLM 合成；query_engine 需要 Settings.llm（会因缺 OPENAI_API_KEY 崩溃）
+        self.retriever = self.index.as_retriever(similarity_top_k=3)
 
-    def retrieve(self, query: str)->str:
-        response = self.query_engine.query(query)
-        return response.response
-        
+    def retrieve(self, query: str) -> str:
+        nodes = self.retriever.retrieve(query)
+        return "\n".join(n.get_content() for n in nodes)
