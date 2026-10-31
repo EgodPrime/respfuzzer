@@ -57,3 +57,5 @@ AGETNS.md
 rq1_*track*.md
 experiments/**/results_*/
 campaign_progress_*.tsv
+
+experiments/function_solutions/
