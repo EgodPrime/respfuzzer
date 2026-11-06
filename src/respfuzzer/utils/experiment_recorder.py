@@ -13,7 +13,7 @@
 
     rq3_respfuzzer_nltk_20261010T090000.log
     rq3_respfuzzer_nltk_20261010T090000_checkpoint.json
-    rq4_respfuzzer_nltk_20261010T090000_mode-nl.log
+    rq3_respfuzzer_nltk_20261010T090000_mode-nl.log
     rq2_sce-only_nltk_20261010T100000_checkpoint.json
 
 - ``.log`` 是**可读文本日志**：loguru 文本 sink（格式与 loguru 默认 stderr 格式一致，
@@ -623,10 +623,10 @@ def start_run(
     """启动一次独立运行的录制，返回记录器（可直接用于 ``with``）。
 
     Args:
-        rq: 实验编号，如 ``RQ1``..``RQ4``；决定文件名前缀与 checkpoint 的 ``rq`` 字段。
+        rq: 实验编号，如 ``RQ1``..``RQ3``；决定文件名前缀与 checkpoint 的 ``rq`` 字段。
         group: 实验组，如 ``respfuzzer`` / ``fuzz4all`` / ``dyfuzz`` / ``sce-only``。
         library: 目标库（如 ``nltk``）；一次运行覆盖多库时可为 ``None``。
-        mode: RQ4 的消融模式（``Full`` / ``NL`` / ``NSF`` ...），仅 RQ4 使用。
+        mode: RQ3 的消融模式（``Full`` / ``NL`` / ``NSF`` ...），仅 RQ3 使用。
         out_dir: 落盘目录，通常是 ``experiments/RQ<x>/``；缺省为 ``run_data/``。
         timestamp: 覆盖自动时间戳（复现/测试用）。
         metadata: 运行元数据（数据集路径、随机种子、解码参数……），原样落盘。

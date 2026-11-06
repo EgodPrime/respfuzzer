@@ -52,7 +52,7 @@ def test_checkpoint_pair_key_prefers_run_index_then_seed(tmp_path):
 
 def test_checkpoint_pair_key_handles_missing_metadata(tmp_path):
     """ut-MC3-3-P-A：checkpoint 没有 metadata 字段 → ``None``。"""
-    log = tmp_path / "rq4_respfuzzer_nltk_20260101T000000.log"
+    log = tmp_path / "rq3_respfuzzer_nltk_20260101T000000.log"
     log.write_text("log", encoding="utf-8")
     log.with_name(log.stem + "_checkpoint.json").write_text(
         json.dumps({"status": "completed"}), encoding="utf-8"

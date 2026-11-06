@@ -2,7 +2,7 @@
 
 评审主要意见 3 要求「使用相同函数和随机种子的配对比较」：要让**同函数、同种子**
 成为受控实验变量，必须先有一个统一的种子口径，让同一轮（同一个 ``run_index``）
-的 RespFuzzer / miniFuzz4All / DyFuzz 与 RQ4 的各消融配置取到**同一个**种子，
+的 RespFuzzer / miniFuzz4All / DyFuzz 与 RQ3 的各消融配置取到**同一个**种子，
 并把它落进 ``*_checkpoint.json`` 供报表侧配对。
 
 本模块是全仓库唯一的种子解析口径（框架 ``src`` 与 ``experiments`` 共用）：

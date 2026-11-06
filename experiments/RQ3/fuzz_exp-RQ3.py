@@ -15,7 +15,9 @@ from respfuzzer.repos import get_seeds
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import (
     record_event,
+    record_llm_stats,
     record_result,
+    reset_llm_stats,
     start_run,
 )
 from respfuzzer.utils.paths import DATA_DIR
@@ -23,7 +25,7 @@ from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
 from respfuzzer.utils.run_seed import prepare_run_seed
 
-RQ4_DIR = Path(__file__).resolve().parent
+RQ3_DIR = Path(__file__).resolve().parent
 
 
 def _parse_mode(mode: str) -> tuple[bool, bool, bool, bool]:
@@ -79,7 +81,7 @@ def fuzz_single_seed(
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
 
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_name}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}")
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -92,7 +94,7 @@ def fuzz_single_seed(
         # NL / NL,NP: skip LLM mutation, execute seed directly once
         cov_before = bm.count_bitmap_s()
         logger.debug(f"Seed {seed.id} coverage before execution: {cov_before}")
-        logger.info(f"Start fuzzing seed {seed.id}: {seed.func_name}")
+        logger.info(f"Start fuzzing seed {seed.id}: {seed.func_path}")
         try:
             send.put(("fuzz" if not no_data_fuzz else "execute", seed))
             recv.get(timeout=execution_timeout + data_fuzz_per_seed / 100)
@@ -138,7 +140,7 @@ def fuzz_single_seed(
             cov_before = bm.count_bitmap_s()
             logger.debug(f"Mutant {mutant.id} coverage before execution: {cov_before}")
             logger.info(
-                f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_name}"
+                f"Start fuzzing mutant {mutant.id} of seed {seed.id}: {mutant.func_path}"
             )
             try:
                 send.put(("fuzz" if not no_data_fuzz else "execute", mutant))
@@ -217,7 +219,7 @@ def _fuzz_dataset(
     seeds: list[tuple[int, str, Seed]] = []
     shm_key_start = 4399
     for seed in dataset:
-        seeds.append((shm_key_start, seed.func_name, seed))
+        seeds.append((shm_key_start, seed.func_path, seed))
         shm_key_start += 1
 
     if not seeds:
@@ -305,7 +307,7 @@ def calc_initial_seed_coverage_dataset(
 def fuzz_dataset(
     dataset_path: str,
     mode: str = "",
-    rq: str = "RQ4",
+    rq: str = "RQ3",
     group: str = "respfuzzer",
     out_dir: str | None = None,
     seed: int | None = None,
@@ -341,15 +343,17 @@ def fuzz_dataset(
         group=group,
         library=_library_from_dataset(dataset_path),
         mode=mode or "Full",
-        out_dir=out_dir or RQ4_DIR,
+        out_dir=out_dir or RQ3_DIR,
         metadata={
-            "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
+            "entry": "experiments/RQ3/fuzz_exp-RQ3.py",
             "dataset_path": str(dataset_path),
             "mode": mode or "Full",
             "seed": run_seed,
             "run_index": run_index,
         },
     ):
+        reset_llm_stats()
+        record_result("concurrency", get_config("fuzz").get("max_workers"))
         logger.info(
             f"Starting fuzzing for dataset: {dataset_path}, mode={mode or 'Full'}"
         )
@@ -366,13 +370,14 @@ def fuzz_dataset(
             no_semantic_filter=no_semantic_filter,
             no_cov_feedback=no_cov_feedback,
         )
+        record_llm_stats(concurrency=get_config("fuzz").get("max_workers"))
 
 
 def fuzz_one_library(
     library_name: str,
     *,
     mode: str = "",
-    rq: str = "RQ4",
+    rq: str = "RQ3",
     group: str = "respfuzzer",
     out_dir: str | None = None,
     seed: int | None = None,
@@ -400,15 +405,17 @@ def fuzz_one_library(
         group=group,
         library=library_name,
         mode=mode or "Full",
-        out_dir=out_dir or RQ4_DIR,
+        out_dir=out_dir or RQ3_DIR,
         metadata={
-            "entry": "experiments/RQ4/fuzz_exp-RQ4.py",
+            "entry": "experiments/RQ3/fuzz_exp-RQ3.py",
             "library_name": str(library_name),
             "mode": mode or "Full",
             "seed": run_seed,
             "run_index": run_index,
         },
     ):
+        reset_llm_stats()
+        record_result("concurrency", max_workers)
         logger.info(
             f"Starting fuzzing for library: {library_name}, mode={mode or 'Full'}"
         )
@@ -427,7 +434,7 @@ def fuzz_one_library(
                     no_semantic_filter=no_semantic_filter,
                     no_cov_feedback=no_cov_feedback,
                 )
-                futures.append((fut, seed_item.func_name))
+                futures.append((fut, seed_item.func_path))
                 sub_key += 1
             final_coverage: int | None = None
             for fut, func_name in futures:
@@ -447,6 +454,7 @@ def fuzz_one_library(
                         coverage=final_coverage,
                     )
         record_result("final_coverage", final_coverage)
+        record_llm_stats(concurrency=max_workers)
 
 
 if __name__ == "__main__":

@@ -57,12 +57,12 @@ def test_run_stem_follows_the_naming_contract():
     assert run_stem("RQ3", "respfuzzer", "nltk", timestamp="20261010T090000") == (
         "rq3_respfuzzer_nltk_20261010T090000"
     )
-    assert run_stem("RQ4", "respfuzzer", "Nltk", "NL", "20261010T090000") == (
-        "rq4_respfuzzer_nltk_20261010T090000_mode-nl"
+    assert run_stem("RQ3", "respfuzzer", "Nltk", "NL", "20261010T090000") == (
+        "rq3_respfuzzer_nltk_20261010T090000_mode-nl"
     )
     # Full 是默认组：文件名里不带 mode 段
-    assert run_stem("RQ4", "respfuzzer", "nltk", "Full", "20261010T090000") == (
-        "rq4_respfuzzer_nltk_20261010T090000"
+    assert run_stem("RQ3", "respfuzzer", "nltk", "Full", "20261010T090000") == (
+        "rq3_respfuzzer_nltk_20261010T090000"
     )
     # 一次运行覆盖多库（RQ1 生成脚本）时省略 library
     assert run_stem("RQ1", "respfuzzer", timestamp="20261010T090000") == (
@@ -188,7 +188,7 @@ def test_print_is_teed_into_the_log_and_streams_are_restored(tmp_path):
 
 def test_checkpoint_schema_and_embedded_events(tmp_path):
     rec = start_run(
-        "RQ4",
+        "RQ3",
         group="respfuzzer",
         library="nltk",
         mode="NL",
@@ -217,7 +217,7 @@ def test_checkpoint_schema_and_embedded_events(tmp_path):
     assert path == rec.checkpoint_path
     payload = _checkpoint(rec)
     assert payload["schema_version"] == 1
-    assert payload["rq"] == "RQ4"
+    assert payload["rq"] == "RQ3"
     assert payload["group"] == "respfuzzer"
     assert payload["library"] == "nltk"
     assert payload["mode"] == "NL"
@@ -407,7 +407,7 @@ def test_invalid_llm_output_lands_in_checkpoint(tmp_path, monkeypatch):
         function_call=VALID_CODE,
     )
     rec = start_run(
-        "RQ4",
+        "RQ3",
         group="respfuzzer",
         library="math",
         out_dir=tmp_path,
@@ -449,7 +449,7 @@ def test_llm_failure_lands_in_checkpoint(tmp_path, monkeypatch):
         function_call=VALID_CODE,
     )
     rec = start_run(
-        "RQ4",
+        "RQ3",
         group="respfuzzer",
         library="math",
         out_dir=tmp_path,
