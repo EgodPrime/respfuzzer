@@ -15,6 +15,7 @@ from respfuzzer.lib.fuzz.instrument import (
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import HasCode, Seed
 from respfuzzer.repos import get_seed_by_function_name, get_seeds
+from respfuzzer.utils.budget import Budget, resolve_budget
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import (
     record_event,
@@ -105,20 +106,23 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
 
 def fuzz_single_seed(
     seed: Seed,
+    budget: Budget,
     process_index: int = 4399,
 ) -> None:
-    """ """
+    """按预算变异单个种子：``-lrequest``（LLM 请求次数）与 ``-ltime``（总变异
+    时间，秒）同时生效，先耗尽者停；只给 ``-ltime`` 时不限次数。"""
     import time
     config = get_config("fuzz")
     execution_timeout = config.get("execution_timeout")
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
 
-    # 预算模式配置
-    budget_mode = config.get("budget_mode", "llm_calls")  # llm_calls | wall_clock | executions
-    budget_value = config.get("budget_value", config.get("llm_fuzz_per_seed"))
-    
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}, budget_mode={budget_mode}, budget_value={budget_value}")
+    request_limit = budget.request_limit
+    time_limit = budget.time_limit
+
+    logger.info(
+        f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}, {budget.describe()}"
+    )
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -128,26 +132,24 @@ def fuzz_single_seed(
     child_pid = process.pid
     Mutator = LLMMutator(seed)
     
-    # 初始化预算计数器
+    # 预算计数器：LLM 请求次数 + 单种子墙钟时间
     start_time = time.time()
     llm_calls_done = 0
-    executions_done = 0
-    
-    # 循环直到预算耗尽
+
+    # 循环直到任一预算耗尽
     while True:
-        # 检查预算是否耗尽
-        if budget_mode == "llm_calls" and llm_calls_done >= budget_value:
-            logger.info(f"Budget exhausted: {llm_calls_done}/{budget_value} LLM calls reached, stopping.")
+        if request_limit is not None and llm_calls_done >= request_limit:
+            logger.info(
+                f"Budget exhausted: {llm_calls_done}/{request_limit} LLM requests "
+                f"reached, stopping. (elapsed={time.time() - start_time:.1f}s)"
+            )
             break
-        elif budget_mode == "wall_clock":
-            elapsed = time.time() - start_time
-            if elapsed >= budget_value:
-                logger.info(f"Budget exhausted: {elapsed:.1f}s/{budget_value:.1f}s wall-clock time reached, stopping. (Total LLM calls: {llm_calls_done}, Total executions: {executions_done})")
-                break
-        elif budget_mode == "executions" and executions_done >= budget_value:
-            logger.info(f"Budget exhausted: {executions_done}/{budget_value} actual executions reached, stopping. (Total LLM calls: {llm_calls_done})")
+        if time_limit is not None and (time.time() - start_time) >= time_limit:
+            logger.info(
+                f"Budget exhausted: time budget {time_limit:.1f}s reached after "
+                f"{llm_calls_done} LLM requests, stopping."
+            )
             break
-        
         llm_calls_done += 1
         mutation = Mutator.random_llm_mutate()
         if mutation is None:
@@ -222,9 +224,6 @@ def fuzz_single_seed(
             has_runtime_error=outcome.has_runtime_error,
             outcome=outcome.describe(),
         )
-        # 实际执行完成后增加执行计数（对 fixed_executions 模式）
-        # 每个 mutant 会执行 data_fuzz_per_seed 次，所以增加这个数量
-        executions_done += data_fuzz_per_seed
         if outcome.has_runtime_error:
             # 运行时异常作为语义负面反馈（MC2-6）：奖励降到 0，且不再计算覆盖率增益
             Mutator.update_reward(mutation_type, Mutator.reward_for_outcome(outcome))
@@ -276,6 +275,7 @@ def fuzz_single_seed(
 
 def _fuzz_dataset(
     dataset: list[Seed],
+    budget: Budget,
 ) -> int | None:
     """
     Fuzz the dataset by iterating over all functions and query related seeds.
@@ -299,6 +299,7 @@ def _fuzz_dataset(
             fut = exc.submit(
                 fuzz_single_seed,
                 seed,
+                budget,
                 shm_key,
             )
             futures.append((fut, full_name, seed.library_name))
@@ -384,6 +385,8 @@ def fuzz_dataset(
     out_dir: str | None = None,
     seed: int | None = None,
     run_index: int | None = None,
+    request_budget: int | None = None,
+    time_budget: float | None = None,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file.
 
@@ -394,7 +397,12 @@ def fuzz_dataset(
     ``seed`` / ``run_index`` 是随机种子与轮次序号【MC3-3】：同一 ``run_index`` 在所有
     实验组派生出同一个种子（``derive_run_seed``），并连同生效种子写入 checkpoint 的
     ``metadata``，供报表按「相同随机种子」做配对比较。
+    ``request_budget`` / ``time_budget``（实验写法 ``-lrequest N`` / ``-ltime S``）
+    按【单个种子】计：两者同时生效、先耗尽者停；至少给一个，否则报错退出
+    （强制 CLI，无 config 兜底，见 ``respfuzzer.utils.budget``）。
     """
+    budget = resolve_budget(request_budget, time_budget)
+
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
@@ -412,11 +420,15 @@ def fuzz_dataset(
             "dataset_path": str(dataset_path),
             "seed": run_seed,
             "run_index": run_index,
+            "request_budget": request_budget,
+            "time_budget": time_budget,
         },
     ):
         reset_llm_stats()
         concurrency = get_config("fuzz").get("max_workers")
         record_result("concurrency", concurrency)
+        record_result("request_budget", request_budget)
+        record_result("time_budget", time_budget)
         logger.info(f"Starting fuzzing for dataset: {dataset_path}")
         with open(dataset_path, "r", encoding="utf-8") as f:
             seeds: list[dict] = json.load(f)
@@ -424,7 +436,7 @@ def fuzz_dataset(
         seeds = [Seed.model_validate(s) for s in seeds]
         record_result("seed_count", len(seeds))
         record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
-        _fuzz_dataset(seeds)
+        _fuzz_dataset(seeds, budget)
         record_llm_stats(concurrency=concurrency)
 
 
@@ -436,13 +448,18 @@ def fuzz_one_library(
     out_dir: str | None = None,
     seed: int | None = None,
     run_index: int | None = None,
+    request_budget: int | None = None,
+    time_budget: float | None = None,
 ) -> None:
     """
     Fuzz the specified library with seeds from the database.
 
     产物命名同 :func:`fuzz_dataset``：``rq`` / ``group`` / ``mode`` / ``out_dir``
     决定 ``.log`` 与 ``*_checkpoint.json`` 的名字。
+    预算参数同 :func:`fuzz_dataset`：``-lrequest N`` / ``-ltime S`` 至少给一个。
     """
+    budget = resolve_budget(request_budget, time_budget)
+
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
     bm_parent = BitmapManager(4398)
@@ -461,10 +478,14 @@ def fuzz_one_library(
             "library_name": str(library_name),
             "seed": run_seed,
             "run_index": run_index,
+            "request_budget": request_budget,
+            "time_budget": time_budget,
         },
     ):
         reset_llm_stats()
         record_result("concurrency", max_workers)
+        record_result("request_budget", request_budget)
+        record_result("time_budget", time_budget)
         logger.info(f"Starting fuzzing for library: {library_name}")
         record_result("library_name", library_name)
         seeds = list(get_seeds(library_name))
@@ -477,6 +498,7 @@ def fuzz_one_library(
                 fut = exc.submit(
                     fuzz_single_seed,
                     seed_item,
+                    budget,
                     sub_key,
                 )
                 futures.append((fut, seed_item.func_path, seed_item.library_name))

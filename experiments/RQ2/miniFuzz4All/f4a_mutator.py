@@ -13,9 +13,10 @@ llm_cfg = get_config("llm")
 client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
-# miniFuzz4All 走的是 openai.Completion（不是 ChatCompletion），
-# 不能复用 respfuzzer.utils.llm_helper 的 _update_statistics（那个只对 chat 生效）。
-# 这里就地累计 token 数，通过 record_result 上报（MC4-3）。
+# miniFuzz4All 走 openai.ChatCompletion（system + user 两条消息），
+# 思考内容由服务端放进 message.reasoning_content，取 content 即已剔除；
+# _extract_pure_code 再兜底剥离混入正文的思考标签与 markdown 围栏。
+# token 统计就地累计，通过 record_result 上报（MC4-3）。
 _f4a_llm_calls: int = 0
 _f4a_input_tokens: int = 0
 _f4a_output_tokens: int = 0
@@ -47,6 +48,44 @@ def reset_f4a_stats() -> None:
     _f4a_output_tokens = 0
 
 
+# Chat 路径 system 提示：强制纯代码输出（思考内容走 reasoning_content 字段）。
+CODE_SYSTEM_PROMPT = (
+    "You are a code mutation engine. You can only complete code snippets.\n"
+    "Output ONLY pure Python code: no explanation, no markdown fences, "
+    "no thinking tags, no prose."
+)
+
+_THINKING_BLOCK_RE = re.compile(r"<\s*thinking\s*>.*?<\s*/\s*thinking\s*>", re.S | re.I)
+_FENCE_RE = re.compile(r"```[a-zA-Z0-9_+-]*[ \t]*\n(.*?)(?:```|$)", re.S)
+
+
+def _message_content(response) -> str:
+    """取 chat 响应正文；思考内容在 reasoning_content，天然不进入返回值。"""
+    try:
+        message = response.choices[0].message
+    except (AttributeError, IndexError, TypeError):
+        return ""
+    content = getattr(message, "content", None)
+    return content or ""
+
+
+def _extract_pure_code(text: str) -> str:
+    """自动剔除思考内容，返回纯代码正文。
+
+    1) 删除 ``<thinking>...</thinking>`` 标签块（模型没走 reasoning_content
+       时可能混进正文）；
+    2) 有 markdown 代码围栏时只取围栏内代码（顺带丢掉围栏外的解释性散文）。
+    """
+    if not text:
+        return ""
+    # 剔除 thinking 块后清掉残留前导空白（thinking 块通常位于正文开头）
+    text = _THINKING_BLOCK_RE.sub("", text).lstrip()
+    fenced = _FENCE_RE.search(text)
+    if fenced:
+        return fenced.group(1)
+    return text
+
+
 class Fuzz4AllMutator:
     """
     从Fuzz4All源码中抽离出来的单独使用的变异器类。
@@ -57,7 +96,7 @@ class Fuzz4AllMutator:
         self.current_code: str = seed.function_call
         self.p_strategy: int = cfg.get("p_strategy", 2)  # Fuzz4All默认值为2
         self.library_name = seed.library_name
-        self.package_path, self.func_name = seed.func_name.rsplit(".", 1)
+        self.package_path, self.func_name = seed.func_path.rsplit(".", 1)
 
         self.prompt_used = {
             # https://github.com/fuzz4all/fuzz4all/blob/main/config/targeted/qiskit_linear_function.yaml
@@ -68,7 +107,7 @@ class Fuzz4AllMutator:
             # commit: 0bf42fe
             # Lines: 50
             "separator": '"""Create function call in %s in Python that uses the %s API"""'
-            % (self.library_name, seed.func_name),
+            % (self.library_name, seed.func_path),
         }
 
         # https://github.com/fuzz4all/fuzz4all/blob/main/Fuzz4All/target/target.py
@@ -194,10 +233,12 @@ class Fuzz4AllMutator:
         Lines: 247-282
         """
         self.update()
-        prefix = "You are Qwen3-Coder. You can only complete code snippets. You output only pure-code.\n"
-        response = client.completions.create(
+        response = client.chat.completions.create(
             model=llm_cfg["model_name"],
-            prompt=prefix + "\n" + self.prompt,
+            messages=[
+                {"role": "system", "content": CODE_SYSTEM_PROMPT},
+                {"role": "user", "content": self.prompt},
+            ],
             max_tokens=1024,
             temperature=0.7,
             top_p=1,
@@ -207,7 +248,7 @@ class Fuzz4AllMutator:
         )
         _update_f4a_stats(response)
         # logger.debug(f"LLM response: {response}")
-        new_code = response.content.strip()
+        new_code = _extract_pure_code(_message_content(response)).strip()
 
         self.current_code = self.prompt_used["begin"] + "\n" + self.clean(new_code)
         self.current_code = self.remove_unsed_imports(self.current_code)
@@ -219,14 +260,16 @@ class Fuzz4AllMutator:
         """
         self.update()
         mutants = []
-        prefix = "You are Qwen3-Coder. You can only complete code snippets. You output only pure-code.\n"
-        prompt = prefix + "\n" + self.prompt
+        messages = [
+            {"role": "system", "content": CODE_SYSTEM_PROMPT},
+            {"role": "user", "content": self.prompt},
+        ]
         with ThreadPoolExecutor(max_workers=cnt) as executor:
             futures = [
                 executor.submit(
-                    client.completions.create,
+                    client.chat.completions.create,
                     model=llm_cfg["model_name"],
-                    prompt=prompt,
+                    messages=messages,
                     max_tokens=1024,
                     temperature=0.7,
                     top_p=1,
@@ -239,11 +282,10 @@ class Fuzz4AllMutator:
             for future in futures:
                 response = future.result()
                 _update_f4a_stats(response)
-                new_code = response.choices[0].text.strip()
+                new_code = _extract_pure_code(_message_content(response)).strip()
                 mutant_code = (
                     self.prompt_used["begin"] + "\n" + self.clean_code(new_code)
                 )
                 mutant_code = self.remove_unsed_imports(mutant_code)
                 mutants.append(mutant_code)
-
         return mutants

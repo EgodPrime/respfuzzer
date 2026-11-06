@@ -17,29 +17,16 @@ class FakeSeed:
         # mimic the Seed attributes used by Fuzz4AllMutator
         self.function_call = 'foo()\n# inline comment\n"""block comment"""'
         self.library_name = "mylib"
-        self.func_name = "mylib.module.func"
+        self.func_path = "mylib.module.func"
 
 
-class DummyResponseChoice:
-    def __init__(self, content):
-        self.message = types.SimpleNamespace(content=content)
+class DummyChatResponse:
+    """openai.ChatCompletion 风格响应：思考内容在 message.reasoning_content，正文在 content。"""
 
-
-class DummyResponse:
-    def __init__(self, content):
-        self.choices = [DummyResponseChoice(content)]
-
-
-class DummyClient:
-    def __init__(self, content_to_return):
-        self._content = content_to_return
-
-    class chat:
-        class completions:
-            @staticmethod
-            def create(*args, **kwargs):
-                # args[0] may be 'self' depending on binding; ignore and return a dummy
-                return DummyResponse("generated_call()\n# new comment\n")
+    def __init__(self, content, reasoning=""):
+        message = types.SimpleNamespace(content=content, reasoning_content=reasoning)
+        self.choices = [types.SimpleNamespace(message=message)]
+        self.usage = types.SimpleNamespace(prompt_tokens=1, completion_tokens=1)
 
 
 @pytest.fixture(autouse=True)
@@ -56,10 +43,68 @@ def patch_client(monkeypatch):
             class completions:
                 @staticmethod
                 def create(*args, **kwargs):
-                    return DummyResponse("generated_call()\n")
+                    # generate()/generate_n() 走 chat.completions.create
+                    return DummyChatResponse("generated_call()\n")
 
     monkeypatch.setattr(fm, "client", C())
     yield
+
+
+def test_extract_pure_code_strips_thinking_tags():
+    """思考标签块（未走 reasoning_content 时可能混入正文）应被剔除。"""
+    text = "<thinking>Let me think about the mutation...</thinking>\nx = 1"
+    assert fm._extract_pure_code(text) == "x = 1"
+
+
+def test_extract_pure_code_strips_fenced_prose():
+    """正文是 markdown 围栏时只取代码，丢掉围栏外的解释性散文。"""
+    text = 'Sure! Here is a mutated program:\n```python\nx = 1\n```\nHope it helps!'
+    assert fm._extract_pure_code(text).strip() == "x = 1"
+
+
+def test_extract_pure_code_keeps_plain_code():
+    """纯代码原样返回。"""
+    assert fm._extract_pure_code("x = 1\ny = 2") == "x = 1\ny = 2"
+
+
+def test_extract_pure_code_empty():
+    assert fm._extract_pure_code("") == ""
+
+
+def test_message_content_reads_chat_response():
+    """chat 响应取 message.content，不碰 reasoning_content。"""
+    resp = DummyChatResponse("code_here()", reasoning="thinking aloud")
+    assert fm._message_content(resp) == "code_here()"
+    # 结构不匹配时返回空串而不是抛异常
+    assert fm._message_content(types.SimpleNamespace()) == ""
+
+
+def test_generate_uses_chat_and_drops_reasoning(monkeypatch):
+    """generate() 走 chat.completions，正文不含思考内容。"""
+    captured = {}
+
+    def fake_create(*args, **kwargs):
+        captured.update(kwargs)
+        return DummyChatResponse(
+            "mutated_call()\n", reasoning="secret internal monologue"
+        )
+
+    class Client:
+        class chat:
+            class completions:
+                create = staticmethod(fake_create)
+
+    monkeypatch.setattr(fm, "client", Client())
+    seed = FakeSeed()
+    mut = fm.Fuzz4AllMutator(seed)
+    out = mut.generate()
+    # 请求带上了 system+user 两条消息
+    assert captured["messages"][0]["role"] == "system"
+    assert captured["messages"][1]["role"] == "user"
+    # 思考内容没有混进结果
+    assert "secret internal monologue" not in out
+    assert "mutated_call()" in out
+
 
 
 def test_clean_code_removes_prompts_and_comments():
@@ -94,12 +139,12 @@ def test_update_strategy_avoids_combination_when_no_prev(monkeypatch):
     seed = FakeSeed()
     mut = fm.Fuzz4AllMutator(seed)
 
-    # force random to return 3 first; but because prev_example is None it should pick 0 instead
+    # prev_example is None 时实现把 strategy 3 改写成 1（m_prompt），
+    # 而不是 0（separator）——与 Fuzz4All target.py 的补丁一致
     monkeypatch.setattr(fm.random, "randint", lambda a, b: 3)
     res = mut.update_strategy("some_code")
-    # when strategy changed to 0 it should include separator
-    assert mut.prompt_used["separator"].strip() in res
-
+    assert mut.m_prompt.strip() in res
+    assert mut.prompt_used["separator"].strip() not in res
 
 def test_generate_uses_client_and_updates_current_code():
     seed = FakeSeed()

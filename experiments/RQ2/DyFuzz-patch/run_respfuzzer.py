@@ -79,7 +79,7 @@ def gen_log(mod, api, n, s):
         else:
             number = 1
 
-        f1 = open("temp.py", "r")
+        f1 = open(_DYFUZZ_DIR / "temp.py", "r")
         code = f1.read()
         f1.close()
 
@@ -114,7 +114,7 @@ def run(mod, api, n):
 
         # if platform.system() == "Darwin":
         # 	s = os.system(" python3.9  apifuzzer.py %s %s %s"%(mod,api,n))
-        s = os.system("'python'  apifuzzer.py %s %s %s" % (mod, api, n))
+        s = os.system('cd "%s" && "%s" apifuzzer.py %s %s %s' % (_DYFUZZ_DIR, sys.executable, mod, api, n))
         totalAPI = totalAPI + 2
 
         # t = t+2
@@ -122,56 +122,66 @@ def run(mod, api, n):
         # return t
 
 
-def run_limit_n(mod, api, n, budget_mode=None, budget_value=None):
+def run_limit_n(mod, api, n, budget):
     """
-    支持三种预算模式：
-    - llm_calls（默认）：固定执行次数
-    - wall_clock：固定wall-clock时间（秒）
-    - executions：固定实际执行测试数量（和llm_calls一致，因为DyFuzz没有LLM）
-    """
-    if budget_mode is None:
-        budget_mode = "llm_calls"
-    if budget_value is None:
-        budget_value = int(1e2 / 2)
+    按预算循环变异单个种子（API）：每次循环 = 一次变异 = 一次 apifuzzer 子进程
+    （参数生成 + 变异 + 执行）。DyFuzz 无 LLM 调用，变异次数即实际执行次数。
 
+    Args:
+        budget (Budget): ``-lmutant``（单种子变异次数上限）与 ``-ltime``（单种子
+            总测试时间上限，秒）同时生效，先耗尽者停；只给 ``-ltime`` 时不限次数。
+    """
     global totalAPI
+    mutant_limit = budget.mutant_limit
+    time_limit = budget.time_limit
     timeout_cnt = 0
+    mutants_done = 0
     start_time = time.time()
-    executions_done = 0
+
+    def time_exhausted() -> bool:
+        return time_limit is not None and (time.time() - start_time) >= time_limit
 
     while True:
-        # 检查预算是否耗尽
-        if budget_mode == "llm_calls" and totalAPI >= budget_value:
+        if mutant_limit is not None and mutants_done >= mutant_limit:
+            logger.info(
+                f"Mutant budget {mutants_done}/{mutant_limit} reached for {mod}.{api}. "
+                f"(elapsed={time.time() - start_time:.1f}s)"
+            )
             break
-        elif budget_mode == "wall_clock":
-            elapsed = time.time() - start_time
-            if elapsed >= budget_value:
-                logger.info(f"Budget exhausted: {elapsed:.1f}s/{budget_value:.1f}s wall-clock reached for {mod}.{api}. (Total executions: {totalAPI})")
-                break
-        elif budget_mode == "executions" and executions_done >= budget_value:
+        if time_exhausted():
+            logger.info(
+                f"Time budget {time_limit:.1f}s reached for {mod}.{api}. "
+                f"(mutants={mutants_done})"
+            )
             break
 
+        # 子进程超时钳制到剩余时间预算内，把时间超限压到单次变异粒度
+        exec_timeout = 10.0
+        if time_limit is not None:
+            remaining = time_limit - (time.time() - start_time)
+            exec_timeout = min(exec_timeout, max(remaining, 0.1))
         try:
             p = subprocess.Popen(
-                ["python", "apifuzzer.py", mod, api, str(n)],
+                [sys.executable, str(_DYFUZZ_DIR / "apifuzzer.py"), mod, api, str(n)],
+                cwd=str(_DYFUZZ_DIR),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 start_new_session=True,
             )
-            stdout, stderr = p.communicate(timeout=10)
+            stdout, stderr = p.communicate(timeout=exec_timeout)
         except subprocess.TimeoutExpired:
             logger.warning("Subprocess timed out")
             os.killpg(os.getpgid(p.pid), 9)
+            p.wait()
             timeout_cnt += 1
             if timeout_cnt >= 5:
                 logger.warning("Too many timeouts, skipping this API.")
                 break
 
-        s = p.returncode
+        # 超时被杀的变异同样消耗预算
         totalAPI = totalAPI + 1
-        executions_done += 1
+        mutants_done += 1
         # gen_log(mod, api, n, s)
-
 # while True:
 #   run(mod,api,n)
 
@@ -188,33 +198,13 @@ open("log.txt", "a").write("\n")
 # run(mod,api,n)
 
 
-# 读取预算模式配置
-from respfuzzer.utils.config import get_config as _get_config
-_dyfuzz_cfg = _get_config("dyfuzz")
-budget_mode = _dyfuzz_cfg.get("budget_mode", "llm_calls")
-budget_value = _dyfuzz_cfg.get("budget_value", int(1e2 / 2))
-
-# 用法：python run_respfuzzer.py <data_path> [--seed N] [--run-index N]
-_argv = sys.argv[1:]
-if not _argv:
-    raise SystemExit(
-        "Usage: python run_respfuzzer.py <data_path> [--seed N] [--run-index N]"
-    )
-data_path = _argv[0]
-_opts = _argv[1:]
-if len(_opts) % 2:
-    raise SystemExit(
-        "Usage: python run_respfuzzer.py <data_path> [--seed N] [--run-index N]"
-    )
-_cli: dict[str, int] = {}
-for _i in range(0, len(_opts), 2):
-    _opt_key, _opt_value = _opts[_i], _opts[_i + 1]
-    if _opt_key not in ("--seed", "--run-index"):
-        raise SystemExit(f"unknown option: {_opt_key}")
-    _cli[_opt_key] = int(_opt_value)
-# ---- MC3-1：本次 DyFuzz 运行的 .log 与 *_checkpoint.json（统一命名）----
+# 预算定义与 CLI 解析在 dyfuzz_budget.py（独立模块，便于单测 test_budget.py）
+from dyfuzz_budget import Budget, _parse_cli
+# 用法：python run_respfuzzer.py <data_path> [--seed N] [--run-index N] -lmutant N [-ltime S]
+data_path, _cli, budget = _parse_cli(sys.argv[1:])
 import atexit as _atexit
 from pathlib import Path as _Path
+_DYFUZZ_DIR = _Path(__file__).resolve().parent  # 子进程（apifuzzer.py）固定在此目录执行
 
 from respfuzzer.lib.fuzz.fuzz_exp import _library_from_dataset
 from respfuzzer.utils.experiment_recorder import record_result, start_run, reset_llm_stats
@@ -236,6 +226,8 @@ recorder = start_run(
         "data_path": str(data_path),
         "seed": _run_seed,
         "run_index": _cli.get("--run-index"),
+        "mutant_budget": budget.mutant_budget,
+        "time_budget": budget.time_budget,
     },
 )
 
@@ -259,6 +251,8 @@ _atexit.register(_finish_checkpoint, "completed")
 # DyFuzz 没有 LLM 调用：token/调用次数永远为 0；这里只重置计数器并写并发数（N/A）。
 reset_llm_stats()
 record_result("concurrency", "N/A (no LLM)")
+record_result("mutant_budget", budget.mutant_budget)
+record_result("time_budget", budget.time_budget)
 logger.info(f"Loading seeds from {data_path}...", flush=True)
 data = json.load(open(data_path, "r"))
 from respfuzzer.models import Seed
@@ -273,7 +267,8 @@ record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
 moddic = {}
 for seed in seeds:
     library_name = seed.library_name
-    func_name = seed.func_name.replace(library_name + ".", "")
+    # Seed 模型只有 func_path（func_name 已移除），此处与原语义一致：去掉库前缀
+    func_name = seed.func_path.replace(library_name + ".", "")
     np = len(seed.args)
     if library_name not in moddic:
         moddic[library_name] = {}
@@ -299,15 +294,15 @@ for mod in list(moddic.keys()):
             continue
         else:
             n = moddic[mod][api]["pn"][1]
-            logger.info(f"DyFuzz {mod} {api} {n}, budget_mode={budget_mode}, budget_value={budget_value}")
+            logger.info(f"DyFuzz {mod} {api} {n}, {budget.describe()}")
             if n == 0:
                 logger.debug(f"{mod}.{api} has 0 params, run once")
-                s = os.system("python apifuzzer.py %s %s %s" % (mod, api, n))
+                s = os.system('cd "%s" && "%s" apifuzzer.py %s %s %s' % (_DYFUZZ_DIR, sys.executable, mod, api, n))
                 gen_log(mod, api, n, s)
                 totalAPI = totalAPI + 1
             else:
-                logger.debug(f"{mod}.{api} has {n} params, run {int(1e2/2)} times")
-                run_limit_n(mod, api, n, budget_mode=budget_mode, budget_value=budget_value)
+                logger.debug(f"{mod}.{api} has {n} params, {budget.describe()}")
+                run_limit_n(mod, api, n, budget)
             logger.info(f"Fuzz {mod}.{api} {n} done")
             logger.info(f"Current coverage after fuzzing {mod}.{api}: {bm.count_bitmap_s()} bits")
 

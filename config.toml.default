@@ -39,17 +39,12 @@ strategy = 1
 concurrency = 10
 execution_timeout = 5.0
 llm_fuzz_per_seed = 100
-# 预算模式: llm_calls (固定LLM调用次数,默认) / wall_clock (固定运行时间秒) / executions (固定实际执行次数)
-budget_mode = "llm_calls"
-# 预算值,默认使用 llm_fuzz_per_seed
-# budget_value = 100
+# 预算由命令行控制: -lrequest N (单函数 LLM 请求批次数上限) / -ltime S (单函数总变异时间,秒)
+# 两者同时生效、先耗尽者停; 都不指定时回退 llm_fuzz_per_seed
 
 [dyfuzz]
-# 预算模式: llm_calls (固定执行次数,默认) / wall_clock (固定运行时间秒)
-# DyFuzz 不使用 LLM,所以 llm_calls 和 executions 等价
-budget_mode = "llm_calls"
-# 预算值,默认每个 API 执行 50 次
-budget_value = 50
+# 预算由命令行控制: -lmutant N (单种子变异次数上限) / -ltime S (单种子总测试时间,秒)
+# 两者同时生效、先耗尽者停; 至少传一个, 都不传时报错退出(无 config 兜底)
 # RQ1 的 RAG 基线【MC6-2】：检索用 embedding 服务（OpenAI 兼容 /v1/embeddings）。
 # 不配置（或整段注释）时：开发/测试用确定性 fake embedding；正式跑 rq1seed --mode rag
 # --no-fake-embedding 会在未配置时显式报错，不静默降级。
