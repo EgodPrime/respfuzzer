@@ -53,4 +53,4 @@ extract = "respfuzzer.lib.library_visitor:extract_functions_from_library"
 solve = "respfuzzer.lib.agentic_function_resolver:main"
 fuzz = "respfuzzer.cmd.fuzz:main"
 replay_mutation = "respfuzzer.cmd.replay_mutation:main"
-# 旧的 experiments/RQ1 引擎已废弃；RQ3/RQ4 入口用 `python experiments/RQ*/…py`
+# 旧的 experiments/RQ1 引擎已废弃；RQ2/RQ3 入口用 `python experiments/RQ*/…py`

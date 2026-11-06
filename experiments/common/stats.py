@@ -209,7 +209,7 @@ def hierarchical_bootstrap_ci(
     """分层 bootstrap CI：先抽库（放回）、再库内抽函数（放回）。
 
     返回 ``(ci_low, ci_high, point)``；单库时退化为函数层 bootstrap；无数据 → (None, None, 0)。
-    用于 RQ1/RQ3/RQ4 库层 bootstrap MC3-4。
+    用于 RQ1/RQ2/RQ3 库层 bootstrap MC3-4。
     """
     libs = {k: list(v) for k, v in by_lib.items()}
     total_n = sum(len(v) for v in libs.values())

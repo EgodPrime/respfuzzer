@@ -107,7 +107,7 @@
 - 输入：`data/<mode>/<lib>_seeds[_meta]_rs*.json`
 - 预期输出：4a 为 5 行（每行 `模式 [(库, seeds 数), ...]`，共 150 组）；4b 一张 markdown 表（列 `mode|lib|#func|avg sfcr|sfcr diff|sfcr diff CI|Cohen's h|Cohen's h CI`）——每 mode 6 行库 + 2 行 overall，给出 sfcr、相对 respfuzzer 的差值与 Cohen's h（附 small/medium/large 幅度标注，阈值 |h|<0.5 / 0.5–0.8 / ≥0.8）、95% 函数配对 bootstrap CI（CI 不含 0 才下强弱结论）
 
-### 步骤 5（下游，可选）：抽样供 RQ3/RQ4
+### 步骤 5（下游，可选）：抽样供 RQ2/RQ3
 
 - 命令：`uv run python scripts/sample_seeds.py -i data/<mode>/<lib>_seeds_<model>_rs<N>.json -n 500`
 - 输入：单个 run 的 seeds json
