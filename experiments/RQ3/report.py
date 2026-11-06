@@ -209,16 +209,29 @@ def discover_logs(log_dir: str | Sequence[str]) -> dict[str, dict[str, list[str]
             candidates = raw[library][mode]
             if len(candidates) > 1:
                 candidates.sort(key=lambda x: x[0])
-                print(f"Multiple logs for {library}/{mode} ({len(candidates)} files), averaging all.")
+                print(f"Multiple logs for {library}/{mode} ({len(candidates)} files) found.")
             result[library][mode] = [p for _, p in candidates]
 
     return dict(result)
+
+
+def _has_checkpoint(log_path: str) -> bool:
+    """该日志是否有配对 checkpoint（= 运行是否正常收尾并落盘）。"""
+    p = Path(log_path)
+    return p.with_name(p.stem + "_checkpoint.json").is_file()
 
 
 def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
     """扫描日志，返回**逐次运行**的原始值【MC3-2】。
 
     置信区间与效应量必须基于每次运行的样本，只有均值无从估计不确定性。
+
+    .. note::
+       同一 ``(library, mode)`` 组内若存在带 checkpoint 的日志（正常收尾的运行），
+       则**无 checkpoint 的孤儿日志不计入均值**——它们是被中断的半截运行，其
+       末次采样 coverage/耗时会拉低均值（RQ2 复用目录里存在此类产物）。
+       整组都没有 checkpoint 的老产物保持原行为（不因缺失 checkpoint 而丢弃）。
+       配对路径不受影响：孤儿日志仍会作为 ``unpaired`` 显式列出。
 
     Returns:
         {library: {mode: {"coverage": [..], "time_used": [..]}}, ...}
@@ -229,9 +242,20 @@ def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
     for library in sorted(discovered.keys()):
         runs[library] = {}
         for mode in sorted(discovered[library].keys()):
+            log_paths = list(discovered[library][mode])
+            if log_paths and any(_has_checkpoint(p) for p in log_paths):
+                kept = [p for p in log_paths if _has_checkpoint(p)]
+                if len(kept) != len(log_paths):
+                    orphans = [p for p in log_paths if not _has_checkpoint(p)]
+                    print(
+                        f"[stats] {library}/{mode}: 跳过 {len(orphans)} 条无 checkpoint 的"
+                        f"孤儿日志（未完成运行，不计入均值）："
+                        + ", ".join(Path(p).name for p in orphans)
+                    )
+                    log_paths = kept
             covs: list[float] = []
             times: list[float] = []
-            for log_path in discovered[library][mode]:
+            for log_path in log_paths:
                 parsed = parse_log_file(log_path)
                 if parsed is None:
                     print(f"WARNING: Failed to parse {log_path}, skipping.")
@@ -241,7 +265,6 @@ def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
             if covs:
                 runs[library][mode] = {"coverage": covs, "time_used": times}
     return runs
-
 def collect_paired_runs(log_dir: str) -> tuple[dict, dict, list[str]]:
     """按**相同随机种子**收集逐次运行【MC3-3】。
 

@@ -74,6 +74,31 @@ def test_collect_and_average_roundtrip(tmp_path):
     assert rq3.build_data(str(tmp_path)) == averaged
 
 
+def test_collect_runs_skips_orphan_logs_when_ckpts_exist(tmp_path, capsys):
+    """ut-MC3-2-RQ3-D：同组存在带 checkpoint 的日志时，无 checkpoint 的孤儿日志
+    （被中断的半截运行）不计入均值；整组皆无 checkpoint 的老产物不受影响
+    （见 ``test_collect_and_average_roundtrip``）。"""
+    _write_log(tmp_path, "Nltk", "Full", 1000, stamp="20260101T000001")
+    _write_checkpoint(
+        tmp_path, "rq3_respfuzzer_Nltk_20260101T000001.log",
+        run_index=1, request_budget=10,
+    )
+    _write_log(tmp_path, "Nltk", "Full", 2000, stamp="20260101T000002")
+    _write_checkpoint(
+        tmp_path, "rq3_respfuzzer_Nltk_20260101T000002.log",
+        run_index=2, request_budget=10,
+    )
+    # 被中断的半截运行：日志能解析出 coverage，但从未写 checkpoint
+    _write_log(tmp_path, "Nltk", "Full", 99999, stamp="20260101T000003")
+
+    runs = rq3.collect_runs(str(tmp_path))
+
+    assert runs["Nltk"]["Full"]["coverage"] == [1000.0, 2000.0]
+    out = capsys.readouterr().out
+    assert "孤儿日志" in out
+    assert "rq3_respfuzzer_Nltk_20260101T000003.log" in out
+
+
 def test_stats_table_reports_ci_and_effect_size(tmp_path):
     """ut-MC3-2-RQ3-B：n / mean±sd / 95% CI / Cliff's δ 全部产出，且数值可核对。"""
     _dataset(
