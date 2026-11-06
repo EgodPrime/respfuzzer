@@ -19,7 +19,7 @@ from respfuzzer.lib.fuzz.semantic_check import has_valid_call
 from respfuzzer.models import Mutant, Seed
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import record_event
-from respfuzzer.utils.llm_helper import get_sys_llm
+from respfuzzer.utils.llm_helper import get_sys_llm, record_llm_call
 from respfuzzer.utils.run_seed import resolve_run_seed
 
 from pydantic import BaseModel, Field
@@ -112,6 +112,8 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
 
     prompt = PROMPT_MUTATE[mutation_type]
     for attempt in range(LLM_MUTATE_ATTEMPTS):
+        # 一次尝试 = 一次已发出的 LLM 请求（失败/超时同样计数，口径同 miniFuzz4All）
+        record_llm_call()
         try:
             res = _invoke_with_timeout(
                 mutate_chain,
@@ -257,7 +259,7 @@ class LLMMutator:
         - LLM 调用在 ``llm_mutate`` 内部重试后仍失败 → 记录错误并返回 ``None``；
           该重试属基础设施容错，不额外消耗预算槽。
 
-        ``no_check_semantic=True`` 时跳过语义检查（RQ4 的 W/O-S.M. 消融组），
+        ``no_check_semantic=True`` 时跳过语义检查（RQ3 的 W/O-S.M. 消融组），
         直接返回 LLM 原始输出。
 
         Returns:
