@@ -154,7 +154,21 @@ def _checkpoint_budget_rank(log_file: str) -> int:
     return 1
 
 
-def discover_logs(log_dir: str | Sequence[str]) -> dict[str, dict[str, list[str]]]:
+def _checkpoint_model(log_file: str) -> str | None:
+    """该日志配对 checkpoint 的 ``decode_config.llm.model_name``；无/坏 checkpoint → None。"""
+    ckpt = Path(log_file).with_name(Path(log_file).stem + "_checkpoint.json")
+    if not ckpt.is_file():
+        return None
+    try:
+        d = json.loads(ckpt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return ((d.get("decode_config") or {}).get("llm") or {}).get("model_name")
+
+
+def discover_logs(
+    log_dir: str | Sequence[str], budget: str = "count", model: str | None = None
+) -> dict[str, dict[str, list[str]]]:
     """扫描日志目录，按 library -> mode 分组发现日志文件。
 
     Returns:
@@ -187,21 +201,68 @@ def discover_logs(log_dir: str | Sequence[str]) -> dict[str, dict[str, list[str]
             mode = match.group("mode")
             mode = mode.upper() if mode else "Full"
             raw[library][mode].append((timestamp, log_file))
-
-
-    # 预算口径过滤【MC3-3】：同 (library, mode) 内若已有 count/无预算日志，
-    # 丢弃"仅有时间预算"的运行——-ltime 下单种子请求数随机器速度浮动，与 RQ3
-    # 「每种子固定 LLM 请求次数」不可比（RQ2 目录里并存的 -ltime campaign 产物
-    # 不进本报表；逐条明细见 analyze.py 的 Notes）
+    # 预算口径过滤【MC3-3】——按 --budget 选批：
+    #   count（默认）：同 (library, mode) 内已有 count/无预算日志时，丢弃"仅有时间预算"
+    #     的运行——-ltime 下单种子请求数随机器速度浮动，与 RQ3「每种子固定 LLM 请求
+    #     次数」不可比（RQ2 目录里并存的 -ltime campaign 产物不进本报表；逐条明细见
+    #     analyze.py 的 Notes）；
+    #   time：只留 -ltime 批；唯 NL 臂例外——time 战役跳过 NL（其分支无 LLM 循环，
+    #     时间预算惰性），沿用 count 批数据（两批在 NL 下语义等价）。
     for _library in list(raw):
         for _mode in list(raw[_library]):
             ranks = [_checkpoint_budget_rank(f) for _, f in raw[_library][_mode]]
-            if min(ranks) <= 1 and any(r == 2 for r in ranks):
-                kept = [x for x, r in zip(raw[_library][_mode], ranks) if r <= 1]
+            if budget == "count":
+                if min(ranks) <= 1 and any(r == 2 for r in ranks):
+                    kept = [x for x, r in zip(raw[_library][_mode], ranks) if r <= 1]
+                    dropped = len(raw[_library][_mode]) - len(kept)
+                    print(f"[budget] {_library}/{_mode}: dropped {dropped} time-budget log(s)")
+                    raw[_library][_mode] = kept
+            else:  # budget == "time"
+                if _mode == "NL":
+                    if any(r == 2 for r in ranks):
+                        kept = [
+                            x for x, r in zip(raw[_library][_mode], ranks) if r <= 1
+                        ]
+                        if kept:
+                            raw[_library][_mode] = kept
+                    continue
+                kept = [x for x, r in zip(raw[_library][_mode], ranks) if r == 2]
                 dropped = len(raw[_library][_mode]) - len(kept)
-                print(f"[budget] {_library}/{_mode}: dropped {dropped} time-budget log(s)")
+                if not kept:
+                    print(f"[budget] {_library}/{_mode}: NO time-budget log(s)!")
+                elif dropped:
+                    print(f"[budget] {_library}/{_mode}: dropped {dropped} count-budget log(s)")
                 raw[_library][_mode] = kept
 
+    # 模型过滤【多模型同目录】：按配对 checkpoint 的 decode_config.llm.model_name
+    # 只留指定模型的运行；--model 缺省时若检测到多模型则提示（否则结果串样）。
+    if model is not None:
+        for _library in list(raw):
+            for _mode in list(raw[_library]):
+                kept = [
+                    x for x in raw[_library][_mode]
+                    if _checkpoint_model(x[1]) == model
+                ]
+                dropped = len(raw[_library][_mode]) - len(kept)
+                if dropped:
+                    print(
+                        f"[model] {_library}/{_mode}: dropped {dropped} log(s)"
+                        f" (model != {model})"
+                    )
+                raw[_library][_mode] = kept
+    else:
+        _seen: set[str] = set()
+        for _library in raw:
+            for _mode in raw[_library]:
+                for _, f in raw[_library][_mode]:
+                    m = _checkpoint_model(f)
+                    if m:
+                        _seen.add(m)
+        if len(_seen) > 1:
+            print(
+                f"[model] 检测到多个 LLM 模型: {sorted(_seen)}"
+                " — 同目录混批，请传 --model 过滤，否则结果串样"
+            )
     # 返回文件列表（不再只取最新一份）
     result: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for library in raw:
@@ -221,7 +282,9 @@ def _has_checkpoint(log_path: str) -> bool:
     return p.with_name(p.stem + "_checkpoint.json").is_file()
 
 
-def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
+def collect_runs(
+    log_dir: str, budget: str = "count", model: str | None = None
+) -> dict[str, dict[str, dict[str, list[float]]]]:
     """扫描日志，返回**逐次运行**的原始值【MC3-2】。
 
     置信区间与效应量必须基于每次运行的样本，只有均值无从估计不确定性。
@@ -236,7 +299,7 @@ def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
     Returns:
         {library: {mode: {"coverage": [..], "time_used": [..]}}, ...}
     """
-    discovered = discover_logs(log_dir)
+    discovered = discover_logs(log_dir, budget=budget, model=model)
     runs: dict[str, dict[str, dict[str, list[float]]]] = {}
 
     for library in sorted(discovered.keys()):
@@ -265,7 +328,9 @@ def collect_runs(log_dir: str) -> dict[str, dict[str, dict[str, list[float]]]]:
             if covs:
                 runs[library][mode] = {"coverage": covs, "time_used": times}
     return runs
-def collect_paired_runs(log_dir: str) -> tuple[dict, dict, list[str]]:
+def collect_paired_runs(
+    log_dir: str, budget: str = "count", model: str | None = None
+) -> tuple[dict, dict, list[str]]:
     """按**相同随机种子**收集逐次运行【MC3-3】。
 
     每条日志用同 stem 的 ``*_checkpoint.json`` 取配对键（``run_index`` 优先、缺则
@@ -276,7 +341,7 @@ def collect_paired_runs(log_dir: str) -> tuple[dict, dict, list[str]]:
       cov_keyed: {mode: {library: {配对键: [coverage, ...]}}}
       unpaired:  取不到配对键的日志文件名（不进配对表，表下会列出来）
     """
-    discovered = discover_logs(log_dir)
+    discovered = discover_logs(log_dir, budget=budget, model=model)
     cov_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     time_keyed: dict = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     unpaired: list[str] = []
@@ -787,9 +852,24 @@ if __name__ == "__main__":
         default=[_default_log_dir],
         help="日志目录，可传多个；Full 臂复用 RQ2 的 RespFuzzer 时传: --log-dir . ../../RQ2",
     )
-    log_dirs = ap.parse_args().log_dir
+    ap.add_argument(
+        "--budget",
+        choices=["count", "time"],
+        default="count",
+        help="选预算批：count=每种子固定 LLM 请求次数（默认，RQ3 口径）；"
+        "time=-ltime 60 批（RQ3 ltime 战役 + RQ2 RespFuzzer t60 Full；"
+        "NL 臂无 LLM 循环、时间预算惰性 → 沿用 count 批数据）",
+    )
+    ap.add_argument(
+        "--model", default=None,
+        help="按 checkpoint decode_config.llm.model_name 过滤（同目录混放多模型批时必传，"
+        "如 Qwen3.6-35B-A3B / Llama-3.1-8B-Instruct）；缺省不过滤，检测到多模型会提示",
+    )
+    args = ap.parse_args()
+    log_dirs = args.log_dir
+    budget = args.budget
 
-    runs = collect_runs(log_dirs)
+    runs = collect_runs(log_dirs, budget=budget, model=args.model)
     data = average_runs(runs)
 
     print_summary(data)
@@ -798,5 +878,5 @@ if __name__ == "__main__":
     print()
     print(gen_stats_tables(runs))
     print()
-    cov_keyed, time_keyed, unpaired = collect_paired_runs(log_dirs)
+    cov_keyed, time_keyed, unpaired = collect_paired_runs(log_dirs, budget=budget, model=args.model)
     print(gen_paired_stats_tables(cov_keyed, time_keyed, unpaired))

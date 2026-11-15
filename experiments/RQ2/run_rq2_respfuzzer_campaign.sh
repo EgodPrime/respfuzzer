@@ -10,7 +10,8 @@
 #   REPS_OVERRIDE="4 5" bash ...   # resume: only listed reps
 # Datasets: experiments/RQ2/<lib>_capped100_seeds.json
 # cwd: run_data/ (AGENTS.md isolation); checkpoints/.log -> experiments/RQ2/
-# Progress: appended to run_data/campaign_progress.tsv (fuzzer=respfuzzer)
+# Progress: appended to run_data/campaign_progress_<model>.tsv (fuzzer=respfuzzer;
+# per-model isolation — done keys are NOT shared across LLM batches).
 
 set -euo pipefail
 
@@ -20,7 +21,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_DIR="$SCRIPT_DIR/run_data"     # isolated cwd for `uv run` (AGENTS.md)
 OUT_DIR="$SCRIPT_DIR"               # .log + *_checkpoint.json + seed datasets
 SEEDS_DIR="$OUT_DIR"
-PROGRESS="$DATA_DIR/campaign_progress.tsv"
+MODEL_TAG="$(cd "$SCRIPT_DIR/../.." && uv run -q python -c "from respfuzzer.utils.config import get_config; print(str(get_config('llm')['model_name']).replace('/','-').replace(' ','-'))")"
+PROGRESS="$DATA_DIR/campaign_progress_${MODEL_TAG}.tsv"
 
 FLAG="${1:-}"
 VALUE="${2:-}"
@@ -31,7 +33,7 @@ fi
 
 mkdir -p "$DATA_DIR"
 : >> "$PROGRESS"
-echo ">>> respfuzzer campaign start budget='$FLAG $VALUE' at $(date '+%F %T')"
+echo ">>> respfuzzer campaign start model=$MODEL_TAG budget='$FLAG $VALUE' at $(date '+%F %T')"
 
 for RUN_INDEX in "${REPS[@]}"; do
     printf '%s\n' "fuzzer=respfuzzer budget=$FLAG $VALUE run_index=$RUN_INDEX status=started" >> "$PROGRESS"

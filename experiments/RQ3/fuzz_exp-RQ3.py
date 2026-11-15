@@ -25,6 +25,10 @@ from respfuzzer.utils.process_helper import kill_process_tree_linux
 from respfuzzer.utils.redis_util import get_redis_client
 from respfuzzer.utils.run_seed import prepare_run_seed
 
+import time
+
+from respfuzzer.utils.budget import Budget, normalize_budget_args, resolve_budget
+
 RQ3_DIR = Path(__file__).resolve().parent
 
 
@@ -65,8 +69,18 @@ def _parse_mode(mode: str) -> tuple[bool, bool, bool, bool]:
     return no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback
 
 
+def _resolve_budget(request_budget: int | None, time_budget: float | None) -> Budget:
+    """CLI 预算 → Budget：给了任一旗标就按旗标（-lrequest/-ltime，与 RQ2 同口径）；
+    两者都缺省时回退 ``config [fuzz] llm_fuzz_per_seed``（RQ3 count 批的旧入口行为，
+    config 值 = 10，与 -lrequest 10 同值，见 exp.md 预算口径规则）。"""
+    if request_budget is None and time_budget is None:
+        request_budget = get_config("fuzz").get("llm_fuzz_per_seed")
+    return resolve_budget(request_budget, time_budget)
+
+
 def fuzz_single_seed(
     seed: Seed,
+    budget: Budget,
     process_index: int = 4399,
     *,
     no_llm: bool = False,
@@ -77,11 +91,11 @@ def fuzz_single_seed(
     """ """
     config = get_config("fuzz")
     execution_timeout = config.get("execution_timeout")
-    llm_fuzz_per_seed = config.get("llm_fuzz_per_seed")
+    # llm_fuzz_per_seed（config 计数）由 budget 在循环顶部统一裁决（_resolve_budget）
     data_fuzz_per_seed = config.get("data_fuzz_per_seed")
     redis_client = get_redis_client()
 
-    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}")
+    logger.info(f"Starting SGM Fuzzing for seed {seed.id}: {seed.func_path}, {budget.describe()}")
     bm = BitmapManager(process_index)
     bm.sync_from(4398)
     bm.write()
@@ -123,8 +137,27 @@ def fuzz_single_seed(
         logger.info(f"[{process_index}]Finished fuzzing seed {seed.id}")
     else:
         # Full / NP: run LLM mutation loop
+        # Full / NP: run LLM mutation loop（预算驱动，与 src fuzz_single_seed 同语义：
+        # -lrequest/-ltime 同时生效、先耗尽者停；只给 -ltime 时不限次数）
         Mutator = LLMMutator(seed)
-        for _ in range(llm_fuzz_per_seed):
+        request_limit = budget.request_limit
+        time_limit = budget.time_limit
+        start_time = time.time()
+        llm_calls_done = 0
+        while True:
+            if request_limit is not None and llm_calls_done >= request_limit:
+                logger.info(
+                    f"Budget exhausted: {llm_calls_done}/{request_limit} LLM requests "
+                    f"reached, stopping. (elapsed={time.time() - start_time:.1f}s)"
+                )
+                break
+            if time_limit is not None and (time.time() - start_time) >= time_limit:
+                logger.info(
+                    f"Budget exhausted: time budget {time_limit:.1f}s reached after "
+                    f"{llm_calls_done} LLM requests, stopping."
+                )
+                break
+            llm_calls_done += 1
             mutation = Mutator.random_llm_mutate(
                 no_check_semantic=no_semantic_filter
             )
@@ -206,6 +239,7 @@ def fuzz_single_seed(
 
 def _fuzz_dataset(
     dataset: list[Seed],
+    budget: Budget,
     *,
     no_llm: bool = False,
     no_data_fuzz: bool = False,
@@ -238,6 +272,7 @@ def _fuzz_dataset(
             fut = exc.submit(
                 fuzz_single_seed,
                 seed,
+                budget,
                 shm_key,
                 no_llm=no_llm,
                 no_data_fuzz=no_data_fuzz,
@@ -312,6 +347,8 @@ def fuzz_dataset(
     out_dir: str | None = None,
     seed: int | None = None,
     run_index: int | None = None,
+    request_budget: int | None = None,
+    time_budget: float | None = None,
 ) -> None:
     """Fuzz functions specified in the dataset JSON file.
 
@@ -330,6 +367,9 @@ def fuzz_dataset(
               （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在本目录。
         seed/run_index: 随机种子与轮次序号【MC3-3】；同一 ``run_index`` 在所有消融配置
               派生出同一个种子，并写入 checkpoint 的 ``metadata`` 供同种子配对比较。
+        request_budget/time_budget: 每 seed 预算【预算口径规则】——经
+              ``normalize_budget_args`` 归一的 ``-lrequest N`` / ``-ltime S`` 旗标（与 RQ2
+              同口径）；两者都缺省时回退 ``config [fuzz] llm_fuzz_per_seed``（= count 批旧行为）。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="DEBUG")
@@ -338,6 +378,8 @@ def fuzz_dataset(
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
     # 种子先行：生效种子写进 checkpoint，报表按它配对【MC3-3】
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
+    # 预算先行：旗标缺省则回退 config 计数（见 _resolve_budget docstring）
+    budget = _resolve_budget(request_budget, time_budget)
     with start_run(
         rq,
         group=group,
@@ -350,10 +392,14 @@ def fuzz_dataset(
             "mode": mode or "Full",
             "seed": run_seed,
             "run_index": run_index,
+            "request_budget": budget.request_limit,
+            "time_budget": budget.time_limit,
         },
     ):
         reset_llm_stats()
         record_result("concurrency", get_config("fuzz").get("max_workers"))
+        record_result("request_budget", budget.request_limit)
+        record_result("time_budget", budget.time_limit)
         logger.info(
             f"Starting fuzzing for dataset: {dataset_path}, mode={mode or 'Full'}"
         )
@@ -365,6 +411,7 @@ def fuzz_dataset(
         record_result("initial_coverage", calc_initial_seed_coverage_dataset(seeds))
         _fuzz_dataset(
             seeds,
+            budget,
             no_llm=no_llm,
             no_data_fuzz=no_data_fuzz,
             no_semantic_filter=no_semantic_filter,
@@ -382,6 +429,8 @@ def fuzz_one_library(
     out_dir: str | None = None,
     seed: int | None = None,
     run_index: int | None = None,
+    request_budget: int | None = None,
+    time_budget: float | None = None,
 ) -> None:
     """
     Fuzz the specified library with seeds from the database.
@@ -391,6 +440,7 @@ def fuzz_one_library(
         mode: Comma-separated ablation mode. Same options as fuzz_dataset.
         rq/group/out_dir: 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置。
         seed/run_index: 同 :func:`fuzz_dataset`【MC3-3】，生效种子写入 checkpoint。
+        request_budget/time_budget: 同 :func:`fuzz_dataset`【预算口径规则】。
     """
     logger.remove()
     logger.add(sys.__stderr__, level="INFO")
@@ -400,6 +450,7 @@ def fuzz_one_library(
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
+    budget = _resolve_budget(request_budget, time_budget)
     with start_run(
         rq,
         group=group,
@@ -412,10 +463,14 @@ def fuzz_one_library(
             "mode": mode or "Full",
             "seed": run_seed,
             "run_index": run_index,
+            "request_budget": budget.request_limit,
+            "time_budget": budget.time_limit,
         },
     ):
         reset_llm_stats()
         record_result("concurrency", max_workers)
+        record_result("request_budget", budget.request_limit)
+        record_result("time_budget", budget.time_limit)
         logger.info(
             f"Starting fuzzing for library: {library_name}, mode={mode or 'Full'}"
         )
@@ -428,6 +483,7 @@ def fuzz_one_library(
                 fut = exc.submit(
                     fuzz_single_seed,
                     seed_item,
+                    budget,
                     sub_key,
                     no_llm=no_llm,
                     no_data_fuzz=no_data_fuzz,
@@ -458,4 +514,6 @@ def fuzz_one_library(
 
 
 if __name__ == "__main__":
+    # Fire 的单横线旗标归一（-lrequest/-ltime → request_budget/time_budget），与 src `fuzz` 一致
+    sys.argv[1:] = normalize_budget_args(sys.argv[1:])
     fire.Fire(fuzz_dataset)

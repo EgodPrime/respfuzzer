@@ -235,10 +235,10 @@ def test_descriptive_table_reports_every_mode(tmp_path, capsys):
 
 
 
-
-def test_duplicate_run_index_prefers_count_budget(tmp_path):
-    """ut-MC3-3-RQ3-analyze-D：同键重复按预算择一——count/无预算让位给谁要对。"""
-    # Full 组：t60 件文件名更晚（模拟 RQ2 目录里后跑的 -ltime campaign），仍须让位
+def test_budget_count_filter_skips_time_batch(tmp_path):
+    """ut-MC3-3-RQ3-analyze-D：count 批在装载期择一——time 批被 ``--budget=count``
+    过滤，不再与 count 批同键竞争；无预算字段的 legacy 件照常保留。"""
+    # Full 组：t60 件文件名更晚（模拟 RQ2 目录里后跑的 -ltime campaign），须被过滤
     _write_ckpt(
         tmp_path, mode="Full", library="nltk", run_index=1, gain=1.0,
         request_budget=10, stamp="20260101T070000",
@@ -247,7 +247,7 @@ def test_duplicate_run_index_prefers_count_budget(tmp_path):
         tmp_path, mode="Full", library="nltk", run_index=1, gain=9.0,
         time_budget=60, stamp="20260101T090000",
     )
-    # NL 组：RQ3 自己的入口（无预算字段，rank=1）也不该被 t60 件（rank=2）挤掉
+    # NL 组：RQ3 自己的入口（无预算字段，rank=1）同样不被 t60 件挤掉
     _write_ckpt(
         tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
         stamp="20260101T060000",
@@ -257,19 +257,46 @@ def test_duplicate_run_index_prefers_count_budget(tmp_path):
         time_budget=60, stamp="20260101T100000",
     )
 
-    inv = rq3a.load_inventory(tmp_path)
+    inv = rq3a.load_inventory(tmp_path)  # 默认 budget="count"
 
     assert inv.runs[("full", "nltk")][1].gains[FUNCS[0]] == pytest.approx(1.0)
     assert inv.runs[("nl", "nltk")][1].gains[FUNCS[0]] == pytest.approx(0.5)
     notes = "\n".join(inv.notes)
-    assert "duplicate ('full', 'nltk') run 1" in notes
-    assert "request=10" in notes
-    assert "time 预算（无 request）" in notes
-    assert "duplicate ('nl', 'nltk') run 1" in notes
+    assert "--budget=count 过滤" in notes
+    assert "time 批" in notes
     # 择一之后每键只剩一个 run，不会把两次运行当成两次重复
     assert sorted(inv.runs[("full", "nltk")]) == [1]
 
 
+def test_budget_time_filter_and_nl_exception(tmp_path):
+    """ut-MC3-3-RQ3-analyze-D2：``--budget=time`` 只取 time 批；NL 臂例外——
+    time 战役跳过 NL（无 LLM 循环、时间预算惰性），沿用 count 批数据。"""
+    _write_ckpt(
+        tmp_path, mode="Full", library="nltk", run_index=1, gain=1.0,
+        request_budget=10, stamp="20260101T070000",
+    )
+    _write_ckpt(
+        tmp_path, mode="Full", library="nltk", run_index=1, gain=9.0,
+        time_budget=60, stamp="20260101T090000",
+    )
+    _write_ckpt(
+        tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
+        stamp="20260101T060000",
+    )
+    _write_ckpt(
+        tmp_path, mode="NL", library="nltk", run_index=1, gain=0.7,
+        time_budget=60, stamp="20260101T100000",
+    )
+
+    inv = rq3a.load_inventory(tmp_path, budget="time")
+
+    # Full：取 t60 件（gain 9.0），count 件被过滤
+    assert inv.runs[("full", "nltk")][1].gains[FUNCS[0]] == pytest.approx(9.0)
+    # NL 例外：time 批被跳过，沿用 count 批（gain 0.5）
+    assert inv.runs[("nl", "nltk")][1].gains[FUNCS[0]] == pytest.approx(0.5)
+    notes = "\n".join(inv.notes)
+    assert "--budget=time 过滤" in notes
+    assert sorted(inv.runs[("nl", "nltk")]) == [1]
 
 
 def test_load_inventory_merges_multiple_dirs(tmp_path, capsys):
