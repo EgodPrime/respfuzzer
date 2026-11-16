@@ -1,4 +1,4 @@
-"""RQ5 Comparison Report: generate two tables for reviewer feedback.
+"""RQ4 Comparison Report: generate two tables for reviewer feedback.
 
 Table 1: Total unique CWEs per tool (CodeQL vs Bandit)
 Table 2/3: Unique vulnerability detection — tools that found it exclusively
@@ -138,7 +138,7 @@ def report_bandit():
 
     # Table 1: only Bandit column
     lines = [
-        "# RQ5 Comparison Report\n",
+        "# RQ4 Comparison Report\n",
         "## Table 1: Total Unique CWEs Detected\n",
         "| Code Generation Approach | Bandit (Total) |",
         "|--------------------------|---------------|",
@@ -161,7 +161,7 @@ def report_codeql():
     b, c, all_b, all_c = _compute()
 
     lines = [
-        "# RQ5 Comparison Report\n",
+        "# RQ4 Comparison Report\n",
         "## Table 1: Total Unique CWEs Detected\n",
         "| Code Generation Approach | CodeQL (Total) |",
         "|--------------------------|----------------|",
@@ -184,7 +184,7 @@ def report_both():
     b, c, all_b, all_c = _compute()
 
     lines = [
-        "# RQ5 Comparison Report\n",
+        "# RQ4 Comparison Report\n",
         "## Table 1: Total Unique CWEs Detected\n",
         "| Code Generation Approach | CodeQL (Total) | Bandit (Total) |",
         "|--------------------------|----------------|---------------|",

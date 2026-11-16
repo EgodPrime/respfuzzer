@@ -21,7 +21,7 @@ if [ -z "$budget_args" ]; then
     exit 1
 fi
 # Fuzz each library
-log_path="$current_dir/../experiments/RQ5/fuzz_$timestamp.log"
+log_path="$current_dir/../experiments/RQ4/fuzz_$timestamp.log"
 touch "$log_path"
 for library in "${libraries[@]}"
 do
