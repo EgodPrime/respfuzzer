@@ -169,10 +169,10 @@ are the six in `scripts/libraries.conf`; single-run commands execute inside a
 
 | RQ | Description | Driver | Outputs / analysis |
 |---|---|---|---|
-| RQ1 | Reflective seed generation (5 modes × 5 reps × 3 models) | `bash scripts/run_seeding_campaign.sh` | seeds + per-function cost ledgers in `data/<mode>/`; `experiments/RQ1/analyze.py` |
+| RQ1 | Reflective seed generation (5 modes × 3 models) | `bash scripts/run_seeding_campaign.sh` | seeds + per-function cost ledgers in `data/<mode>/`; `experiments/RQ1/analyze.py` |
 | RQ2 | Fuzzing efficiency (RespFuzzer vs miniFuzz4All vs DyFuzz) | `experiments/RQ2/batch_run.sh <rep>` | `rq2_*` log/checkpoint pairs; `experiments/RQ2/report.py` |
 | RQ3 | Semantic-driven mutation ablation (`nl`, `np`, `nsf`, `ncf`) | `bash experiments/RQ3/run.sh <MODE>` | `rq3_*_mode-<m>` pairs; `experiments/RQ3/{report,analyze}.py` |
-| RQ4 | Real-world vulnerability discovery (replay → filter → validate) | `experiments/RQ4/*.py` | `experiments/RQ4/report_new.py` |
+| RQ4 | Real-world vulnerability discovery (log mining → replay → filter → validate) | `experiments/RQ4/*.py` (see `experiments/RQ4/exp.md`) | four confirmed findings: `experiments/RQ4/vul_<n>_<lib>.py` |
 
 Each RQ2/RQ3 run writes one `.log` + `*_checkpoint.json` pair named
 `<rq>_<group>_<library>_<dataset>_<timestamp>[_mode-<m>]_checkpoint.json`, where
