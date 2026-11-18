@@ -379,7 +379,7 @@ def _mc34_hierarchical_bootstrap(
     对每组（fuzzer）相对于参照组，用逐库的逐运行配对差值做分层 bootstrap，
     报告库层 CI。RQ3 数据为运行级覆盖率，无函数级明细。
     """
-    lines: list[str] = [f"## Library-level Hierarchical Bootstrap "]
+    lines: list[str] = ["## Library-level Hierarchical Bootstrap"]
     lines.append(
         "> RQ3 数据为运行级覆盖率，无函数级明细；此处报告**库层**分层 bootstrap CI。"
     )
@@ -459,7 +459,7 @@ def gen_stats_tables(
 ) -> str:
     """覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
     groups = list(FUZZER_ORDER)
-    blocks = ["## Run-level statistics "]
+    blocks = ["## Run-level statistics"]
     for title, runs, value_fn, unit in (
         ("Coverage (%)", cov_runs, _coverage_percent, "%"),
         ("Time (s)", time_runs, _seconds, "s"),
@@ -513,7 +513,7 @@ def gen_paired_stats_tables(
     cov_keyed: dict, time_keyed: dict, unpaired: list[str] | None = None
 ) -> str:
     """相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
-    blocks = ["## Same-seed paired statistics "]
+    blocks = ["## Same-seed paired statistics"]
     for title, runs, value_fn, unit in (
         ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
         ("Time (s)", time_keyed, _seconds, "s"),

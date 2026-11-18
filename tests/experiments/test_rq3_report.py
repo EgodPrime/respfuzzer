@@ -112,7 +112,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
     runs = rq3.collect_runs(str(tmp_path))
     table = rq3.gen_stats_tables(runs)
 
-    assert "## Run-level statistics " in table
+    assert "## Run-level statistics" in table
     assert "Cliff's δ (vs Full)" in table
     assert "| Library | Configuration | n |" in table
 
@@ -215,7 +215,7 @@ def test_collect_paired_runs_and_paired_table(tmp_path):
     assert unpaired == ["rq3_respfuzzer_Nltk_20260101T000009.log"]
 
     table = rq3.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
-    assert "## Same-seed paired statistics " in table
+    assert "## Same-seed paired statistics" in table
     assert "配对口径" in table
     assert "不承诺逐位复现" in table
 

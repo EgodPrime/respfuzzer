@@ -89,7 +89,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
 
     table = rq2.gen_stats_tables(cov_runs, time_runs)
 
-    assert "## Run-level statistics " in table
+    assert "## Run-level statistics" in table
     assert "Cliff's δ (vs RespFuzzer)" in table
     assert "Δ vs RespFuzzer (%) 95% CI" in table
 
@@ -205,7 +205,7 @@ def test_paired_stats_table_aligns_on_run_index(tmp_path):
     cov_keyed, time_keyed, unpaired = rq2.collect_paired_runs(str(tmp_path))
     table = rq2.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
 
-    assert "## Same-seed paired statistics " in table
+    assert "## Same-seed paired statistics" in table
     assert "配对口径" in table
     assert "不承诺逐位复现" in table  # LLM 非确定性边界写在脚注里
 

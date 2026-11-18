@@ -696,7 +696,7 @@ def _mc34_hierarchical_bootstrap(
 
     运行级最终覆盖；函数级配对与效应量见 ``analyze.py``。
     """
-    lines: list[str] = [f"## Library-level Hierarchical Bootstrap "]
+    lines: list[str] = ["## Library-level Hierarchical Bootstrap"]
     lines.append(
         "> RQ3 报表为运行级口径，函数级配对与效应量见 analyze.py；此处报告**库层**分层 bootstrap CI。"
     )
@@ -736,7 +736,7 @@ def _mc34_hierarchical_bootstrap(
 def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
     """覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
     groups = list(MODE_ORDER)
-    blocks = ["## Run-level statistics "]
+    blocks = ["## Run-level statistics"]
     for title, metric, value_fn, unit in (
         ("Coverage (%)", "coverage", _coverage_percent, "%"),
         ("Time (s)", "time_used", _seconds, "s"),
@@ -794,7 +794,7 @@ def gen_paired_stats_tables(
     cov_keyed: dict, time_keyed: dict, unpaired: list[str] | None = None
 ) -> str:
     """相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
-    blocks = ["## Same-seed paired statistics "]
+    blocks = ["## Same-seed paired statistics"]
     for title, runs, value_fn, unit in (
         ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
         ("Time (s)", time_keyed, _seconds, "s"),
