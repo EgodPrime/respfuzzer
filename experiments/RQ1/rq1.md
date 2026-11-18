@@ -93,8 +93,8 @@
       print(m, rows)
   "
   # 4b. 统计分析：函数配对 bootstrap 置信区间 + Cohen's h 效应量
-  #     （实现见 experiments/RQ1/analyze.py，对应评审"在函数和库层面应用
-  #      分层或配对 Bootstrap 分析"：函数级配对重采样 + 库为层的层内重采样；
+  #     （实现见 experiments/RQ1/analyze.py：在函数和库层面应用
+  #      分层或配对 Bootstrap——函数级配对重采样 + 库为层的层内重采样；
   #      5 重复聚合为函数解出率 sfcr，B=10000，RNG 种子 42 可复现；
   #      --bootstrap hierarchical 追加重复级二阶段重采样（更保守））
   #     一张表覆盖全部 5 模式（每个 mode 固定与 respfuzzer 对比）；每个 mode

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """RQ1 汇报表：把三模型 seeding 战役产物整理成论文可直接引用的表。
 
-对应评审条目：
+输出的表及口径：
 
  * 逐次独立运行结果 → ``runs``：每个 (model, mode, lib, rs) 一行，
     含 sfcr、种子数、LLM 调用（meta 账本与 run 级 TSV 双口径）、token、耗时；
@@ -11,7 +11,7 @@
  * 按函数分层标签多角度报告 → ``strata``：实现类型 / 文档质量 /
     注解完整性三维度逐层的 sfcr 配对差 CI + Cohen's h；``composition``
     为分层构成计数与占比；
- * 预算对等分析（决策 5：只记录不等次数重跑）→ ``resources``：各
+ * 预算对等分析（各组实际用量如实记录，不做等次数重跑）→ ``resources``：各
     (model, mode, lib) 实际 LLM 调用数、token 与耗时。
 
 数据来源：

@@ -1,7 +1,7 @@
 """跨 RQ 共享的**运行级 + 分层/配对 Bootstrap** 统计。
 
-评审主要意见 3（表 V / VI 只报均值）要求报告**置信区间与效应量（Cliff's delta）**。
-本模块是 ② 环节统一交付的算法层，供各 RQ 的 report 脚本复用：
+仅报均值不足以支撑结论：需要**置信区间与效应量（Cliff's delta）**。
+本模块是各 RQ report 脚本共用的统计算法层：
 
 - :func:`describe` / :func:`summarize` —— 描述统计（n、mean、sd、min/max）；
 - :func:`mean_ci` —— 均值的 95% 置信区间（percentile bootstrap，B=2000，固定 seed 可复现）；

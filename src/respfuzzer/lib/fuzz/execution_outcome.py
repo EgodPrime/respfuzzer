@@ -1,8 +1,8 @@
 """变体执行结果（含运行时异常）在 worker 与父进程之间的传递类型。
 
-评审意见 论文称语义执行错误应提供负面反馈，但实现中运行时异常被静默捕获
-（`exec(seed.function_call)` 外的 `except Exception: pass`），未参与算法2 的语义奖励
-计算。本模块提供：
+语义执行错误应向变异器提供负面反馈：若异常只被静默捕获（`exec(seed.function_call)`
+外的 `except Exception: pass`），运行时异常就无法参与算法2 的语义奖励计算。
+本模块提供：
 
 - :class:`ExecutionOutcome`：worker 执行一个变体后的结果，可被
   ``multiprocessing.Queue`` / ``Pipe`` 序列化后回传父进程；

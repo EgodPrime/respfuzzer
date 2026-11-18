@@ -103,7 +103,7 @@ def test_empty_root_library_raises():
 
 
 def test_write_two_files_same_name_no_collision():
-    """两个模块的同名函数各占一键、互不覆盖，且不产生裸名键（评审所指冲突场景）。"""
+    """两个模块的同名函数各占一键、互不覆盖，且不产生裸名键（同名冲突场景）。"""
     cache = {}
     _parse_pyi(
         cache, "/root/lib", "lib", "/root/lib/sub/a.pyi", "def load(x: int) -> int: ..."
