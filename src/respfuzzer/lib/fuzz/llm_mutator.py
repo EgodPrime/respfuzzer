@@ -122,7 +122,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
                     "func_call": seed.function_call,
                     "mutation_instruction": str(rng) + prompt,
                 },
-                config={"temperature": 0.0},
+                config={"temperature": 0.7},
                 timeout=LLM_TIMEOUT,
             )
         except TimeoutError as e:
