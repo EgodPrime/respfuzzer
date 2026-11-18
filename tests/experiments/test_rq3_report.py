@@ -1,8 +1,8 @@
 """RQ3 报表的运行级置信区间与效应量（``experiments/RQ3/report.py``）。
 
-- ut-MC3-2-RQ3-A ``collect_runs`` / ``average_runs`` / ``build_data``：逐次样本与原均值口径。
-- ut-MC3-2-RQ3-B ``gen_stats_tables``：逐库 n / mean±sd / 95% CI / Cliff's δ（vs Full）。
-- ut-MC3-2-RQ3-C 原覆盖率表（表 VI）不受影响。
+- ut-RQ3-A ``collect_runs`` / ``average_runs`` / ``build_data``：逐次样本与原均值口径。
+- ut-RQ3-B ``gen_stats_tables``：逐库 n / mean±sd / 95% CI / Cliff's δ（vs Full）。
+- ut-RQ3-C 原覆盖率表（表 VI）不受影响。
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def _coverage_section(table: str) -> list[dict[str, str]]:
 
 
 def test_collect_and_average_roundtrip(tmp_path):
-    """ut-MC3-2-RQ3-A：逐次样本保留；均值口径与历史 ``build_data`` 一致。"""
+    """ut-RQ3-A：逐次样本保留；均值口径与历史 ``build_data`` 一致。"""
     _dataset(
         tmp_path,
         ["Nltk"],
@@ -75,7 +75,7 @@ def test_collect_and_average_roundtrip(tmp_path):
 
 
 def test_collect_runs_skips_orphan_logs_when_ckpts_exist(tmp_path, capsys):
-    """ut-MC3-2-RQ3-D：同组存在带 checkpoint 的日志时，无 checkpoint 的孤儿日志
+    """ut-RQ3-D：同组存在带 checkpoint 的日志时，无 checkpoint 的孤儿日志
     （被中断的半截运行）不计入均值；整组皆无 checkpoint 的老产物不受影响
     （见 ``test_collect_and_average_roundtrip``）。"""
     _write_log(tmp_path, "Nltk", "Full", 1000, stamp="20260101T000001")
@@ -100,7 +100,7 @@ def test_collect_runs_skips_orphan_logs_when_ckpts_exist(tmp_path, capsys):
 
 
 def test_stats_table_reports_ci_and_effect_size(tmp_path):
-    """ut-MC3-2-RQ3-B：n / mean±sd / 95% CI / Cliff's δ 全部产出，且数值可核对。"""
+    """ut-RQ3-B：n / mean±sd / 95% CI / Cliff's δ 全部产出，且数值可核对。"""
     _dataset(
         tmp_path,
         ["Nltk", "Dask"],
@@ -145,7 +145,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
 
 
 def test_original_coverage_table_still_renders(tmp_path):
-    """ut-MC3-2-RQ3-C：原表 VI 的 markdown 表（12 库 × 5 配置口径）不受本次改动影响。"""
+    """ut-RQ3-C：原表 VI 的 markdown 表（12 库 × 5 配置口径）不受本次改动影响。"""
     _dataset(
         tmp_path,
         ALL_LIBRARIES,
@@ -200,7 +200,7 @@ def _paired_dataset(directory) -> None:
 
 
 def test_collect_paired_runs_and_paired_table(tmp_path):
-    """ut-MC3-3-RQ3-A：按 run_index 收集并对齐，配对 Δ 走配对差值口径。"""
+    """ut-RQ3-A：按 run_index 收集并对齐，配对 Δ 走配对差值口径。"""
     _paired_dataset(tmp_path)
     # 老产物：没有 checkpoint 的一条日志
     _write_log(tmp_path, "Nltk", "Full", 15000, stamp="20260101T000009")
@@ -230,7 +230,7 @@ def test_collect_paired_runs_and_paired_table(tmp_path):
 
 
 def test_discover_logs_accepts_rq2_reuse_and_filters_time_budget(tmp_path, capsys):
-    """ut-MC3-3-RQ3-D：复用 RQ2 产物——rq2_ 前缀 + 带数据集段的库名可识别，
+    """ut-RQ3-D：复用 RQ2 产物——rq2_ 前缀 + 带数据集段的库名可识别，
     且同 (lib, mode) 已有 count 口径时纯 ``-ltime`` 的补跑件被过滤。"""
     # RQ2 的 count 口径（库名带 _capped100、无 _mode- 段 → Full）
     _write_log(
@@ -275,7 +275,7 @@ def test_discover_logs_accepts_rq2_reuse_and_filters_time_budget(tmp_path, capsy
 
 
 def test_discover_logs_accepts_multiple_dirs(tmp_path):
-    """ut-MC3-3-RQ3-E：多目录发现——消融臂目录 + RQ2 的 Full 臂目录一起扫描。"""
+    """ut-RQ3-E：多目录发现——消融臂目录 + RQ2 的 Full 臂目录一起扫描。"""
     rq2_dir = tmp_path / "rq2"
     rq3_dir = tmp_path / "rq3"
     rq2_dir.mkdir()

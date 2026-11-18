@@ -1,11 +1,11 @@
-"""MC3-3/RQ3 消融的函数级配对分析（``experiments/RQ3/analyze.py``）。
+"""RQ3 消融的函数级配对分析（``experiments/RQ3/analyze.py``）。
 
-- ut-MC3-3-RQ3-analyze-A 载入：按 checkpoint 顶层 ``mode`` 分组；逐函数轨迹只认
+- ut-RQ3-analyze-A 载入：按 checkpoint 顶层 ``mode`` 分组；逐函数轨迹只认
   ``event == "seed_fuzzed"``（mutant 级事件不参与）；缺 run_index / 轨迹不全 /
   未识别 mode / 非 completed 一律进 Notes 而非静默丢弃。
-- ut-MC3-3-RQ3-analyze-B 配对表：每个消融 vs Full 的 Δ / 95% CI / p / sig /
+- ut-RQ3-analyze-B 配对表：每个消融 vs Full 的 Δ / 95% CI / p / sig /
   Cohen's h(+CI) / d，以及 micro、macro 总体行；同一 seed 输出逐字节可复现。
-- ut-MC3-4-RQ3-analyze-C ``--bootstrap hierarchical``（函数+重复两阶段）同样产出，
+- ut-RQ3-analyze-C ``--bootstrap hierarchical``（函数+重复两阶段）同样产出，
   且 ``--mode`` 过滤只保留目标配置的配对行。
 """
 
@@ -116,7 +116,7 @@ def _rows(table: str) -> list[dict[str, str]]:
 
 
 def test_inventory_groups_by_mode_and_filters_events(tmp_path):
-    """ut-MC3-3-RQ3-analyze-A1：mode 分组 + 只认 seed_fuzzed 事件。"""
+    """ut-RQ3-analyze-A1：mode 分组 + 只认 seed_fuzzed 事件。"""
     _fixture(tmp_path)
 
     inv = rq3a.load_inventory(tmp_path)
@@ -133,7 +133,7 @@ def test_inventory_groups_by_mode_and_filters_events(tmp_path):
 
 
 def test_bad_checkpoints_land_in_notes(tmp_path):
-    """ut-MC3-3-RQ3-analyze-A2：四类坏件都显式进 Notes，不静默。"""
+    """ut-RQ3-analyze-A2：四类坏件都显式进 Notes，不静默。"""
     _write_ckpt(
         tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
         with_run_index=False,
@@ -162,7 +162,7 @@ def test_bad_checkpoints_land_in_notes(tmp_path):
 
 
 def test_paired_table_rows_and_reproducible(tmp_path, capsys):
-    """ut-MC3-3-RQ3-analyze-B：Δ/CI/sig/h 与 micro/macro 行，同 seed 可复现。"""
+    """ut-RQ3-analyze-B：Δ/CI/sig/h 与 micro/macro 行，同 seed 可复现。"""
     _fixture(tmp_path)
     inv = rq3a.load_inventory(tmp_path)
 
@@ -203,7 +203,7 @@ def test_paired_table_rows_and_reproducible(tmp_path, capsys):
 
 
 def test_hierarchical_and_mode_filter(tmp_path, capsys):
-    """ut-MC3-4-RQ3-analyze-C：两阶段重采样可用；--mode 只留目标配对行。"""
+    """ut-RQ3-analyze-C：两阶段重采样可用；--mode 只留目标配对行。"""
     _fixture(tmp_path)
     inv = rq3a.load_inventory(tmp_path)
 
@@ -236,7 +236,7 @@ def test_descriptive_table_reports_every_mode(tmp_path, capsys):
 
 
 def test_budget_count_filter_skips_time_batch(tmp_path):
-    """ut-MC3-3-RQ3-analyze-D：count 批在装载期择一——time 批被 ``--budget=count``
+    """ut-RQ3-analyze-D：count 批在装载期择一——time 批被 ``--budget=count``
     过滤，不再与 count 批同键竞争；无预算字段的 legacy 件照常保留。"""
     # Full 组：t60 件文件名更晚（模拟 RQ2 目录里后跑的 -ltime campaign），须被过滤
     _write_ckpt(
@@ -269,7 +269,7 @@ def test_budget_count_filter_skips_time_batch(tmp_path):
 
 
 def test_budget_time_filter_and_nl_exception(tmp_path):
-    """ut-MC3-3-RQ3-analyze-D2：``--budget=time`` 只取 time 批；NL 臂例外——
+    """ut-RQ3-analyze-D2：``--budget=time`` 只取 time 批；NL 臂例外——
     time 战役跳过 NL（无 LLM 循环、时间预算惰性），沿用 count 批数据。"""
     _write_ckpt(
         tmp_path, mode="Full", library="nltk", run_index=1, gain=1.0,
@@ -300,7 +300,7 @@ def test_budget_time_filter_and_nl_exception(tmp_path):
 
 
 def test_load_inventory_merges_multiple_dirs(tmp_path, capsys):
-    """ut-MC3-3-RQ3-analyze-E：多目录装载——Full 臂在 RQ2 目录、消融臂在本目录，能配对。"""
+    """ut-RQ3-analyze-E：多目录装载——Full 臂在 RQ2 目录、消融臂在本目录，能配对。"""
     rq2_dir = tmp_path / "rq2"
     rq3_dir = tmp_path / "rq3"
     rq2_dir.mkdir()

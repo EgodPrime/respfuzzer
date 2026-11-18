@@ -1,4 +1,4 @@
-"""MC3-1 的单元测试：每一次实验落 ``.log`` + ``*_checkpoint.json``。
+"""单元测试：每一次实验落 ``.log`` + ``*_checkpoint.json``。
 
 覆盖：
 

@@ -1,8 +1,8 @@
 """RQ2 报表的运行级置信区间与效应量（``experiments/RQ2/report.py``）。
 
-- ut-MC3-2-RQ2-A ``collect_runs`` 保留每次运行的原始样本，``average_runs`` 仍是原均值口径。
-- ut-MC3-2-RQ2-B ``gen_stats_tables`` 逐库给出 n / mean±sd / 95% CI / Cliff's δ（vs RespFuzzer）。
-- ut-MC3-2-RQ2-C 缺对照组的库被显式标注、且不参与 Average 汇总。
+- ut-RQ2-A ``collect_runs`` 保留每次运行的原始样本，``average_runs`` 仍是原均值口径。
+- ut-RQ2-B ``gen_stats_tables`` 逐库给出 n / mean±sd / 95% CI / Cliff's δ（vs RespFuzzer）。
+- ut-RQ2-C 缺对照组的库被显式标注、且不参与 Average 汇总。
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ def _parse_rows(table: str) -> list[Row]:
 
 
 def test_collect_runs_keeps_every_run_and_average_is_mean(tmp_path):
-    """ut-MC3-2-RQ2-A：逐次样本完整保留，均值口径不变。"""
+    """ut-RQ2-A：逐次样本完整保留，均值口径不变。"""
     _dataset(tmp_path)
 
     cov_runs, time_runs = rq2.collect_runs(str(tmp_path))
@@ -83,7 +83,7 @@ def test_collect_runs_keeps_every_run_and_average_is_mean(tmp_path):
 
 
 def test_stats_table_reports_ci_and_effect_size(tmp_path):
-    """ut-MC3-2-RQ2-B：n / mean±sd / 95% CI / Cliff's δ 全部产出，且数值可核对。"""
+    """ut-RQ2-B：n / mean±sd / 95% CI / Cliff's δ 全部产出，且数值可核对。"""
     _dataset(tmp_path)
     cov_runs, time_runs = rq2.collect_runs(str(tmp_path))
 
@@ -128,7 +128,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
 
 
 def test_missing_reference_library_is_annotated(tmp_path):
-    """ut-MC3-2-RQ2-C：没有对照组日志的库不进表，但要显式标注原因。"""
+    """ut-RQ2-C：没有对照组日志的库不进表，但要显式标注原因。"""
     _dataset(tmp_path, with_reference=False)
     # 只给 Dask 补对照组，NLTK 保持没有 RespFuzzer
     for index, coverage in enumerate([40000, 41000, 42000]):
@@ -179,7 +179,7 @@ def _paired_dataset(directory) -> None:
 
 
 def test_collect_paired_runs_reads_run_index_from_checkpoint(tmp_path):
-    """ut-MC3-3-RQ2-A：配对键取 checkpoint 的 ``run_index``；缺 checkpoint → unpaired。"""
+    """ut-RQ2-A：配对键取 checkpoint 的 ``run_index``；缺 checkpoint → unpaired。"""
     _paired_dataset(tmp_path)
     # 再补一条没有 checkpoint 的日志（老产物 / 未接线的运行）
     _write_log(tmp_path, "dyfuzz", "Dask", 5000, stamp="20260101T000009")
@@ -197,7 +197,7 @@ def test_collect_paired_runs_reads_run_index_from_checkpoint(tmp_path):
 
 
 def test_paired_stats_table_aligns_on_run_index(tmp_path):
-    """ut-MC3-3-RQ2-B：按 run_index 对齐后走配对差值口径，缺件被显式列出。"""
+    """ut-RQ2-B：按 run_index 对齐后走配对差值口径，缺件被显式列出。"""
     _paired_dataset(tmp_path)
     _write_log(
         tmp_path, "dyfuzz", "Dask", 5000, stamp="20260101T000009"

@@ -1,8 +1,8 @@
 """同函数、相同随机种子的配对比较（``experiments/common/pairing.py``）。
 
-- ut-MC3-3-P-A ``checkpoint_pair_key``：配对键来自同 stem checkpoint 的
+- ut-P-A ``checkpoint_pair_key``：配对键来自同 stem checkpoint 的
   ``metadata.run_index``（缺则 ``seed``），缺件/损坏 → ``None``。
-- ut-MC3-3-P-B ``align_paired``：按键交集对齐成等长样本，缺对照组 / 键重复 /
+- ut-P-B ``align_paired``：按键交集对齐成等长样本，缺对照组 / 键重复 /
   无交集 / 只有对照组都被剔除并给出原因。
 """
 
@@ -26,7 +26,7 @@ def _write_checkpoint(log_path, metadata) -> None:
 
 
 def test_checkpoint_pair_key_prefers_run_index_then_seed(tmp_path):
-    """ut-MC3-3-P-A：键优先取 ``run_index``，缺则 ``seed``，两者皆缺 → ``None``。"""
+    """ut-P-A：键优先取 ``run_index``，缺则 ``seed``，两者皆缺 → ``None``。"""
     log = tmp_path / "rq3_respfuzzer_nltk_20260101T000000.log"
     log.write_text("log", encoding="utf-8")
 
@@ -51,7 +51,7 @@ def test_checkpoint_pair_key_prefers_run_index_then_seed(tmp_path):
 
 
 def test_checkpoint_pair_key_handles_missing_metadata(tmp_path):
-    """ut-MC3-3-P-A：checkpoint 没有 metadata 字段 → ``None``。"""
+    """ut-P-A：checkpoint 没有 metadata 字段 → ``None``。"""
     log = tmp_path / "rq3_respfuzzer_nltk_20260101T000000.log"
     log.write_text("log", encoding="utf-8")
     log.with_name(log.stem + "_checkpoint.json").write_text(
@@ -61,7 +61,7 @@ def test_checkpoint_pair_key_handles_missing_metadata(tmp_path):
 
 
 def test_align_paired_intersects_keys_and_keeps_order():
-    """ut-MC3-3-P-B：取键交集、按键升序对齐，各组等长。"""
+    """ut-P-B：取键交集、按键升序对齐，各组等长。"""
     aligned, notes = align_paired(
         RUNS, reference="RespFuzzer", groups=["DyFuzz", "RespFuzzer"]
     )
@@ -80,7 +80,7 @@ def test_align_paired_intersects_keys_and_keeps_order():
 
 
 def test_align_paired_reports_missing_reference_and_single_group():
-    """ut-MC3-3-P-B：缺对照组 / 只有对照组 → 剔除并写明原因。"""
+    """ut-P-B：缺对照组 / 只有对照组 → 剔除并写明原因。"""
     aligned, notes = align_paired(
         {"DyFuzz": RUNS["DyFuzz"]}, reference="RespFuzzer", groups=["RespFuzzer"]
     )
@@ -97,7 +97,7 @@ def test_align_paired_reports_missing_reference_and_single_group():
 
 
 def test_align_paired_rejects_duplicate_keys_and_empty_intersection():
-    """ut-MC3-3-P-B：同键跑多次（漏传 RUN_INDEX）与无共同键都剔除。"""
+    """ut-P-B：同键跑多次（漏传 RUN_INDEX）与无共同键都剔除。"""
     duplicated = {
         "RespFuzzer": {"NLTK": {"run_index=1": [1.0, 2.0]}},
         "DyFuzz": {"NLTK": {"run_index=1": [3.0, 4.0]}},

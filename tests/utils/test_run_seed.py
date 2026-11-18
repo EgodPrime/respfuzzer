@@ -1,9 +1,9 @@
 """运行级随机种子（``src/respfuzzer/utils/run_seed.py``）。
 
-- ut-MC3-3-S-A ``derive_run_seed`` 派生公式固定，跨 RQ 配对键不漂移。
-- ut-MC3-3-S-B ``resolve_run_seed`` 优先级：显式 > 进程内 > 环境变量 > 默认。
-- ut-MC3-3-S-C ``prepare_run_seed``：派生 + ``random.seed`` + 记录生效值。
-- ut-MC3-3-S-D ``stable_random_state``：稳定、可区分、落在 63 位内。
+- ut-S-A ``derive_run_seed`` 派生公式固定，跨 RQ 配对键不漂移。
+- ut-S-B ``resolve_run_seed`` 优先级：显式 > 进程内 > 环境变量 > 默认。
+- ut-S-C ``prepare_run_seed``：派生 + ``random.seed`` + 记录生效值。
+- ut-S-D ``stable_random_state``：稳定、可区分、落在 63 位内。
 """
 
 from __future__ import annotations
@@ -31,12 +31,12 @@ def _isolate_run_seed(monkeypatch):
 
 
 def test_derive_run_seed_is_stable():
-    """ut-MC3-3-S-A：派生公式固定（跨 RQ 配对键不漂移）。"""
+    """ut-S-A：派生公式固定（跨 RQ 配对键不漂移）。"""
     assert derive_run_seed(7, 2) == (7 * 1000003 + 2) % (2**31 - 1)
 
 
 def test_resolve_run_seed_precedence(monkeypatch):
-    """ut-MC3-3-S-B：显式 > 进程内已设置 > 环境变量 > 默认（配置缺 seed 时）。"""
+    """ut-S-B：显式 > 进程内已设置 > 环境变量 > 默认（配置缺 seed 时）。"""
     # 都没设 → 默认种子（与改动前 llm_mutator 的硬编码 4399 一致）
     assert resolve_run_seed() == run_seed.DEFAULT_RUN_SEED
 
@@ -53,7 +53,7 @@ def test_resolve_run_seed_precedence(monkeypatch):
 
 
 def test_prepare_run_seed_derives_seeds_and_replays():
-    """ut-MC3-3-S-C：同参数 → 同生效种子与同随机序列；不同 run_index → 不同种子。"""
+    """ut-S-C：同参数 → 同生效种子与同随机序列；不同 run_index → 不同种子。"""
     first = prepare_run_seed(7, 1, section="fuzz")
     assert first == derive_run_seed(7, 1)
     assert run_seed.current_run_seed() == first
@@ -71,12 +71,12 @@ def test_prepare_run_seed_derives_seeds_and_replays():
 
 
 def test_prepare_run_seed_uses_config_section(monkeypatch):
-    """ut-MC3-3-S-C：``[<section>].seed`` 缺失时回退默认（配置口径不炸）。"""
+    """ut-S-C：``[<section>].seed`` 缺失时回退默认（配置口径不炸）。"""
     assert prepare_run_seed(None, None, section="dyfuzz") == run_seed.DEFAULT_RUN_SEED
 
 
 def test_stable_random_state_is_stable_and_distinct():
-    """ut-MC3-3-S-D：同部件恒同值、不同部件不同值、落在 63 位内。"""
+    """ut-S-D：同部件恒同值、不同部件不同值、落在 63 位内。"""
     state = stable_random_state(4399, "nltk.f")
     assert state == stable_random_state(4399, "nltk.f")
     assert state != stable_random_state(4400, "nltk.f")
