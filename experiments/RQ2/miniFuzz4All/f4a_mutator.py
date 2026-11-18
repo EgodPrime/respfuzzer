@@ -16,7 +16,7 @@ client = openai.OpenAI(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 # miniFuzz4All 走 openai.ChatCompletion（system + user 两条消息），
 # 思考内容由服务端放进 message.reasoning_content，取 content 即已剔除；
 # _extract_pure_code 再兜底剥离混入正文的思考标签与 markdown 围栏。
-# token 统计就地累计，通过 record_result 上报（MC4-3）。
+# token 统计就地累计，通过 record_result 上报。
 _f4a_llm_calls: int = 0
 _f4a_input_tokens: int = 0
 _f4a_output_tokens: int = 0

@@ -2,7 +2,7 @@
 """RQ2 两两逐函数配对分析：bootstrap CI + Cohen's 效应量 + 显著性检验。
 
 三个对照组（miniFuzz4All / DyFuzz / RespFuzzer）在**同一预算档 × 同一库 ×
-同一 run_index** 的两次运行之间做逐函数配对【MC3-3】：同一 run_index 派生
+同一 run_index** 的两次运行之间做逐函数配对：同一 run_index 派生
 同一随机种子（common random numbers），两组又从同一种子集出发，因此每个
 函数在两组间天然成对。
 

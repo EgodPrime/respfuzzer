@@ -1,4 +1,4 @@
-"""【MC2-11】stub 缓存键限定名化：防碰撞 + 读端解析链。
+"""stub 缓存键限定名化：防碰撞 + 读端解析链。
 
 覆盖：
 - 写端 `make_pyi_key` / `_pyi_module_from_path`：限定键形态、`__init__.pyi` 父模块语义、

@@ -1,4 +1,4 @@
-"""MC3-3：同函数、相同随机种子的配对比较（``experiments/common/pairing.py``）。
+"""同函数、相同随机种子的配对比较（``experiments/common/pairing.py``）。
 
 - ut-MC3-3-P-A ``checkpoint_pair_key``：配对键来自同 stem checkpoint 的
   ``metadata.run_index``（缺则 ``seed``），缺件/损坏 → ``None``。

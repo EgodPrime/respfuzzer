@@ -1,4 +1,4 @@
-"""每一次实验落两个文件：统一命名的 ``.log`` + 记录结束状态的 ``*_checkpoint.json``（【MC3-1】）。
+"""每一次实验落两个文件：统一命名的 ``.log`` + 记录结束状态的 ``*_checkpoint.json``（）。
 
 评审「主要意见 3」第 1 条要求「在开源仓库中存放每一次实验的日志和结果数据（增加保存结果
 为 json 的功能）」。本模块是该能力的框架侧实现，4 个 RQ 的所有实验驱动共用同一套命名与
@@ -193,7 +193,7 @@ def _git_commit() -> str | None:
     return commit if proc.returncode == 0 and commit else None
 
 # ---------------------------------------------------------------------------
-# LLM 解码设置固化（MC3-5）
+# LLM 解码设置固化
 # ---------------------------------------------------------------------------
 # 实验代码中不记录模型修订版本（commit hash），只记录模型名；
 # 修订版本在论文中说明。
@@ -222,7 +222,7 @@ def _as_int(value: Any, default: int) -> int:
 
 
 def build_decode_config() -> dict[str, Any]:
-    """构建 LLM 解码设置快照（MC3-5）。
+    """构建 LLM 解码设置快照。
 
     从 ``config.toml`` 的 ``[llm]`` 和 ``[llm_mutator]`` 两个节中提取
     ``model_name``、``temperature``、``top_p``、``max_tokens``，
@@ -401,7 +401,7 @@ class RunRecorder:
             if config is not None
             else _config_snapshot()
         )
-        # MC3-5: 解码设置快照（模型名、temperature、top_p、max_tokens、chat_template）
+        # 解码设置快照（模型名、temperature、top_p、max_tokens、chat_template）
         self.decode_config: dict[str, Any] = _scrub_secrets(_json_safe(build_decode_config()))
         self.results: dict[str, Any] = {}
         self.events: list[dict[str, Any]] = []
@@ -703,7 +703,7 @@ def finish_run(status: str = "completed", error: Any = None) -> Path | None:
 def record_llm_stats(concurrency: int | None = None) -> None:
     """把 LLM 调用次数、token 总数、并发数写入当前运行的 results。
 
-    用于 MC4-3 / MC4-6 统一上报：在驱动 ``finish_run`` 前调用一次。
+  用于 / 统一上报：在驱动 ``finish_run`` 前调用一次。
     未启动录制（no-op）时安全跳过；DyFuzz 这类无 LLM 的驱动可只传
     ``concurrency``（或不传），token/调用次数都是 0。
     """

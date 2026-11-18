@@ -36,7 +36,7 @@ def _pyi_module_from_path(root_path: str, file_path: str) -> str:
 def make_pyi_key(
     root_path: str, library_name: str, file_path: str, func_name: str
 ) -> str:
-    """写端出口：构造完全限定缓存键 `<库名>.<模块点分路径>.<函数名>`【MC2-11】。
+    """写端出口：构造完全限定缓存键 `<库名>.<模块点分路径>.<函数名>`。
 
     root_path / library_name 必传：空参会抛 ValueError，彻底关闭「未限定函数名键」路径
     （否则不同模块的同名函数会退化成同一个裸名键互相覆盖）。file_path 为空时退化为
@@ -91,7 +91,7 @@ def _parse_pyi_file(
     library_name: str,
 ) -> None:
     """
-    解析 .pyi 文件，提取其中的函数，并以完全限定键写入 pyi_cache【MC2-11】。
+    解析 .pyi 文件，提取其中的函数，并以完全限定键写入 pyi_cache。
     """
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
@@ -108,7 +108,7 @@ def _parse_pyi_file(
                     source = ast.get_source_segment(content, node)
 
                     arg_list = []
-                    # 【MC2-8】提取默认参数值。
+                    # 提取默认参数值。
                     # 位置参数（posonlyargs + args 合并后）的默认值集中在 node.args.defaults，
                     # 与最右 len(defaults) 个位置参数按序对齐；其余位置参数记空串（无默认）。
                     positional_params = [*node.args.posonlyargs, *node.args.args]

@@ -3,15 +3,15 @@
 
 对应评审条目：
 
-  * MC3-1 逐次独立运行结果 → ``runs``：每个 (model, mode, lib, rs) 一行，
+ * 逐次独立运行结果 → ``runs``：每个 (model, mode, lib, rs) 一行，
     含 sfcr、种子数、LLM 调用（meta 账本与 run 级 TSV 双口径）、token、耗时；
-  * MC3-6 函数覆盖率比例的置信区间 → ``levels``：sfcr 点值 + 函数级
+ * 函数覆盖率比例的置信区间 → ``levels``：sfcr 点值 + 函数级
     bootstrap 95% CI（分库、overall-micro、overall-macro），与 analyze.py 的
     **配对差** CI 互补（差值表见 ``analyze.py`` / ``results_3model/``）；
-  * MC6-1 按函数分层标签多角度报告 → ``strata``：实现类型 / 文档质量 /
+ * 按函数分层标签多角度报告 → ``strata``：实现类型 / 文档质量 /
     注解完整性三维度逐层的 sfcr 配对差 CI + Cohen's h；``composition``
     为分层构成计数与占比；
-  * MC6-5 预算对等分析（决策 5：只记录不等次数重跑）→ ``resources``：各
+ * 预算对等分析（决策 5：只记录不等次数重跑）→ ``resources``：各
     (model, mode, lib) 实际 LLM 调用数、token 与耗时。
 
 数据来源：
@@ -176,7 +176,7 @@ def paired_diff_boots(a: np.ndarray, b: np.ndarray, n: int, rng: np.random.Gener
     return out
 
 
-# ── 表 1：逐次独立运行（MC3-1） ─────────────────────────────────────────────
+# ── 表 1：逐次独立运行 ─────────────────────────────────────────────
 
 
 def table_runs(models: list[str]) -> list[dict]:
@@ -209,7 +209,7 @@ def table_runs(models: list[str]) -> list[dict]:
     return rows
 
 
-# ── 表 2：sfcr 水平值 + 95% CI（MC3-6） ─────────────────────────────────────
+# ── 表 2：sfcr 水平值 + 95% CI ─────────────────────────────────────
 
 
 def table_levels(models: list[str], boot: int) -> list[dict]:
@@ -269,7 +269,7 @@ def table_levels(models: list[str], boot: int) -> list[dict]:
     return rows
 
 
-# ── 表 3：分层报告（MC6-1） ─────────────────────────────────────────────────
+# ── 表 3：分层报告 ─────────────────────────────────────────────────
 
 
 def table_strata(models: list[str], boot: int) -> list[dict]:
@@ -338,7 +338,7 @@ def table_composition(models: list[str]) -> list[dict]:
     return rows
 
 
-# ── 表 4：资源记录（MC6-5 / 决策 5） ────────────────────────────────────────
+# ── 表 4：资源记录 ────────────────────────────────────────
 
 
 def table_resources(models: list[str]) -> list[dict]:

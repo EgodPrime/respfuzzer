@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""为存量 `data/*_functions.json` 回填函数分层标签【MC6-1】。
+"""为存量 `data/*_functions.json` 回填函数分层标签。
 
 本脚本**纯静态**、不依赖 LLM：基于旧数据集已有的三个字段
 （`function_type` / `docstring` / `has_full_type_hints`）做口径映射，

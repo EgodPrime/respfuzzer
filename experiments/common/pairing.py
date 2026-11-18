@@ -1,7 +1,7 @@
-"""同函数、相同随机种子的**配对**比较【MC3-3】。
+"""同函数、相同随机种子的**配对**比较。
 
 评审主要意见 3 第 3 条要求「使用相同函数和随机种子的配对比较」：
-`experiments/common/stats.py`（MC3-2）给出的是**运行级、组间非配对**统计，
+`experiments/common/stats.py`给出的是**运行级、组间非配对**统计，
 本模块补上配对所需的两件事：
 
 1. :func:`checkpoint_pair_key` —— 从与日志同 stem 的 ``*_checkpoint.json`` 读出

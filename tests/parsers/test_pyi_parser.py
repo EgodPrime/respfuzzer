@@ -31,7 +31,7 @@ def another_func(c: List[int]) -> None:...
             "/path/to/test.pyi", pyi_cache, root_path="/path/to", library_name="lib"
         )
 
-    # 【MC2-11】缓存键为完全限定名 <库名>.<模块路径>.<函数名>，不再是裸函数名
+    # 缓存键为完全限定名 <库名>.<模块路径>.<函数名>，不再是裸函数名
     assert "lib.test.test_func" in pyi_cache
     assert "lib.test.another_func" in pyi_cache
     assert "test_func" not in pyi_cache
@@ -133,7 +133,7 @@ def test_find_all_pyi_files_walk_and_visited(monkeypatch):
     assert any(p.endswith("a.pyi") for p in visited_files)
     assert any(p.endswith("b.pyi") for p in visited_files)
 
-    # 解析走 parse_pyi_files：root_path + library_name 必传，产出限定键【MC2-11】
+    # 解析走 parse_pyi_files：root_path + library_name 必传，产出限定键
     pyi_cache: dict = {}
     for fp in sorted(visited_files):
         pyi_cache.update(parse_pyi_files(fp, "/root", "mylib"))

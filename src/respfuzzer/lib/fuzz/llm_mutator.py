@@ -26,7 +26,7 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 
-# 【MC3-3】运行级种子：入口用 --seed / --run-index 覆盖（见 utils.run_seed）
+# 运行级种子：入口用 --seed / --run-index 覆盖（见 utils.run_seed）
 random.seed(resolve_run_seed(section="fuzz"))
 
 llm_cfg = get_config("llm_mutator")
@@ -137,7 +137,7 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
             continue
 
         # 成功即返回：保证一次 LLM 变异最多对应一次成功的 LLM 调用，
-        # 否则变异预算 B1 与真实 LLM 调用次数无法对应（MC2-7 / MC4-1）。
+        # 否则变异预算 B1 与真实 LLM 调用次数无法对应。
         return Mutant(
             func_id=seed.func_id,
             seed_id=seed.id,
@@ -233,7 +233,7 @@ class LLMMutator:
         """
         根据一次变体执行的结果计算变异算子奖励（算法2 的 r_s / r_c 折算）。
 
-        运行时异常作为语义负面反馈（MC2-6）：出现运行时异常时按语义无效处理，
+        运行时异常作为语义负面反馈：出现运行时异常时按语义无效处理，
         奖励降到 0，且不再计算覆盖率增益。
 
         Arguments:
@@ -275,7 +275,7 @@ class LLMMutator:
                 f"LLM mutation produced no output for mutation type {mutation_type}; "
                 f"this budget slot is consumed without a variant"
             )
-            # LLM 无输出（内部重试耗尽）落盘为结构化事件（MC3-1）
+            # LLM 无输出（内部重试耗尽）落盘为结构化事件
             record_event(
                 "llm_no_output",
                 seed_id=self.seed.id,
@@ -289,7 +289,7 @@ class LLMMutator:
 
         check = has_valid_call(res)
         if not check.ok:
-            # 无效的 LLM 输出同样占用一个变异预算槽（MC2-7）：不再重试，
+            # 无效的 LLM 输出同样占用一个变异预算槽：不再重试，
             # 直接施加语义负反馈并跳过该槽的执行。
             self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
             logger.warning(
@@ -297,8 +297,8 @@ class LLMMutator:
                 f"type {mutation_type}; this budget slot is consumed and the variant "
                 f"is skipped"
             )
-            # 无效 LLM 输出的 reason/detail 落盘为结构化事件（MC3-1）
-            # 这正是 MC2-7 记录里标注「未纳入本次」的那一项
+            # 无效 LLM 输出的 reason/detail 落盘为结构化事件
+      # 这正是 记录里标注「未纳入本次」的那一项
             record_event(
                 "invalid_llm_output",
                 seed_id=self.seed.id,

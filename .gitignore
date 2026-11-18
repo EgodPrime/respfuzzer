@@ -46,7 +46,7 @@ docs/
 
 AGETNS.md
 
-# MC3-1：4 个 RQ 统一命名的 .log 与 *_checkpoint.json 需随仓库发布
+# 4 个 RQ 统一命名的 .log 与 *_checkpoint.json 需随仓库发布
 # （覆盖上面的 **/*.log 与 experiments/RQ4/*.json；其余 json / 深层日志仍忽略）
 # !experiments/RQ[1-4]/*.log
 # !experiments/RQ[1-4]/*_checkpoint.json

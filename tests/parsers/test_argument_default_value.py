@@ -1,4 +1,4 @@
-"""【MC2-8】参数默认值（`Argument.default_value`）提取 / 序列化测试。
+"""参数默认值（`Argument.default_value`）提取 / 序列化测试。
 
 覆盖：
 - 运行时 `inspect` 路径：`function_parser._format_default_value` 与
@@ -48,7 +48,7 @@ def _parse_pyi(content: str) -> dict:
 
     cache: dict = {}
     with patch("builtins.open", mock_open):
-        # root_path / library_name 必传：限定键 = <库名>.<模块路径>.<函数名>【MC2-11】
+        # root_path / library_name 必传：限定键 = <库名>.<模块路径>.<函数名>
         _parse_pyi_file(
             "/path/to/test.pyi", cache, root_path="/path/to", library_name="mylib"
         )

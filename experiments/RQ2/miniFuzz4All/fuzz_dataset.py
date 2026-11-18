@@ -295,7 +295,7 @@ def fuzz_dataset(
 
     ``rq`` / ``group`` / ``out_dir`` 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置
     （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在 ``experiments/RQ3/``。
-    ``seed`` / ``run_index`` 是随机种子与轮次序号【MC3-3】：同一 ``run_index`` 在三个
+    ``seed`` / ``run_index`` 是随机种子与轮次序号：同一 ``run_index`` 在三个
     fuzzer 上派生出同一个种子，并写入 checkpoint 的 ``metadata`` 供同种子配对比较。
 
     预算参数（实验约定写法 ``-lrequest 500 -ltime 60``，等价 Fire 标准写法

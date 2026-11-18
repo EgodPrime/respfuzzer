@@ -1,4 +1,4 @@
-"""MC3-3/MC3-4：RQ3 消融的函数级配对分析（``experiments/RQ3/analyze.py``）。
+"""MC3-3/RQ3 消融的函数级配对分析（``experiments/RQ3/analyze.py``）。
 
 - ut-MC3-3-RQ3-analyze-A 载入：按 checkpoint 顶层 ``mode`` 分组；逐函数轨迹只认
   ``event == "seed_fuzzed"``（mutant 级事件不参与）；缺 run_index / 轨迹不全 /

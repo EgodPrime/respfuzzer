@@ -1,4 +1,4 @@
-"""函数分层打标【MC6-1】纯静态逻辑测试。"""
+"""函数分层打标纯静态逻辑测试。"""
 
 import math
 from typing import Any

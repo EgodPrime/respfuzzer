@@ -122,7 +122,7 @@ RQ3 只认**固定次数口径**，两侧都已内建隔离：
 - `report.py`：同 `(library, mode)` 已有 count/无预算日志时丢弃纯 `-ltime` 的日志，
   打印 `[budget] <lib>/<mode>: dropped N time-budget log(s)`。
 
-## Paired runs（MC3-3）
+## Paired runs
 
 `batch_run.sh <n>` 跑 n 轮，每轮内依次跑 Full / NL / NP / NCF / NSF，并导出同一个
 `RUN_INDEX`：
@@ -166,7 +166,7 @@ uv run python ../analyze.py --bootstrap hierarchical   # 函数+重复两阶段�
   目录不同，各报表/分析脚本都以自身目录为 `LOG_DIR`，互不串。
 - **checkpoint 字段**（`analyze.py` 的数据源）：`results.initial_coverage` / `results.final_coverage` /
   `results.seed_count` / `results.events[]`（取 `event == "seed_fuzzed"` 的 `func_name`+`coverage`
-  作为逐函数轨迹）/ `results.llm_calls`+`total_tokens`（MC4-3，入口已接 `reset_llm_stats()` 与
+ 作为逐函数轨迹）/ `results.llm_calls`+`total_tokens`（入口已接 `reset_llm_stats()` 与
   `record_llm_stats(concurrency=...)`）/ `metadata.run_index`+`seed`（配对键）。
 - **逐函数轨迹的口径**：`_fuzz_dataset` 在 `max_workers`（config.toml，默认 10）并发下按提交顺序
   等待并记录全局累积覆盖，因此"函数 i 的覆盖"含并发邻居的贡献，归因是近似的；5 个配置同种子、

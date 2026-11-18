@@ -1,4 +1,4 @@
-"""MC3-3：运行级随机种子（``src/respfuzzer/utils/run_seed.py``）。
+"""运行级随机种子（``src/respfuzzer/utils/run_seed.py``）。
 
 - ut-MC3-3-S-A ``derive_run_seed`` 派生公式固定，跨 RQ 配对键不漂移。
 - ut-MC3-3-S-B ``resolve_run_seed`` 优先级：显式 > 进程内 > 环境变量 > 默认。

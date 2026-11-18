@@ -39,7 +39,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
       - "exit" : 退出子进程。
 
     每条指令执行完毕后，通过 send 回传一个 ExecutionOutcome（执行期抛出的运行时异常
-    会被记录其中并交回父进程，作为算法2 的语义负面反馈，见 MC2-6）。
+  会被记录其中并交回父进程，作为算法2 的语义负面反馈，见）。
     """
     os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
@@ -154,11 +154,11 @@ def fuzz_single_seed(
         mutation = Mutator.random_llm_mutate()
         if mutation is None:
             # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行，
-            # 对应算法2 中 IsValidSemantic(v) 为假时的 continue（MC2-7）
+            # 对应算法2 中 IsValidSemantic(v) 为假时的 continue
             logger.warning(
                 f"Skipped LLM budget slot for seed {seed.id}: no semantically valid variant"
             )
-            # 该槽的跳过事实落盘为结构化事件（MC3-1）
+            # 该槽的跳过事实落盘为结构化事件
             record_event(
                 "budget_slot_skipped",
                 seed_id=seed.id,
@@ -210,7 +210,7 @@ def fuzz_single_seed(
         logger.info(
             f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
         )
-        # run 级结果数据：每次变体执行的覆盖率增益与执行结果（MC3-1）
+        # run 级结果数据：每次变体执行的覆盖率增益与执行结果
         record_event(
             "mutant_executed",
             seed_id=seed.id,
@@ -225,7 +225,7 @@ def fuzz_single_seed(
             outcome=outcome.describe(),
         )
         if outcome.has_runtime_error:
-            # 运行时异常作为语义负面反馈（MC2-6）：奖励降到 0，且不再计算覆盖率增益
+            # 运行时异常作为语义负面反馈：奖励降到 0，且不再计算覆盖率增益
             Mutator.update_reward(mutation_type, Mutator.reward_for_outcome(outcome))
             logger.info(
                 f"LLM Mutant {mutant.id} of seed {seed.id} raised a runtime error: "
@@ -316,7 +316,7 @@ def _fuzz_dataset(
                 logger.info(
                     f"Current coverage after fuzzing {full_name}: {final_coverage} bits."
                 )
-                # run 级结果数据：单个函数 fuzz 完成时的覆盖率（MC3-1）
+                # run 级结果数据：单个函数 fuzz 完成时的覆盖率
                 record_event(
                     "seed_fuzzed",
                     func_name=full_name,
@@ -394,7 +394,7 @@ def fuzz_dataset(
     与 ``*_checkpoint.json`` 命名（见 ``respfuzzer.utils.experiment_recorder``）。
     ``library`` 缺省从数据集文件名推导，``rq`` 缺省 ``adhoc``（临时运行，产物落
     ``run_data/``）；RQ3 的 ``run_respfuzzer.sh`` 会显式传 ``--rq RQ3`` 与 ``--out-dir``。
-    ``seed`` / ``run_index`` 是随机种子与轮次序号【MC3-3】：同一 ``run_index`` 在所有
+    ``seed`` / ``run_index`` 是随机种子与轮次序号：同一 ``run_index`` 在所有
     实验组派生出同一个种子（``derive_run_seed``），并连同生效种子写入 checkpoint 的
     ``metadata``，供报表按「相同随机种子」做配对比较。
     ``request_budget`` / ``time_budget``（实验写法 ``-lrequest N`` / ``-ltime S``）
@@ -407,7 +407,7 @@ def fuzz_dataset(
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    # 种子先行：本次运行的生效种子要同时写进 checkpoint 供报表配对【MC3-3】
+    # 种子先行：本次运行的生效种子要同时写进 checkpoint 供报表配对
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     with start_run(
         rq or "adhoc",
@@ -514,7 +514,7 @@ def fuzz_one_library(
                     logger.info(
                         f"Current coverage after fuzzing {func_name}: {final_coverage} bits."
                     )
-                    # run 级结果数据：单个函数 fuzz 完成时的覆盖率（MC3-1）
+                    # run 级结果数据：单个函数 fuzz 完成时的覆盖率
                     record_event(
                         "seed_fuzzed",
                         func_name=func_name,

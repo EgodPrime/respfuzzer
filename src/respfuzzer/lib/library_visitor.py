@@ -29,7 +29,7 @@ class LibraryVisitor:
         """
         self.library_name = library_name
         self.pyi_cache: Dict[str, Dict] = {}
-        # 裸函数名 -> 限定键（仅整库唯一裸名登记；歧义裸名不登记）【MC2-11】
+        # 裸函数名 -> 限定键（仅整库唯一裸名登记；歧义裸名不登记）
         self.name_index: dict[str, str] = {}
         self._rp_cache: dict = {}  # id(obj) -> 物理身份元组，dill 解析记忆化
         self._builtin_resolve_cache: dict = (
@@ -53,7 +53,7 @@ class LibraryVisitor:
 
         self.find_all_pyi_functions()
         # 运行时同名异身份并入歧义判定：stub 侧唯一、运行时却存在 ≥2 个不同物理身份同名函数的
-        # 裸名不再兜底（否则 stub 缺失方会错拿另一身份的 stub），落到运行时签名解析【MC2-11】。
+        # 裸名不再兜底（否则 stub 缺失方会错拿另一身份的 stub），落到运行时签名解析。
         self.name_index = build_name_index(
             self.pyi_cache,
             ambiguous_bare_names=self._runtime_bare_collisions(library),
@@ -94,11 +94,11 @@ class LibraryVisitor:
                 result = future.result()
                 self.pyi_cache.update(result)
 
-        # 由 pyi_cache 派生唯一裸名索引（限定键 miss 时的兜底入口）【MC2-11】
+        # 由 pyi_cache 派生唯一裸名索引（限定键 miss 时的兜底入口）
         self.name_index = build_name_index(self.pyi_cache)
 
     def _real_path(self, obj) -> tuple:
-        """对象 → 物理身份元组（dill），失败返回空元组并记忆化。【MC2-11】。
+        """对象 → 物理身份元组（dill），失败返回空元组并记忆化。
 
         物理身份既是 `_visit` 的归属过滤依据，也是 builtin 查 stub 的限定键主体，
         这里集中解析 + 缓存，供 `visit()` 的运行时同名歧义预扫描与 `_visit` 复用。
@@ -175,7 +175,7 @@ class LibraryVisitor:
             if not isinstance(obj, (ModuleType, FunctionType, BuiltinFunctionType)):
                 continue
 
-            # 物理身份（dill）作为归属过滤依据 + builtin 查 stub 的限定键主体【MC2-11】
+            # 物理身份（dill）作为归属过滤依据 + builtin 查 stub 的限定键主体
             real_path = self._real_path(obj)
             if not real_path or real_path[0] != root_mod_name:
                 # skip if it does not belong to the library
@@ -199,7 +199,7 @@ class LibraryVisitor:
                         yield function
 
                 elif isinstance(obj, BuiltinFunctionType):
-                    # 签名闭合链【MC2-11】：①限定键 stub → ②唯一裸名兜底 → ③inspect
+                    # 签名闭合链：①限定键 stub → ②唯一裸名兜底 → ③inspect
                     # → ④docstring → ⑤留空占位(signature_resolved=False)。
                     # 同一物理身份只解析一次：别名绑定复用签名，仅重打公开名。
                     rp_key = real_path

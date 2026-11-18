@@ -47,11 +47,11 @@ class Function(BaseModel):
     args: list[Argument]
     ret_type: str = "unknown"
     is_builtin: int = 0
-    # 签名是否真正解析成功【MC2-11】：builtin 走 stub/inspect/docstring 三阶解析链，
+    # 签名是否真正解析成功：builtin 走 stub/inspect/docstring 三阶解析链，
     # 三源全缺时不再丢弃函数，而是留空 args/ret_type 并置 False（占位条目），
     # 由下游显式识别。旧数据（无该字段）缺省为 True，保持兼容。
     signature_resolved: bool = True
-    # ---- 函数分层打标【MC6-1】（纯静态、无 LLM）----
+    # ---- 函数分层打标（纯静态、无 LLM）----
     implementation_type: str = "pure-python"
     docstring_quality: str = "without-docstring"
     type_annotation_completeness: str = "不完整注解"

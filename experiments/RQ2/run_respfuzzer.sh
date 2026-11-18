@@ -20,10 +20,10 @@ echo "Data directory: $DATA_DIR"
 
 source "$config_file"
 
-# .log 与 *_checkpoint.json 由 experiment_recorder 按统一命名写入 experiments/RQ3/（MC3-1）
+# .log 与 *_checkpoint.json 由 experiment_recorder 按统一命名写入 experiments/RQ3/
 
 
-# 【MC3-3】配对运行：SEED / RUN_INDEX 由 batch_run.sh（或手工）传入，
+# 配对运行：SEED / RUN_INDEX 由 batch_run.sh（或手工）传入，
 # 同一 RUN_INDEX 在三个 fuzzer 与 RQ3 各消融配置上派生出同一个随机种子。
 pair_args=""
 if [ -n "${SEED:-}" ]; then

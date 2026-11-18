@@ -62,7 +62,7 @@ llm_cfg = get_config("llm")
 client = openai.Client(api_key=llm_cfg["api_key"], base_url=llm_cfg["base_url"])
 
 
-#: ---- LLM 资源计数【MC4-3】：全局累计 + 每函数归因桶（ContextVar 按线程隔离）----
+#: ---- LLM 资源计数：全局累计 + 每函数归因桶（ContextVar 按线程隔离）----
 _usage_lock = threading.Lock()
 _usage_total: dict[str, int] = {
     "calls": 0,
@@ -584,7 +584,7 @@ class Solver:
                 raise ValueError(f"Unknown mode: {mode!r}")
 
         self.budget = int(cfg.get("budget", 10))
-        # 逐函数实验开销账本【MC4-3】：solve_library_functions 收尾写 seeds_meta.json
+        # 逐函数实验开销账本：solve_library_functions 收尾写 seeds_meta.json
         self._func_stats: dict[str, dict] = {}
         self._stats_lock = threading.Lock()
         self.judger = Judger()
@@ -665,7 +665,7 @@ class Solver:
                 continue
 
         if stats is not None:
-            # 预算消耗次数 = 自省轮次（含成功那一轮；与 MC6-5「成功 → 成功那一轮」
+      # 预算消耗次数 = 自省轮次（含成功那一轮；与 「成功 → 成功那一轮」
             # 的等预算口径一致；失败每轮扣 1，故 rounds ≤ 初始预算）
             stats["budget_used"] = rounds
         if solved:

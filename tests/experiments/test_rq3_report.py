@@ -1,4 +1,4 @@
-"""MC3-2：RQ3 报表的运行级置信区间与效应量（``experiments/RQ3/report.py``）。
+"""RQ3 报表的运行级置信区间与效应量（``experiments/RQ3/report.py``）。
 
 - ut-MC3-2-RQ3-A ``collect_runs`` / ``average_runs`` / ``build_data``：逐次样本与原均值口径。
 - ut-MC3-2-RQ3-B ``gen_stats_tables``：逐库 n / mean±sd / 95% CI / Cliff's δ（vs Full）。
@@ -112,7 +112,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
     runs = rq3.collect_runs(str(tmp_path))
     table = rq3.gen_stats_tables(runs)
 
-    assert "## Run-level statistics 【MC3-2】" in table
+    assert "## Run-level statistics " in table
     assert "Cliff's δ (vs Full)" in table
     assert "| Library | Configuration | n |" in table
 
@@ -170,7 +170,7 @@ def _write_checkpoint(
     directory, log_name: str, *, run_index: int, seed: int = 0,
     request_budget: int | None = None, time_budget: int | None = None,
 ) -> None:
-    """给同 stem 的日志写带配对键的 checkpoint【MC3-3】。"""
+    """给同 stem 的日志写带配对键的 checkpoint。"""
     checkpoint = directory / log_name.replace(".log", "_checkpoint.json")
     metadata: dict = {"run_index": run_index, "seed": seed}
     # RQ2 的 src 入口写两个预算字段（未用的为 null），口径判定与 analyze.py 同源
@@ -215,8 +215,8 @@ def test_collect_paired_runs_and_paired_table(tmp_path):
     assert unpaired == ["rq3_respfuzzer_Nltk_20260101T000009.log"]
 
     table = rq3.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
-    assert "## Same-seed paired statistics 【MC3-3】" in table
-    assert "配对口径【MC3-3】" in table
+    assert "## Same-seed paired statistics " in table
+    assert "配对口径" in table
     assert "不承诺逐位复现" in table
 
     by_key = {

@@ -2,7 +2,7 @@
 """RQ3 消融配置的逐函数配对分析：bootstrap CI + Cohen's 效应量 + 显著性检验。
 
 4 个消融配置（NL / NP / NSF / NCF）分别与 Full 基线在**同一库 × 同一 run_index**
-的两次运行之间做逐函数配对【MC3-3】：同一 ``run_index`` 经
+的两次运行之间做逐函数配对：同一 ``run_index`` 经
 ``prepare_run_seed(seed, run_index, section="fuzz")`` 派生同一随机种子（common
 random numbers），各配置又从同一批种子出发，因此每个函数在配置间天然成对。
 
@@ -255,7 +255,7 @@ def load_checkpoint(
         duration_s=float(d.get("duration_seconds") or 0),
     )
     # 预算口径归类：RQ2 目录里可能同时有 RQ2 自己的 -ltime campaign 产物，
-    # 与 RQ3「每种子固定 LLM 请求次数」不可比，同键重复时按 rank 择一【MC3-3】
+    # 与 RQ3「每种子固定 LLM 请求次数」不可比，同键重复时按 rank 择一
     budget_rank = _budget_rank(md)
     key = (mode, lib)
     inv.pending.append(

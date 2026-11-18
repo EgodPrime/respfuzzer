@@ -162,7 +162,7 @@ def fuzz_single_seed(
                 no_check_semantic=no_semantic_filter
             )
             if mutation is None:
-                # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行（MC2-7）
+                # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行
                 logger.warning(
                     f"Skipped LLM budget slot for seed {seed.id}: no usable variant"
                 )
@@ -365,7 +365,7 @@ def fuzz_dataset(
               "NL,NP,NCF" - No LLM, no data fuzzing, no coverage feedback (seed execution only)
         rq/group/out_dir: 决定本次运行的 ``.log`` 与 ``*_checkpoint.json`` 命名与位置
               （见 ``respfuzzer.utils.experiment_recorder``）；缺省落在本目录。
-        seed/run_index: 随机种子与轮次序号【MC3-3】；同一 ``run_index`` 在所有消融配置
+        seed/run_index: 随机种子与轮次序号；同一 ``run_index`` 在所有消融配置
               派生出同一个种子，并写入 checkpoint 的 ``metadata`` 供同种子配对比较。
         request_budget/time_budget: 每 seed 预算【预算口径规则】——经
               ``normalize_budget_args`` 归一的 ``-lrequest N`` / ``-ltime S`` 旗标（与 RQ2
@@ -376,7 +376,7 @@ def fuzz_dataset(
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
     no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
-    # 种子先行：生效种子写进 checkpoint，报表按它配对【MC3-3】
+    # 种子先行：生效种子写进 checkpoint，报表按它配对
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     # 预算先行：旗标缺省则回退 config 计数（见 _resolve_budget docstring）
     budget = _resolve_budget(request_budget, time_budget)
@@ -439,7 +439,7 @@ def fuzz_one_library(
         library_name: Name of the library to fuzz.
         mode: Comma-separated ablation mode. Same options as fuzz_dataset.
         rq/group/out_dir: 决定 ``.log`` 与 ``*_checkpoint.json`` 的命名与位置。
-        seed/run_index: 同 :func:`fuzz_dataset`【MC3-3】，生效种子写入 checkpoint。
+        seed/run_index: 同 :func:`fuzz_dataset`，生效种子写入 checkpoint。
         request_budget/time_budget: 同 :func:`fuzz_dataset`【预算口径规则】。
     """
     logger.remove()

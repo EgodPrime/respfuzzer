@@ -8,7 +8,7 @@ from respfuzzer.models import Argument, Function
 
 
 def _format_default_value(default: object) -> str:
-    """把 `inspect.Parameter.default` 序列化为字符串（【MC2-8】默认参数值）。
+    """把 `inspect.Parameter.default` 序列化为字符串（默认参数值）。
 
     口径：
     - `inspect.Parameter.empty`（参数无默认值）→ 空串 ""，作为"无默认"的哨兵；

@@ -1,4 +1,4 @@
-"""MC3-2：RQ2 报表的运行级置信区间与效应量（``experiments/RQ2/report.py``）。
+"""RQ2 报表的运行级置信区间与效应量（``experiments/RQ2/report.py``）。
 
 - ut-MC3-2-RQ2-A ``collect_runs`` 保留每次运行的原始样本，``average_runs`` 仍是原均值口径。
 - ut-MC3-2-RQ2-B ``gen_stats_tables`` 逐库给出 n / mean±sd / 95% CI / Cliff's δ（vs RespFuzzer）。
@@ -89,7 +89,7 @@ def test_stats_table_reports_ci_and_effect_size(tmp_path):
 
     table = rq2.gen_stats_tables(cov_runs, time_runs)
 
-    assert "## Run-level statistics 【MC3-2】" in table
+    assert "## Run-level statistics " in table
     assert "Cliff's δ (vs RespFuzzer)" in table
     assert "Δ vs RespFuzzer (%) 95% CI" in table
 
@@ -154,7 +154,7 @@ def test_missing_reference_library_is_annotated(tmp_path):
 def _write_checkpoint(
     directory, log_name: str, *, run_index: int, seed: int = 0
 ) -> None:
-    """给同 stem 的日志写带配对键的 checkpoint【MC3-3】。"""
+    """给同 stem 的日志写带配对键的 checkpoint。"""
     checkpoint = directory / log_name.replace(".log", "_checkpoint.json")
     checkpoint.write_text(
         json.dumps({"metadata": {"run_index": run_index, "seed": seed}}),
@@ -205,8 +205,8 @@ def test_paired_stats_table_aligns_on_run_index(tmp_path):
     cov_keyed, time_keyed, unpaired = rq2.collect_paired_runs(str(tmp_path))
     table = rq2.gen_paired_stats_tables(cov_keyed, time_keyed, unpaired)
 
-    assert "## Same-seed paired statistics 【MC3-3】" in table
-    assert "配对口径【MC3-3】" in table
+    assert "## Same-seed paired statistics " in table
+    assert "配对口径" in table
     assert "不承诺逐位复现" in table  # LLM 非确定性边界写在脚注里
 
     rows = _parse_rows(table.split("### Time (s)")[0].split("### Coverage (%)")[1])

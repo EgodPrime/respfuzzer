@@ -174,8 +174,8 @@ def discover_logs(
     Returns:
         {library: {mode: [log_path1, log_path2, ...], ...}, ...}
     """
-    # MC3-1 统一命名：Full 组不带 _mode- 段，其余模式为小写 _mode-nl / _mode-nsf ...
-    # MC3-1 统一命名：Full 组不带 _mode- 段，其余模式为小写 _mode-nl / _mode-nsf ...
+  # 统一命名：Full 组不带 _mode- 段，其余模式为小写 _mode-nl / _mode-nsf ...
+  # 统一命名：Full 组不带 _mode- 段，其余模式为小写 _mode-nl / _mode-nsf ...
     # rq[23]：RQ3 自己的产物是 rq3_，Full 臂复用 RQ2 的 RespFuzzer 产物是 rq2_
     pattern_rq3 = re.compile(
         r"rq[23]_respfuzzer_(?P<library>.+?)_(?P<ts>\d{8}T\d{6}).*?"
@@ -201,7 +201,7 @@ def discover_logs(
             mode = match.group("mode")
             mode = mode.upper() if mode else "Full"
             raw[library][mode].append((timestamp, log_file))
-    # 预算口径过滤【MC3-3】——按 --budget 选批：
+    # 预算口径过滤——按 --budget 选批：
     #   count（默认）：同 (library, mode) 内已有 count/无预算日志时，丢弃"仅有时间预算"
     #     的运行——-ltime 下单种子请求数随机器速度浮动，与 RQ3「每种子固定 LLM 请求
     #     次数」不可比（RQ2 目录里并存的 -ltime campaign 产物不进本报表；逐条明细见
@@ -285,7 +285,7 @@ def _has_checkpoint(log_path: str) -> bool:
 def collect_runs(
     log_dir: str, budget: str = "count", model: str | None = None
 ) -> dict[str, dict[str, dict[str, list[float]]]]:
-    """扫描日志，返回**逐次运行**的原始值【MC3-2】。
+    """扫描日志，返回**逐次运行**的原始值。
 
     置信区间与效应量必须基于每次运行的样本，只有均值无从估计不确定性。
 
@@ -331,7 +331,7 @@ def collect_runs(
 def collect_paired_runs(
     log_dir: str, budget: str = "count", model: str | None = None
 ) -> tuple[dict, dict, list[str]]:
-    """按**相同随机种子**收集逐次运行【MC3-3】。
+    """按**相同随机种子**收集逐次运行。
 
     每条日志用同 stem 的 ``*_checkpoint.json`` 取配对键（``run_index`` 优先、缺则
     ``seed``），按 ``(mode, library, 配对键)`` 收集，供 :func:`gen_paired_stats_tables`
@@ -595,7 +595,7 @@ def print_summary(data: dict[str, dict[str, dict]]) -> None:
 #: 报表行序（表 VI 的 5 个消融配置）
 MODE_ORDER = ["NL", "NP", "NSF", "NCF", "Full"]
 
-#: 效应量对照组：其余配置的均值差与 Cliff's δ 都相对它计算【MC3-2】
+#: 效应量对照组：其余配置的均值差与 Cliff's δ 都相对它计算
 REFERENCE_MODE = "Full"
 
 #: 跨库汇总行的 label（把各库均值当作独立样本）
@@ -692,11 +692,11 @@ def _mc34_hierarchical_bootstrap(
     *,
     metric: str = "Coverage",
 ) -> str:
-    """【MC3-4】RQ3 库层分层 Bootstrap：逐库 Δ 做 hierarchical bootstrap。
+    """RQ3 库层分层 Bootstrap：逐库 Δ 做 hierarchical bootstrap。
 
     运行级最终覆盖；函数级配对与效应量见 ``analyze.py``。
     """
-    lines: list[str] = [f"## Library-level Hierarchical Bootstrap 【MC3-4】"]
+    lines: list[str] = [f"## Library-level Hierarchical Bootstrap "]
     lines.append(
         "> RQ3 报表为运行级口径，函数级配对与效应量见 analyze.py；此处报告**库层**分层 bootstrap CI。"
     )
@@ -734,9 +734,9 @@ def _mc34_hierarchical_bootstrap(
 
 
 def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
-    """【MC3-2】覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
+    """覆盖率与耗时的 n / mean±sd / 95% CI / Cliff's δ 统计表（逐库 + Average）。"""
     groups = list(MODE_ORDER)
-    blocks = ["## Run-level statistics 【MC3-2】"]
+    blocks = ["## Run-level statistics "]
     for title, metric, value_fn, unit in (
         ("Coverage (%)", "coverage", _coverage_percent, "%"),
         ("Time (s)", "time_used", _seconds, "s"),
@@ -752,7 +752,7 @@ def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
         )
     blocks.append(f"\n{_STATS_NOTE}")
 
-    # MC3-4: Library-level hierarchical bootstrap (RQ3: run-level coverage only)
+    # Library-level hierarchical bootstrap (RQ3: run-level coverage only)
     mc34_blocks: list[str] = []
     for title, metric, value_fn, unit in (
         ("Coverage (%)", "coverage", _coverage_percent, "%"),
@@ -764,9 +764,9 @@ def gen_stats_tables(runs: dict[str, dict[str, dict[str, list[float]]]]) -> str:
     blocks.append("\n".join(mc34_blocks))
     return "\n".join(blocks)
 
-#: 配对表脚注【MC3-3】
+#: 配对表脚注
 _PAIRED_NOTE = (
-    "> **配对口径【MC3-3】**：每行只取**同一个 `run_index`（同一个随机种子）都跑过**的配置，"
+    "> **配对口径**：每行只取**同一个 `run_index`（同一个随机种子）都跑过**的配置，"
     "按 `(库, run_index)` 对齐成等长样本后再算 `Δ` 的 95% CI（配对差值 bootstrap，"
     "B=2000，固定 seed 可复现）；`n` = 配对完整的运行数。缺 checkpoint 配对键、"
     "配对键重复或没有共同键的库不进入本表（原因列在表下）。"
@@ -793,8 +793,8 @@ def _convert_keyed(runs: dict, value_fn: Callable[[float, str], float]) -> dict:
 def gen_paired_stats_tables(
     cov_keyed: dict, time_keyed: dict, unpaired: list[str] | None = None
 ) -> str:
-    """【MC3-3】相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
-    blocks = ["## Same-seed paired statistics 【MC3-3】"]
+    """相同函数、相同随机种子的配对比较表（逐库 + Average）。"""
+    blocks = ["## Same-seed paired statistics "]
     for title, runs, value_fn, unit in (
         ("Coverage (%)", cov_keyed, _coverage_percent, "%"),
         ("Time (s)", time_keyed, _seconds, "s"),
@@ -818,7 +818,7 @@ def gen_paired_stats_tables(
             blocks.append("\n> 未参与配对的库：" + "；".join(notes) + "。")
     blocks.append(f"\n{_PAIRED_NOTE}")
 
-    # MC3-4: Library-level hierarchical bootstrap for paired tables
+    # Library-level hierarchical bootstrap for paired tables
     mc34_blocks: list[str] = []
     for title, runs, value_fn, unit in (
         ("Coverage (%)", cov_keyed, _coverage_percent, "%"),

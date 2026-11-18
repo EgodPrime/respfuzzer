@@ -104,11 +104,11 @@
   ```
   # 4c. 汇报表：水平值 CI / 分层 / 逐 run / 资源（report_tables.py）
   #     输出到 experiments/RQ1/results_3model/（不入 git，随 artifact 打包）：
-  #     rq1_runs.csv       逐 run 明细 450 行（MC3-1）
-  #     rq1_levels.csv     sfcr 点值 + 函数级 bootstrap 95% CI（MC3-6）
-  #     rq1_strata.csv     三维度分层 sfcr 与配对差 CI + Cohen's h（MC6-1）
+  #     rq1_runs.csv       逐 run 明细 450 行
+  #     rq1_levels.csv     sfcr 点值 + 函数级 bootstrap 95% CI
+  #     rq1_strata.csv     三维度分层 sfcr 与配对差 CI + Cohen's h
   #     rq1_composition.csv 分层构成计数与占比
-  #     rq1_resources.csv  各模式 LLM 调用 / token / 耗时（MC6-5，决策 5）
+  #     rq1_resources.csv  各模式 LLM 调用 / token / 耗时
   #     --latex 追加同名 .tex（裸 tabular 块，可直接粘进 LaTeX）
   uv run python ../experiments/RQ1/report_tables.py --latex
   ```

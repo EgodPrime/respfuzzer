@@ -9,7 +9,7 @@
 - 未启动录制时各 record_* 接口为 no-op；
 - 异常结束标记 ``failed``、收尾幂等、覆盖上一次运行；
 - 多线程并发写事件不丢行、计数一致；
-- ``llm_mutator`` 的无效 LLM 输出 ``reason`` / ``detail`` 落盘（MC2-7 → MC3-1）。
+- ``llm_mutator`` 的无效 LLM 输出 ``reason`` / ``detail`` 落盘。
 """
 
 import json
@@ -390,7 +390,7 @@ def test_library_is_inferred_from_dataset_filename():
 
 
 def test_invalid_llm_output_lands_in_checkpoint(tmp_path, monkeypatch):
-    """无效 LLM 输出的 reason/detail 必须写进 checkpoint（MC2-7 → MC3-1）。"""
+    """无效 LLM 输出的 reason/detail 必须写进 checkpoint。"""
     from respfuzzer.lib.fuzz import llm_mutator
     from respfuzzer.models import Seed
 
@@ -468,7 +468,7 @@ def test_llm_failure_lands_in_checkpoint(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# MC3-5: decode_config 固化测试
+# decode_config 固化测试
 # ---------------------------------------------------------------------------
 
 
