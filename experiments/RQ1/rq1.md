@@ -83,8 +83,6 @@
 
 ### 步骤 4：结果汇总
 
-- 命令：
-- 命令：
   ```bash
   # 4a. 聚合总览：每模式每库 seeds 数
   cd {RESPFUZZER}/run_data && uv run python -c "
@@ -104,11 +102,36 @@
   #     （库等权）两行；mode=respfuzzer 为基线，差异与效应量列记为 `-`
   uv run python ../experiments/RQ1/analyze.py --model Llama-3.1-8B-Instruct
   ```
+  # 4c. 汇报表：水平值 CI / 分层 / 逐 run / 资源（report_tables.py）
+  #     输出到 experiments/RQ1/results_3model/（不入 git，随 artifact 打包）：
+  #     rq1_runs.csv       逐 run 明细 450 行（MC3-1）
+  #     rq1_levels.csv     sfcr 点值 + 函数级 bootstrap 95% CI（MC3-6）
+  #     rq1_strata.csv     三维度分层 sfcr 与配对差 CI + Cohen's h（MC6-1）
+  #     rq1_composition.csv 分层构成计数与占比
+  #     rq1_resources.csv  各模式 LLM 调用 / token / 耗时（MC6-5，决策 5）
+  #     --latex 追加同名 .tex（裸 tabular 块，可直接粘进 LaTeX）
+  uv run python ../experiments/RQ1/report_tables.py --latex
+  ```
 - 输入：`data/<mode>/<lib>_seeds[_meta]_rs*.json`
 - 预期输出：4a 为 5 行（每行 `模式 [(库, seeds 数), ...]`，共 150 组）；4b 一张 markdown 表（列 `mode|lib|#func|avg sfcr|sfcr diff|sfcr diff CI|Cohen's h|Cohen's h CI`）——每 mode 6 行库 + 2 行 overall，给出 sfcr、相对 respfuzzer 的差值与 Cohen's h（附 small/medium/large 幅度标注，阈值 |h|<0.5 / 0.5–0.8 / ≥0.8）、95% 函数配对 bootstrap CI（CI 不含 0 才下强弱结论）
+- 预期输出（4c）：5 个 CSV + 5 个 .tex；`rq1_levels.csv` 每 (model, mode) 8 行（6 库 + overall-micro + overall-macro），三模型共 120 行；`rq1_strata.csv` 153 行（3 模型 × 6 库 × 3 维度 × 层值）；`rq1_resources.csv` 每 (model, mode) 7 行（6 库 + ALL-6LIBS）
+- 注意：`campaign_progress.tsv`（Llama 批）有 5 行重试行（`respfuzzer/{numpy,pandas,scipy,sklearn,spacy}` 的 `rs2`，首行 seeds=0 失败、次行重跑成功），`report_tables.py` 对同 (mode, lib, rs) 取时间戳更晚的一行；原始 TSV 不改
 
 ### 步骤 5（下游，可选）：抽样供 RQ2/RQ3
 
 - 命令：`uv run python scripts/sample_seeds.py -i data/<mode>/<lib>_seeds_<model>_rs<N>.json -n 500`
 - 输入：单个 run 的 seeds json
 - 预期输出：同目录 `<lib>_seeds_sampled.json`（≤ 500 条，随机种子默认 4399，可用 `-s` 指定）；下游用法见 `experiments/RQ3/exp.md`
+
+## 产物位置说明
+
+三处产物目录并存，是早期跑批时路径未统一所致；**读数一律以 `data/` 为准**，其余两处是补充性产物：
+
+| 位置 | 内容 | 性质 |
+|---|---|---|
+| `data/<mode>/<lib>_seeds[_meta]_<model>_rs{1..5}.json` | 种子集合与逐函数开销账本 | **事实来源**（analyze.py / report_tables.py 均读这里） |
+| `experiments/RQ1/<mode>/` | 同一批 seeds 的副本（当时输出路径没统一生成） | 冗余副本，不作数据源 |
+| `runs/RQ1/` | 旧批（决策前 12 库 ours/normal/prompted/extended）run 三件套、`labels_*.json` 分层标签、`rq1_report` 报表 | 旧批 + 标签数据（新分析也读 labels） |
+| `experiments/function_solutions/` | 150 run 日志、`campaign_progress*.tsv`（逐 run 耗时） | 运行日志与资源记录 |
+
+`experiments/**/results_*/` 下的汇总表（analyze 6 份 txt + report_tables 5 份 CSV/.tex）不入 git，随 artifact 打包上传后在 README 附链接。

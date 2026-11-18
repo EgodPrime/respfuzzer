@@ -169,7 +169,7 @@ are the six in `scripts/libraries.conf`; single-run commands execute inside a
 
 | RQ | Description | Driver | Outputs / analysis |
 |---|---|---|---|
-| RQ1 | Reflective seed generation (5 modes × 3 models) | `bash scripts/run_seeding_campaign.sh` | seeds + per-function cost ledgers in `data/<mode>/`; `experiments/RQ1/analyze.py` |
+| RQ1 | Reflective seed generation (5 modes × 3 models) | `bash scripts/run_seeding_campaign.sh` | seeds + per-function cost ledgers in `data/<mode>/`; `experiments/RQ1/analyze.py` (paired diffs) + `experiments/RQ1/report_tables.py` (level CIs, strata, per-run, resources; `--latex` for raw `tabular` blocks) |
 | RQ2 | Fuzzing efficiency (RespFuzzer vs miniFuzz4All vs DyFuzz) | `experiments/RQ2/batch_run.sh <rep>` | `rq2_*` log/checkpoint pairs; `experiments/RQ2/report.py` |
 | RQ3 | Semantic-driven mutation ablation (`nl`, `np`, `nsf`, `ncf`) | `bash experiments/RQ3/run.sh <MODE>` | `rq3_*_mode-<m>` pairs; `experiments/RQ3/{report,analyze}.py` |
 | RQ4 | Real-world vulnerability discovery (log mining → replay → filter → validate) | `experiments/RQ4/*.py` (see `experiments/RQ4/exp.md`) | four confirmed findings: `experiments/RQ4/vul_<n>_<lib>.py` |
@@ -181,3 +181,8 @@ identity, environment and config snapshots, `decode_config` (LLM decoding
 settings), the paired-comparison keys (`seed`, `run_index`), results (coverage,
 LLM calls, token counts) and per-seed events. RQ1 instead writes seed sets
 (`*_seeds_<model>_rs<N>.json`) and `_meta_` ledgers into `data/<mode>/`.
+
+The generated result tables (`experiments/**/results_*/`, including the
+per-run CSVs behind every reported number) are not committed to git; they are
+packaged with the full logs and uploaded to an external archive — download
+link: _TODO (fill in after upload)_.
