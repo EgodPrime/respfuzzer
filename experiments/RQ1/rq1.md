@@ -131,7 +131,7 @@
 |---|---|---|
 | `data/<mode>/<lib>_seeds[_meta]_<model>_rs{1..5}.json` | 种子集合与逐函数开销账本 | **事实来源**（analyze.py / report_tables.py 均读这里） |
 | `experiments/RQ1/<mode>/` | 同一批 seeds 的副本（当时输出路径没统一生成） | 冗余副本，不作数据源 |
-| `runs/RQ1/` | 旧批（决策前 12 库 ours/normal/prompted/extended）run 三件套、`labels_*.json` 分层标签、`rq1_report` 报表 | 旧批 + 标签数据（新分析也读 labels） |
+| `runs/RQ1/` | 旧批（早期 12 库 ours/normal/prompted/extended）run 三件套、`labels_*.json` 分层标签、`rq1_report` 报表 | 旧批 + 标签数据（新分析也读 labels） |
 | `experiments/function_solutions/` | 150 run 日志、`campaign_progress*.tsv`（逐 run 耗时） | 运行日志与资源记录 |
 
 `experiments/**/results_*/` 下的汇总表（analyze 6 份 txt + report_tables 5 份 CSV/.tex）不入 git，随 artifact 打包上传后在 README 附链接。
