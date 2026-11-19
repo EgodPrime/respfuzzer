@@ -14,6 +14,12 @@
  * 预算对等分析（各组实际用量如实记录，不做等次数重跑）→ ``resources``：各
     (model, mode, lib) 实际 LLM 调用数、token 与耗时。
 
+
+ * 主文结果图 → ``--figure``：每模型一张图，（a）sfcr 水平 + 95% CI（``levels``
+    表口径）、（b）相对 respfuzzer 的配对差 + 95% CI（``analyze.py`` 配对口径，
+    RNG seed 42）上下排列并共享 y 轴，x 轴范围按模型自适应以放大差异；输出
+    ``rq1_main_<model>.pdf``（矢量）与 ``rq1_main_<model>.png``（300 dpi）。
+    正文引用图，完整数据留附录表。
 数据来源：
 
   * ``data/<mode>/<lib>_seeds[_meta]_<model>_rs<1..5>.json`` —— 种子与
@@ -23,13 +29,17 @@
     成功产物对应，事实说明见 ``rq1.md``）；
   * ``runs/RQ1/labels_<lib>.json`` —— 三维度分层标签（engine/labels.py 生成）。
 
-默认输出 CSV（供打包上传 artifact，不入 git）；``--latex`` 追加输出裸
-``tabular`` 块（``rq1_<name>.tex``，可直接粘进 LaTeX 正文/附录；不含
-``table`` 浮动体、题注等需要人工决定的部分）。
+默认输出 CSV（供打包上传 artifact，不入 git）。表默认**按模型拆分**落盘为
+``rq1_<name>_<model>.csv``（与主图 ``rq1_main_<model>.pdf`` 命名对齐），
+``--merge-models`` 启用时才合并为三模型单文件（model 作列）；``--latex`` 追加
+输出裸 ``tabular`` 块（``rq1_<name>[_<model>].tex``，可直接粘进 LaTeX 正文/
+附录；不含 ``table`` 浮动体、题注等需要人工决定的部分）。
 
 用法::
 
-    uv run python experiments/RQ1/report_tables.py                     # 三模型全量 CSV
+    uv run python experiments/RQ1/report_tables.py                     # 全量 CSV（默认按模型拆分）
+    uv run python experiments/RQ1/report_tables.py --figure              # 追加主文结果图（每模型一张）
+    uv run python experiments/RQ1/report_tables.py --merge-models           # 三模型合并单表（model 作列）
     uv run python experiments/RQ1/report_tables.py --latex             # 同时出 .tex
     uv run python experiments/RQ1/report_tables.py --models Llama-3.1-8B-Instruct
     uv run python experiments/RQ1/report_tables.py --tables runs,levels
@@ -60,9 +70,29 @@ MODEL_TSV = {
 }
 DIMENSIONS = ["implementation_type", "docstring_quality", "type_annotation_completeness"]
 TABLES = ["runs", "levels", "strata", "composition", "resources"]
+# 默认按模型拆分的表；composition 无 model 列（三模型口径一致），不拆分
+MODEL_SPLIT_TABLES = {"runs", "levels", "strata", "resources"}
 
 LEVEL_BOOT = 10_000
 STRATA_BOOT = 2_000
+
+# 主图 y 轴标签（去掉 respfuzzer- 前缀，统一论文写法）与配色/点形：Okabe-Ito
+# 色盲安全调色板 + 每模式独立点形，灰度打印仍可区分
+MODE_LABELS = {
+    "respfuzzer": "RespFuzzer",
+    "respfuzzer-wodoc": "W/O-Doc",
+    "respfuzzer-wofb": "W/O-FB",
+    "respfuzzer-woboth": "W/O-Both",
+    "respfuzzer-rag": "RAG",
+}
+
+MODE_STYLE = {
+    "respfuzzer": {"color": "#0072B2", "marker": "o"},
+    "respfuzzer-wodoc": {"color": "#E69F00", "marker": "s"},
+    "respfuzzer-wofb": {"color": "#009E73", "marker": "^"},
+    "respfuzzer-woboth": {"color": "#D55E00", "marker": "D"},
+    "respfuzzer-rag": {"color": "#CC79A7", "marker": "v"},
+}
 
 # 模块级缓存：同一 (mode, lib, model) 的矩阵/开销只读一次盘
 _SF_MATRIX: dict[tuple[str, str, str], tuple[list[str], np.ndarray, list[int]]] = {}
@@ -366,6 +396,137 @@ def table_resources(models: list[str]) -> list[dict]:
             rows.append({"model": model, "mode": mode, "library": "ALL-6LIBS", **agg})
     return rows
 
+# ── 主文结果图：每模型一张，上下双面板 overall-micro（水平值 + 配对差） ───────
+
+def figure_main(models: list[str], boot: int, outdir: Path) -> list[Path]:
+    """正文主结果图：（a）overall-micro sfcr + 95% CI；（b）相对 respfuzzer 配对差 + 95% CI。
+
+    口径与附录表一致：面板 (a) 复用 ``table_levels``（RNG 流 [1000+boot, mi, li]，
+    数值即 ``rq1_levels.csv`` 的 overall-micro 行）；面板 (b) 复刻 ``analyze.py``
+    配对差口径（RNG 种子 42、[42, mi, li]、函数级 cluster 配对重采样、按函数数
+    加权 micro 合并），数值与 ``results_3model/<model>_cluster.txt`` 的
+    overall-micro 行一致。每模型一张图（(a)(b) 上下排列、共享 y 轴、自适应 x 轴
+    范围），输出 ``rq1_main_<model>.pdf``（矢量）与 ``rq1_main_<model>.png``。
+    """
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise SystemExit("主图需要 matplotlib：uv add matplotlib") from exc
+
+    # (a) 水平值 + CI：取 levels 表的 overall-micro 行
+    levels = {
+        (r["model"], r["mode"]): r
+        for r in table_levels(models, boot)
+        if r["library"] == "overall-micro"
+    }
+
+    # (b) 配对差 + CI：analyze.py 口径的 overall-micro 配对 bootstrap 分布
+    diffs: dict[tuple[str, str], tuple[float, float, float]] = {}
+    for model in models:
+        for mode in analyze.MODES:
+            if mode == analyze.BASELINE:
+                continue
+            mi = analyze.MODES.index(mode)
+            mats = {lib: sfcr_matrix(mode, lib, model)[1] for lib in analyze.LIBS}
+            bases = {lib: sfcr_matrix(analyze.BASELINE, lib, model)[1] for lib in analyze.LIBS}
+            ns = np.array([mats[lib].shape[0] for lib in analyze.LIBS], dtype=float)
+            w = ns / ns.sum()
+            boots = np.zeros(boot, dtype=float)
+            for li, lib in enumerate(analyze.LIBS):
+                rng = np.random.default_rng([analyze.BOOT_SEED_DEFAULT, mi, li])
+                ba, bb = analyze.paired_rates(mats[lib], bases[lib], boot, rng, hierarchical=False)
+                boots += w[li] * (ba - bb)
+            point = float(sum(wi * (mats[l].mean() - bases[l].mean()) for wi, l in zip(w, analyze.LIBS)))
+            lo, hi = analyze.ci95(boots)
+            diffs[(model, mode)] = (point, lo, hi)
+
+    # 版面：每模型一张图，(a)(b) 上下排列共享 y 轴（5 行 = 5 模式），独占整行
+    # 宽度放大横轴差异；两面板 x 轴范围按该模型数据自适应留白
+    outdir.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for model in models:
+        fig, (ax_a, ax_b) = plt.subplots(2, 1, figsize=(7.6, 5.3), sharey=True)
+
+        # (a) 水平值 + 95% CI（levels 表口径）
+        for j, mode in enumerate(analyze.MODES):
+            r = levels[(model, mode)]
+            st = MODE_STYLE[mode]
+            ax_a.errorbar(
+                r["sfcr"], j,
+                xerr=[[r["sfcr"] - r["ci_low"]], [r["ci_high"] - r["sfcr"]]],
+                fmt=st["marker"], color=st["color"], markersize=6,
+                elinewidth=1.5, capsize=3.5, capthick=1.3, zorder=3,
+            )
+            ax_a.annotate(
+                f"{r['sfcr']:.3f}", (r["ci_high"], j), xytext=(6, 0),
+                textcoords="offset points", va="center", fontsize=9, color=st["color"],
+                bbox=dict(facecolor="white", edgecolor="none", pad=0.8),
+            )
+
+        # (b) 配对差 + 95% CI（analyze.py 口径）；基线标记落在 0 参考线上
+        ax_b.axvline(0.0, color="#999999", lw=0.9, ls="--", zorder=1)
+        for j, mode in enumerate(analyze.MODES):
+            st = MODE_STYLE[mode]
+            if mode == analyze.BASELINE:
+                ax_b.plot(0.0, j, marker=st["marker"], color=st["color"],
+                          markersize=6, ls="none", zorder=3)
+                continue
+            point, lo, hi = diffs[(model, mode)]
+            ax_b.errorbar(
+                point, j, xerr=[[point - lo], [hi - point]],
+                fmt=st["marker"], color=st["color"], markersize=6,
+                elinewidth=1.5, capsize=3.5, capthick=1.3, zorder=3,
+            )
+            ax_b.annotate(
+                f"{point:+.3f}", (hi, j), xytext=(6, 0),
+                textcoords="offset points", va="center", fontsize=9, color=st["color"],
+                bbox=dict(facecolor="white", edgecolor="none", pad=0.8),
+            )
+
+        a_lo = min(levels[(model, m)]["ci_low"] for m in analyze.MODES)
+        b_lo = min(diffs[(model, m)][1] for m in analyze.MODES if m != analyze.BASELINE)
+        b_hi = max(diffs[(model, m)][2] for m in analyze.MODES if m != analyze.BASELINE)
+        ax_a.set_xlim(max(0.0, a_lo - 0.08), 1.0)
+        ax_b.set_xlim(b_lo - 0.05, max(0.08, b_hi + 0.08))
+
+        ax_a.set_ylim(len(analyze.MODES) - 0.5, -0.75)  # 倒置：首行在上
+        ticks = list(range(len(analyze.MODES)))
+        labels = [MODE_LABELS[m] for m in analyze.MODES]
+        ax_a.set_yticks(ticks, labels)
+        ax_b.set_yticks(ticks, labels)
+
+        fig.suptitle(model, fontsize=11.5, fontweight="bold", y=0.975)
+        ax_a.set_title("(a) Coverage level (overall-micro)", fontsize=10.5, loc="left", pad=8)
+        ax_b.set_title("(b) Paired difference vs. RespFuzzer (overall-micro)",
+                       fontsize=10.5, loc="left", pad=8)
+        ax_a.set_xlabel("ISC", fontsize=10)
+        ax_b.set_xlabel("ΔISC", fontsize=10)
+        for ax in (ax_a, ax_b):
+            ax.xaxis.grid(True, color="#dddddd", lw=0.6, ls=":", zorder=0)
+            ax.set_axisbelow(True)
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+            ax.tick_params(labelsize=9.5)
+
+        fig.text(
+            0.5, 0.015,
+            f"Error bars: 95% function-level bootstrap CI (B={boot:,}). "
+            "Panel (b) uses paired resampling;\n"
+            "a CI crossing 0 indicates no significant difference from RespFuzzer.",
+            ha="center", va="bottom", fontsize=8.5, color="#555555",
+        )
+        fig.subplots_adjust(left=0.115, right=0.98, top=0.87, bottom=0.155, hspace=0.46)
+
+        pdf_p = outdir / f"rq1_main_{model}.pdf"
+        fig.savefig(pdf_p)
+        fig.savefig(outdir / f"rq1_main_{model}.png", dpi=300)
+        plt.close(fig)
+        paths.append(pdf_p)
+    return paths
+
 
 # ── 输出：CSV + 可选裸 tabular 块 ───────────────────────────────────────────
 
@@ -453,6 +614,12 @@ def main() -> int:
                     help="追加输出 rq1_<name>.tex：可直接粘贴的裸 tabular 块"
                          "（不含 table 浮动体/caption 等需人工决定的内容）")
     ap.add_argument("--outdir", default=str(HERE / "results_3model"))
+    ap.add_argument("--figure", action="store_true",
+                    help="追加主文结果图 rq1_main.pdf/png：双面板 overall-micro"
+                         "（左：水平值 + CI，右：配对差 + CI）")
+    ap.add_argument("--merge-models", action="store_true",
+                    help="三模型合并为单个 rq1_<name>.csv/.tex（默认按模型拆分"
+                         "为 rq1_<name>_<model>.csv/.tex）")
     args = ap.parse_args()
 
     LEVEL_BOOT = args.boot
@@ -466,17 +633,30 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     print(f"RQ1 report tables | models={args.models} | boot={LEVEL_BOOT}/{STRATA_BOOT}"
           f" | latex={'on' if args.latex else 'off'}")
+    # 默认按模型拆分落盘（rq1_<name>_<model>，与 rq1_main_<model>.pdf 命名对齐）；
+    # --merge-models 启用时合并为三模型单文件。composition 无 model 列，恒单文件。
     for name in TABLES:
         if name not in wanted:
             continue
-        rows = BUILDERS[name](args.models)
-        csv_p = write_csv(name, rows, outdir)
-        rel = csv_p.relative_to(REPO_ROOT) if csv_p.is_relative_to(REPO_ROOT) else csv_p
-        print(f"  {name}: {len(rows)} rows -> {rel}")
-        if args.latex:
-            tex_p = write_tex(name, rows, outdir)
-            rel_t = tex_p.relative_to(REPO_ROOT) if tex_p.is_relative_to(REPO_ROOT) else tex_p
-            print(f"  {name}: tabular -> {rel_t}")
+        if args.merge_models or name not in MODEL_SPLIT_TABLES:
+            groups: list[tuple[str | None, list[str]]] = [(None, args.models)]
+        else:
+            groups = [(m, [m]) for m in args.models]
+        for suffix, models_in in groups:
+            rows = BUILDERS[name](models_in)
+            out_name = name if suffix is None else f"{name}_{suffix}"
+            tag = name if suffix is None else f"{name} [{suffix}]"
+            csv_p = write_csv(out_name, rows, outdir)
+            rel = csv_p.relative_to(REPO_ROOT) if csv_p.is_relative_to(REPO_ROOT) else csv_p
+            print(f"  {tag}: {len(rows)} rows -> {rel}")
+            if args.latex:
+                tex_p = write_tex(out_name, rows, outdir)
+                rel_t = tex_p.relative_to(REPO_ROOT) if tex_p.is_relative_to(REPO_ROOT) else tex_p
+                print(f"  {tag}: tabular -> {rel_t}")
+    if args.figure:
+        for fig_p in figure_main(args.models, LEVEL_BOOT, outdir):
+            rel_f = fig_p.relative_to(REPO_ROOT) if fig_p.is_relative_to(REPO_ROOT) else fig_p
+            print(f"  figure: {rel_f} (+ .png)")
     return 0
 
 
