@@ -244,9 +244,7 @@ class LLMMutator:
             return self.calculate_reward(True, 0.0)
         return self.calculate_reward(False, coverage_gain)
 
-    def random_llm_mutate(
-        self, no_check_semantic: bool = False
-    ) -> tuple[Mutant, int] | None:
+    def random_llm_mutate(self) -> tuple[Mutant, int] | None:
         """
         执行一次 LLM 语义变异。**一次调用恰好消耗算法2 的一个变异预算槽**
         （``for i from 1 to B1`` 的一次迭代），无论本次是否产出语义有效的变体：
@@ -259,9 +257,8 @@ class LLMMutator:
         - LLM 调用在 ``llm_mutate`` 内部重试后仍失败 → 记录错误并返回 ``None``；
           该重试属基础设施容错，不额外消耗预算槽。
 
-        ``no_check_semantic=True`` 时跳过语义检查（RQ3 的 W/O-S.M. 消融组），
-        直接返回 LLM 原始输出。
-
+        （语义门控恒为「编译通过 + 目标调用存在」这一弱化判据，不再有旁路开关——
+        RQ3 的 NSF 消融组已随设计移除。）
         Returns:
             ``(mutant, mutation_type)``；本次预算槽未产出变体时返回 ``None``。
         """
@@ -284,8 +281,6 @@ class LLMMutator:
             )
             return None
 
-        if no_check_semantic:
-            return res, mutation_type
 
         check = has_valid_call(res)
         if not check.ok:

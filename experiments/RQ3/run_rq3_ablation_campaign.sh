@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Run RQ3 ablation campaign for ONE mode (NL / NP / NSF / NCF) across all
+# Run RQ3 ablation campaign for ONE mode (NL / NP / NCF) across all
 # measured libraries x 5 repetitions.
 #
 # Full arm is NOT run here — it reuses RQ2 RespFuzzer results (same config,
@@ -30,8 +30,9 @@ PROGRESS="$DATA_DIR/campaign_progress_${MODEL_TAG}.tsv"
 
 MODE="${1:-}"
 case "$MODE" in
-    NL|NP|NSF|NCF) ;;
-    *) echo "usage: $0 <NL|NP|NSF|NCF>   (Full reuses RQ2; not run here)"; exit 1 ;;
+    NL|NP|NCF) ;;
+    NSF) echo "NSF 已从消融设计移除（语义有效性弱化为调用成功 + 异常计入信号后无独立维度），不再跑批"; exit 1 ;;
+    *) echo "usage: $0 <NL|NP|NCF>   (Full reuses RQ2; NSF removed from design)"; exit 1 ;;
 esac
 
 mkdir -p "$DATA_DIR"

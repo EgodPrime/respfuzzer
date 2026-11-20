@@ -126,18 +126,9 @@ def test_valid_output_returns_mutant_and_keeps_reward(install_stub):
     assert mutator.mu[0] == 0.5, "语义有效不改变期望奖励（等后续覆盖率反馈）"
 
 
-def test_no_check_semantic_skips_filter(install_stub):
-    """W/O-S.M. 消融组：跳过语义检查，直接返回 LLM 原始输出。"""
-    stub, seed = install_stub([NO_TARGET_CALL_CODE])
-    mutator = _fixed_mutator(seed)
-    result = mutator.random_llm_mutate(no_check_semantic=True)
-    assert result is not None
-    mutant, mutation_type = result
-    assert mutation_type == 0
-    assert mutant.function_call == NO_TARGET_CALL_CODE
-    assert stub.calls == 1
-    assert mutator.mu[0] == 0.5
-
+# 注：W/O-S.M.（NSF 消融组）的 no_check_semantic 旁路测试已随 NSF 设计移除——
+# 语义有效性弱化为「调用成功」、异常计入信号后，语义过滤不再是独立消融维度，
+# random_llm_mutate 不再提供跳过检查的开关。
 
 def test_invocation_failure_returns_none_and_consumes_slot(install_stub):
     stub, seed = install_stub([TimeoutError("boom")])

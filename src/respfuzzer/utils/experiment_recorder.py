@@ -633,7 +633,8 @@ def start_run(
         rq: 实验编号，如 ``RQ1``..``RQ3``；决定文件名前缀与 checkpoint 的 ``rq`` 字段。
         group: 实验组，如 ``respfuzzer`` / ``fuzz4all`` / ``dyfuzz`` / ``sce-only``。
         library: 目标库（如 ``nltk``）；一次运行覆盖多库时可为 ``None``。
-        mode: RQ3 的消融模式（``Full`` / ``NL`` / ``NSF`` ...），仅 RQ3 使用。
+        mode: RQ3 的消融模式（``Full`` / ``NL`` / ``NP`` / ``NCF``；``NSF`` 已随
+            设计移除），仅 RQ3 使用。
         out_dir: 落盘目录，通常是 ``experiments/RQ<x>/``；缺省为 ``run_data/``。
         timestamp: 覆盖自动时间戳（复现/测试用）。
         metadata: 运行元数据（数据集路径、随机种子、解码参数……），原样落盘。

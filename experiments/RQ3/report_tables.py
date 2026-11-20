@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RQ3 汇报表：语义驱动变异消融（Full vs NL/NP/NSF/NCF）的论文表与图。
+"""RQ3 汇报表：语义驱动变异消融（Full vs NL/NP/NCF）的论文表与图。
 
 本脚本是**纯分析**：只读产物、写 ``results_qwen/``，全部路径按 ``__file__`` 解析、
 与 cwd 无关，因此不必进 ``run_data/`` 隔离目录（AGENTS.md 的隔离约定针对跑实验的
@@ -92,17 +92,16 @@ DENOM_PATH = HERE.parent / "RQ2" / "coverage_denominators.json"
 LABELS_DIR = REPO / "runs" / "RQ1"
 SEEDS_GLOB = "experiments/RQ2/{lib}_capped100_seeds.json"
 
-MODE_ORDER = analyze.MODE_ORDER  # ["full", "nl", "np", "nsf", "ncf"]
+MODE_ORDER = analyze.MODE_ORDER  # ["full", "nl", "np", "ncf"]（NSF 已从设计移除）
 MODE_LABEL = analyze.GROUP_LABEL
 LIBS = analyze.LIBS
-PAIRS = analyze.PAIRS  # (nl, full), (np, full), (nsf, full), (ncf, full)
+PAIRS = analyze.PAIRS  # (nl, full), (np, full), (ncf, full)
 
 #: 主图配色/点形：Okabe-Ito 色盲安全调色板 + 独立点形，灰度打印仍可区分
 MODE_STYLE = {
     "full": {"color": "#0072B2", "marker": "o"},
     "nl": {"color": "#E69F00", "marker": "s"},
     "np": {"color": "#009E73", "marker": "^"},
-    "nsf": {"color": "#D55E00", "marker": "D"},
     "ncf": {"color": "#CC79A7", "marker": "v"},
 }
 

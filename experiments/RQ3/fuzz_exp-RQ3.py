@@ -32,42 +32,42 @@ from respfuzzer.utils.budget import Budget, normalize_budget_args, resolve_budge
 RQ3_DIR = Path(__file__).resolve().parent
 
 
-def _parse_mode(mode: str) -> tuple[bool, bool, bool, bool]:
+def _parse_mode(mode: str) -> tuple[bool, bool, bool]:
     """
-    Parse mode string into (no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback) flags.
+    Parse mode string into (no_llm, no_data_fuzz, no_cov_feedback) flags.
 
-    Mode string is comma-separated, e.g. "NL,NP,NSF,NCF".
+    Mode string is comma-separated, e.g. "NL,NP,NCF".
     Each component toggles one dimension:
 
-    | Mode           | no_llm | no_data_fuzz | no_semantic_filter | no_cov_feedback | LLM mut | Data fuzz | Semantic filter | Cov feedback |
-    |----------------|:------:|:------------:|:-------------------:|:---------------:|---------|-----------|:---------------:|--------------|
-    | ""             | False  | False        | False               | False           | Yes     | Yes       | Yes             | Yes          |
-    | "NL"           | True   | False        | False               | False           | No      | Yes       | Yes             | Yes          |
-    | "NP"           | False  | True         | False               | False           | Yes     | No        | Yes             | Yes          |
-    | "NL,NP"        | True   | True         | False               | False           | No      | No        | Yes             | Yes          |
-    | "NSF"          | False  | False        | True                | False           | Yes     | Yes       | No              | Yes          |
-    | "NL,NSF"       | True   | False        | True                | False           | No      | Yes       | No              | Yes          |
-    | "NP,NSF"       | False  | True         | True                | False           | Yes     | No        | No              | Yes          |
-    | "NL,NP,NSF"    | True   | True         | True                | False           | No      | No        | No              | Yes          |
-    | "NCF"          | False  | False        | False               | True            | Yes     | Yes       | Yes             | No           |
-    | "NL,NCF"       | True   | False        | False               | True            | No      | Yes       | Yes             | No           |
-    | "NP,NCF"       | False  | True         | False               | True            | Yes     | No        | Yes             | No           |
-    | "NL,NP,NCF"    | True   | True         | False               | True            | No      | No        | Yes             | No           |
-    | "NSF,NCF"      | False  | False        | True                | True            | Yes     | Yes       | No              | No           |
-    | "NL,NSF,NCF"   | True   | False        | True                | True            | No      | Yes       | No              | No           |
-    | "NP,NSF,NCF"   | False  | True         | True                | True            | Yes     | No        | No              | No           |
-    | "NL,NP,NSF,NCF"| True   | True         | True                | True            | No      | No        | No              | No           |
+    | Mode        | no_llm | no_data_fuzz | no_cov_feedback | LLM mut | Data fuzz | Cov feedback |
+    |-------------|:------:|:------------:|:---------------:|---------|-----------|:------------:|
+    | ""          | False  | False        | False           | Yes     | Yes       | Yes          |
+    | "NL"        | True   | False        | False           | No      | Yes       | Yes          |
+    | "NP"        | False  | True         | False           | Yes     | No        | Yes          |
+    | "NL,NP"     | True   | True         | False           | No      | No        | Yes          |
+    | "NCF"       | False  | False        | True            | Yes     | Yes       | No           |
+    | "NL,NCF"    | True   | False        | True            | No      | Yes       | No           |
+    | "NP,NCF"    | False  | True         | True            | Yes     | No        | No           |
+    | "NL,NP,NCF" | True   | True         | True            | No      | No        | No           |
+
+    **NSF（W/O-S.M. 无语义过滤）已从消融设计中移除**：语义有效性已弱化为
+    「函数调用成功」、异常也计入模糊测试信号后，语义过滤不再构成独立维度，
+    无可消融对象 → 传入任何含 NSF 的 mode 直接报错（防误跑，历史 mode-nsf
+    产物由分析层存档跳过）。
     """
     if not mode:
-        return False, False, False, False  # Full
+        return False, False, False  # Full
 
     parts = {p.strip().upper() for p in mode.split(",") if p.strip()}
+    if "NSF" in parts:
+        raise ValueError(
+            "NSF 模式已移除（语义有效性弱化为调用成功 + 异常计入信号后，"
+            "语义过滤不构成独立消融维度）；有效模式：NL / NP / NCF 及其组合"
+        )
     no_llm = "NL" in parts
     no_data_fuzz = "NP" in parts
-    no_semantic_filter = "NSF" in parts
     no_cov_feedback = "NCF" in parts
-    return no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback
-
+    return no_llm, no_data_fuzz, no_cov_feedback
 
 def _resolve_budget(request_budget: int | None, time_budget: float | None) -> Budget:
     """CLI 预算 → Budget：给了任一旗标就按旗标（-lrequest/-ltime，与 RQ2 同口径）；
@@ -85,7 +85,6 @@ def fuzz_single_seed(
     *,
     no_llm: bool = False,
     no_data_fuzz: bool = False,
-    no_semantic_filter: bool = False,
     no_cov_feedback: bool = False,
 ) -> None:
     """ """
@@ -158,9 +157,7 @@ def fuzz_single_seed(
                 )
                 break
             llm_calls_done += 1
-            mutation = Mutator.random_llm_mutate(
-                no_check_semantic=no_semantic_filter
-            )
+            mutation = Mutator.random_llm_mutate()
             if mutation is None:
                 # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行
                 logger.warning(
@@ -199,22 +196,13 @@ def fuzz_single_seed(
             logger.info(
                 f"[{process_index}]Finished fuzzing mutant {mutant.id} of seed {seed.id}"
             )
-            if no_semantic_filter:
-                if cov_after > cov_before:
-                    Mutator.update_reward(mutation_type, 0.5)
-                    logger.info(
-                        f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
-                    )
-            else:
-                if no_cov_feedback:
-                    Mutator.update_reward(mutation_type, 0.5)
-                else:
-                    if cov_after > cov_before:
-                        Mutator.update_reward(mutation_type,1.0)
-                        logger.info(
-                            f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
-                        )
-
+            if no_cov_feedback:
+                Mutator.update_reward(mutation_type, 0.5)
+            elif cov_after > cov_before:
+                Mutator.update_reward(mutation_type, 1.0)
+                logger.info(
+                    f"LLM Mutant {mutant.id} increased coverage: {cov_before} -> {cov_after}"
+                )
     send.put(("exit", None))
     try:
         process.join(timeout=execution_timeout)
@@ -243,7 +231,6 @@ def _fuzz_dataset(
     *,
     no_llm: bool = False,
     no_data_fuzz: bool = False,
-    no_semantic_filter: bool = False,
     no_cov_feedback: bool = False,
 ) -> int | None:
     """
@@ -276,7 +263,6 @@ def _fuzz_dataset(
                 shm_key,
                 no_llm=no_llm,
                 no_data_fuzz=no_data_fuzz,
-                no_semantic_filter=no_semantic_filter,
                 no_cov_feedback=no_cov_feedback,
             )
             futures.append((fut, full_name, seed.library_name))
@@ -375,7 +361,7 @@ def fuzz_dataset(
     logger.add(sys.__stderr__, level="DEBUG")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
+    no_llm, no_data_fuzz, no_cov_feedback = _parse_mode(mode)
     # 种子先行：生效种子写进 checkpoint，报表按它配对
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
     # 预算先行：旗标缺省则回退 config 计数（见 _resolve_budget docstring）
@@ -414,7 +400,6 @@ def fuzz_dataset(
             budget,
             no_llm=no_llm,
             no_data_fuzz=no_data_fuzz,
-            no_semantic_filter=no_semantic_filter,
             no_cov_feedback=no_cov_feedback,
         )
         record_llm_stats(concurrency=get_config("fuzz").get("max_workers"))
@@ -446,7 +431,7 @@ def fuzz_one_library(
     logger.add(sys.__stderr__, level="INFO")
     bm_parent = BitmapManager(4398)
     bm_parent.clear_bitmap()
-    no_llm, no_data_fuzz, no_semantic_filter, no_cov_feedback = _parse_mode(mode)
+    no_llm, no_data_fuzz, no_cov_feedback = _parse_mode(mode)
     cfg = get_config("fuzz")
     max_workers = cfg.get("max_workers")
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
@@ -487,7 +472,6 @@ def fuzz_one_library(
                     sub_key,
                     no_llm=no_llm,
                     no_data_fuzz=no_data_fuzz,
-                    no_semantic_filter=no_semantic_filter,
                     no_cov_feedback=no_cov_feedback,
                 )
                 futures.append((fut, seed_item.func_path))

@@ -22,7 +22,7 @@ from experiments.RQ3 import analyze as rq3a
 LIBS = ["nltk", "numpy"]
 FUNCS = [f"lib.mod.func_{i}" for i in range(10)]
 #: 每个配置的每函数固定增益（%）——常数差值让 Δ 与 CI 可以精确断言
-GAIN_BY_MODE = {"full": 1.0, "nl": 0.5, "np": 1.5, "nsf": 1.0, "ncf": 0.0}
+GAIN_BY_MODE = {"full": 1.0, "nl": 0.5, "np": 1.5, "ncf": 0.0}
 
 
 def _write_ckpt(
@@ -144,7 +144,7 @@ def test_bad_checkpoints_land_in_notes(tmp_path):
         seed_count=99,
     )
     _write_ckpt(
-        tmp_path, mode="NSF", library="nltk", run_index=3, gain=1.0,
+        tmp_path, mode="NCF", library="nltk", run_index=3, gain=1.0,
         status="failed",
     )
     _write_ckpt(
@@ -160,6 +160,24 @@ def test_bad_checkpoints_land_in_notes(tmp_path):
     assert "无法识别消融配置" in notes
     # 四个坏件一个都没进 runs
     assert inv.runs == {}
+
+def test_nsf_archived_silently_skipped(tmp_path):
+    """ut-RQ3-analyze-A3：NSF 已从消融设计移除——历史 mode-nsf 产物装载期
+    静默跳过（存档不分析、不进 Notes，同 -ltime 批规则）；其余配置不受影响。"""
+    _write_ckpt(
+        tmp_path, mode="NSF", library="nltk", run_index=1, gain=1.0,
+    )
+    _write_ckpt(
+        tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
+    )
+
+    inv = rq3a.load_inventory(tmp_path)
+
+    assert ("nsf", "nltk") not in inv.runs   # 历史产物只作存档
+    assert ("nl", "nltk") in inv.runs        # 其余配置不受影响
+    assert not [n for n in inv.notes if "NSF" in n or "nsf" in n]  # 不刷 Notes
+    assert len(inv.notes) == 0
+    # （入口侧拒绝由 fuzz_exp-RQ3._parse_mode 抛 ValueError，见该脚本 docstring）
 
 
 def test_paired_table_rows_and_reproducible(tmp_path, capsys):

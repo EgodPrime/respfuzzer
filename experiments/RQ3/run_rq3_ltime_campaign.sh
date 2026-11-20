@@ -4,9 +4,9 @@
 # -ltime 60 战役相同口径：每种子 60s，先耗尽者停）。
 #
 # 范围（见 rq3_<model>_ltime_track.md §1，如 rq3_Llama-3.1-8B-Instruct_ltime_track.md）：
-#   * NP / NSF / NCF 三臂 x 6 库 x 5 rep = 90 run；
+#   * NP / NCF 两臂 x 6 库 x 5 rep = 60 run（NSF 臂已从消融设计移除）；
 #   * NL 臂跳过——其分支无 LLM 循环（只单次执行 seed），时间预算惰性、
-#     跑了也等价 count 批，分析层 --budget time 下沿用 count 批 NL 数据；
+#     跑了也等价 count 批；
 #   * Full 臂不跑——复用 RQ2 RespFuzzer -ltime 60 的 30 个 run
 #     （同配置/同 capped100 种子/同 run_index 派生，见 exp.md 复用规则）。
 #
@@ -35,8 +35,9 @@ PROGRESS="$DATA_DIR/campaign_progress_ltime_${MODEL_TAG}.tsv"
 
 MODE="${1:-}"
 case "$MODE" in
-    NP|NSF|NCF) ;;
-    *) echo "usage: $0 <NP|NSF|NCF>   (NL/Full 不在此战役：见脚本头注)"; exit 1 ;;
+    NP|NCF) ;;
+    NSF) echo "NSF 已从消融设计移除（语义有效性弱化为调用成功 + 异常计入信号后无独立维度），不再跑批"; exit 1 ;;
+    *) echo "usage: $0 <NP|NCF>   (NL/Full 不在此战役：见脚本头注)"; exit 1 ;;
 esac
 
 mkdir -p "$DATA_DIR"

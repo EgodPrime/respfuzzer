@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """RQ3 消融配置的逐函数配对分析：bootstrap CI + Cohen's 效应量 + 显著性检验。
 
-4 个消融配置（NL / NP / NSF / NCF）分别与 Full 基线在**同一库 × 同一 run_index**
+3 个消融配置（NL / NP / NCF）分别与 Full 基线在**同一库 × 同一 run_index**
 的两次运行之间做逐函数配对：同一 ``run_index`` 经
 ``prepare_run_seed(seed, run_index, section="fuzz")`` 派生同一随机种子（common
 random numbers），各配置又从同一批种子出发，因此每个函数在配置间天然成对。
+
+**NSF（无语义过滤）已从消融设计移除**：语义有效性弱化为「函数调用成功」、
+异常也计入模糊测试信号后，语义过滤不构成独立可消融维度 → 模式解析拒绝 NSF
+（入口直接报错），历史 ``mode-nsf`` 产物装载期静默跳过（存档不分析，同
+``-ltime`` 批规则，不进 Notes）。
 
 统计口径与 ``experiments/RQ1/analyze.py``、``experiments/RQ2/analyze.py`` 对齐：
 
@@ -88,15 +93,14 @@ MODEL_DEFAULT = MODELS[0]
 
 #: 消融配置识别：checkpoint 顶层 ``mode``（recorder 写入 ``mode or "Full"``，
 #: Full 组文件名不带 ``_mode-`` 段，但 checkpoint 里恒有该字段）。
-MODE_ORDER = ["full", "nl", "np", "nsf", "ncf"]
+MODE_ORDER = ["full", "nl", "np", "ncf"]
 LIBS = ["nltk", "numpy", "pandas", "scipy", "sklearn", "spacy"]
 GROUP_ORDER = MODE_ORDER
-GROUP_LABEL = {"full": "Full", "nl": "NL", "np": "NP", "nsf": "NSF", "ncf": "NCF"}
+GROUP_LABEL = {"full": "Full", "nl": "NL", "np": "NP", "ncf": "NCF"}
 #: 两两比较（A − B）：每个消融配置分别减 Full 基线
 PAIRS = [
     ("nl", "full"),
     ("np", "full"),
-    ("nsf", "full"),
     ("ncf", "full"),
 ]
 #: 产物只有一个 fuzzer 组（respfuzzer），分组由 checkpoint 的 ``mode`` 决定；
@@ -205,6 +209,12 @@ def load_checkpoint(
         # 早期 legacy 产物（如 rq3_fuzz4all_nltk_*）没有配对键，且数据集/预算
         # 口径不同，不参与配对分析。
         inv.notes.append(f"skip {name}: 无 run_index 配对键（legacy/非配对产物）")
+        return
+    # NSF 消融组已从设计移除（语义有效性弱化为调用成功 + 异常计入信号后，
+    # 语义过滤不再构成独立维度）→ 历史 mode-nsf 产物只作存档，静默跳过
+    # （同 -ltime 批规则：不竞争、不进 Notes）。
+    raw_mode = str(d.get("mode") or md.get("mode") or "").strip().lower()
+    if raw_mode == "nsf":
         return
     mode = mode_key(d, md)
     lib = lib_key(d.get("library", ""))
@@ -762,7 +772,7 @@ def main() -> int:
     )
     ap.add_argument(
         "--mode", choices=MODE_ORDER, default=None,
-        help="只分析一个消融配置（full/nl/np/nsf/ncf）",
+        help="只分析一个消融配置（full/nl/np/ncf）",
     )
     ap.add_argument(
         "--bootstrap", choices=BOOT_MODES, default="cluster",
