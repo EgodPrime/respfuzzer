@@ -439,7 +439,7 @@ def figure_main(models: list[str], boot: int, outdir: Path) -> list[Path]:
                 rng = np.random.default_rng([analyze.BOOT_SEED_DEFAULT, mi, li])
                 ba, bb = analyze.paired_rates(mats[lib], bases[lib], boot, rng, hierarchical=False)
                 boots += w[li] * (ba - bb)
-            point = float(sum(wi * (mats[l].mean() - bases[l].mean()) for wi, l in zip(w, analyze.LIBS)))
+            point = float(sum(wi * (mats[lb].mean() - bases[lb].mean()) for wi, lb in zip(w, analyze.LIBS)))
             lo, hi = analyze.ci95(boots)
             diffs[(model, mode)] = (point, lo, hi)
 
@@ -511,14 +511,7 @@ def figure_main(models: list[str], boot: int, outdir: Path) -> list[Path]:
             ax.spines["right"].set_visible(False)
             ax.tick_params(labelsize=9.5)
 
-        fig.text(
-            0.5, 0.015,
-            f"Error bars: 95% function-level bootstrap CI (B={boot:,}). "
-            "Panel (b) uses paired resampling;\n"
-            "a CI crossing 0 indicates no significant difference from RespFuzzer.",
-            ha="center", va="bottom", fontsize=8.5, color="#555555",
-        )
-        fig.subplots_adjust(left=0.115, right=0.98, top=0.87, bottom=0.155, hspace=0.46)
+        fig.subplots_adjust(left=0.115, right=0.98, top=0.87, bottom=0.10, hspace=0.46)
 
         pdf_p = outdir / f"rq1_main_{model}.pdf"
         fig.savefig(pdf_p)

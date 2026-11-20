@@ -121,7 +121,7 @@
 
 - 命令：`uv run python scripts/sample_seeds.py -i data/<mode>/<lib>_seeds_<model>_rs<N>.json -n 500`
 - 输入：单个 run 的 seeds json
-- 预期输出：同目录 `<lib>_seeds_sampled.json`（≤ 500 条，随机种子默认 4399，可用 `-s` 指定）；下游用法见 `experiments/RQ3/exp.md`
+- 预期输出：同目录 `<lib>_seeds_sampled.json`（≤ 500 条，随机种子默认 4399，可用 `-s` 指定）；下游用法见 `experiments/RQ3/rq3.md`（RQ3 实际用的是 RQ2 的 `capped100` 种子集，本步为历史路径）
 
 ## 产物位置说明
 
