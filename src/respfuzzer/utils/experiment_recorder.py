@@ -284,16 +284,23 @@ def run_stem(
     library: str | None = None,
     mode: str | None = None,
     timestamp: str | None = None,
+    *,
+    stem_tags: list[str] | None = None,
 ) -> str:
     """构造一次运行的 ``stem``，log 与 checkpoint 共用它。
 
     ``rq3_respfuzzer_nltk_20261010T090000_mode-full`` 这种形式：
     ``rq`` / ``group`` / ``library`` 小写、``mode`` 追加在时间戳之后。
+    ``stem_tags``（RQ2 RespFuzzer 按需，见 ``start_run``）插在时间戳之前，
+    如 ``["time60", "Qwen3.6-35B-A3B", "rep1"]`` →
+    ``rq2_respfuzzer_nltk_capped100_time60_Qwen3.6-35B-A3B_rep1_<ts>``。
     """
     stamp = timestamp or _now().strftime("%Y%m%dT%H%M%S")
     parts = [_slug(rq).lower(), _slug(group).lower()]
     if library:
         parts.append(_slug(library).lower())
+    for tag in stem_tags or ():
+        parts.append(_slug(tag))
     parts.append(_slug(stamp))
     if mode and _slug(mode).lower() != "full":
         # Full 是默认消融组，不出现在文件名里（与约定的命名样例一致）
@@ -618,6 +625,7 @@ def start_run(
     config: dict[str, Any] | None = None,
     log_level: str = "DEBUG",
     capture_stdout: bool = True,
+    stem_tags: list[str] | None = None,
 ) -> RunRecorder:
     """启动一次独立运行的录制，返回记录器（可直接用于 ``with``）。
 
@@ -632,6 +640,9 @@ def start_run(
         config: 配置快照；缺省时自动快照 ``config.toml``（脱敏后）。
         log_level: loguru sink 级别。
         capture_stdout: 是否把 stdout/stderr tee 进 ``.log``（只用 print 的脚本靠它）。
+        stem_tags: 追加在时间戳之前的文件名段（``run_stem``）；RQ2 RespFuzzer
+            用它把预算档 / 模型 / 重复号（如 ``time60_Qwen3.6-35B-A3B_rep1``）
+            直接编码进产物文件名，其余入口留空保持原命名。
     """
     global _active
     with _global_lock:
@@ -642,7 +653,7 @@ def start_run(
         previous.finish(status="superseded")
 
     base = Path(out_dir) if out_dir is not None else DEFAULT_OUT_DIR
-    stem = _unique_stem(base, run_stem(rq, group, library, mode, timestamp))
+    stem = _unique_stem(base, run_stem(rq, group, library, mode, timestamp, stem_tags=stem_tags))
     recorder = RunRecorder(
         base,
         rq,

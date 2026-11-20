@@ -14,7 +14,7 @@ from respfuzzer.lib.fuzz.instrument import (
 )
 from respfuzzer.lib.fuzz.llm_mutator import LLMMutator
 from respfuzzer.models import HasCode, Seed
-from respfuzzer.repos import get_seed_by_function_name, get_seeds
+from respfuzzer.repos import get_seeds
 from respfuzzer.utils.budget import Budget, resolve_budget
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.experiment_recorder import (
@@ -60,7 +60,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
         logger.exception("Failed to open coverage bitmap in worker process.")
         send.put("done")
         return
-    with dcov.LoaderWrapper(bm_child) as l:
+    with dcov.LoaderWrapper(bm_child) as ld:
         while True:
             try:
                 seed: HasCode
@@ -69,7 +69,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
                 logger.error("No command received in 100 seconds, take care!")
                 exit(1)
             if seed and seed.library_name not in seen_library:
-                l.add_library(seed.library_name)
+                ld.add_library(seed.library_name)
                 seen_library.add(seed.library_name)
 
             match command:
@@ -409,12 +409,33 @@ def fuzz_dataset(
     bm_parent.clear_bitmap()
     # 种子先行：本次运行的生效种子要同时写进 checkpoint 供报表配对
     run_seed = prepare_run_seed(seed, run_index, section="fuzz")
+    # RQ2 产物命名增强：预算档 / 模型 / 重复号写进文件名（stem_tags → run_stem）。
+    # 仅 RQ2 RespFuzzer 生效；RQ3 / adhoc 不传，保持原命名。
+    stem_tags: list[str] | None = None
+    if rq == "RQ2":
+        _tags: list[str] = []
+        if request_budget is not None:
+            _tags.append(f"req{request_budget}")
+        if time_budget is not None:
+            _tb = float(time_budget)
+            _tags.append(f"time{int(_tb)}" if _tb.is_integer() else f"time{_tb}")
+        _model = (
+            str(get_config("llm").get("model_name") or "")
+            .replace("/", "-")
+            .replace(" ", "-")
+        )
+        if _model:
+            _tags.append(_model)
+        if run_index is not None:
+            _tags.append(f"rep{run_index}")
+        stem_tags = _tags or None
     with start_run(
         rq or "adhoc",
         group=group,
         library=library or _library_from_dataset(dataset_path),
         mode=mode,
         out_dir=out_dir,
+        stem_tags=stem_tags,
         metadata={
             "entry": "respfuzzer.cmd.fuzz:fuzz_dataset",
             "dataset_path": str(dataset_path),

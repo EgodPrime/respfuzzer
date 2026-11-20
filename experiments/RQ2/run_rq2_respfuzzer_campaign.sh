@@ -61,8 +61,9 @@ for RUN_INDEX in "${REPS[@]}"; do
         dur=$((end - start))
         cov=$(uv run -q python -c "
 import json, glob
-fs = sorted(glob.glob('$OUT_DIR/rq2_respfuzzer_${lib}_*_checkpoint.json'))
-c = json.load(open(fs[-1]))['results'] if fs else {}
+import json, glob, os
+fs = glob.glob('$OUT_DIR/rq2_respfuzzer_${lib}_*_checkpoint.json')
+c = json.load(open(max(fs, key=os.path.getmtime)))['results'] if fs else {}
 print(c.get('final_coverage', '?'))
 " 2>/dev/null || echo "?")
         if [[ $rc -eq 0 ]]; then
