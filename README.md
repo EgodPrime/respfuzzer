@@ -157,7 +157,7 @@ Both the three fuzzers (RespFuzzer / miniFuzz4All / DyFuzz) and all budget confi
 
 ```bash
 RQ2=1 bash scripts/count_seeds_states.sh    # per-library seed/state counts
-RQ2=1 bash scripts/count_seeds_loc.sh        # seed-set LOC (for coverage ceilings)
+RQ2=1 bash scripts/count_seeds_loc.sh        # seed-set LOC (statistics only; LC denominator is the whole package — see experiments/RQ2/rq2.md)
 ```
 
 ## Experiments (RQ1–RQ4)
@@ -170,8 +170,8 @@ are the six in `scripts/libraries.conf`; single-run commands execute inside a
 | RQ | Description | Driver | Outputs / analysis |
 |---|---|---|---|
 | RQ1 | Reflective seed generation (5 modes × 3 models) | `bash scripts/run_seeding_campaign.sh` | seeds + per-function cost ledgers in `data/<mode>/`; `experiments/RQ1/analyze.py` (paired diffs) + `experiments/RQ1/report_tables.py` (level CIs, strata, per-run, resources; `--latex` for raw `tabular` blocks) |
-| RQ2 | Fuzzing efficiency (RespFuzzer vs miniFuzz4All vs DyFuzz) | `experiments/RQ2/batch_run.sh <rep>` | `rq2_*` log/checkpoint pairs; `experiments/RQ2/report.py` |
-| RQ3 | Semantic-driven mutation ablation (`nl`, `np`, `nsf`, `ncf`) | `bash experiments/RQ3/run.sh <MODE>` | `rq3_*_mode-<m>` pairs; `experiments/RQ3/{report,analyze}.py` |
+| RQ2 | Fuzzing efficiency (RespFuzzer vs miniFuzz4All vs DyFuzz) | `experiments/RQ2/run_rq2_respfuzzer_campaign.sh` / `run_rq2_budget_campaign.sh` / `run_rq2_dyfuzz_campaign.sh <-lrequest N \| -ltime S>` (one budget flag per call; the older `batch_run.sh` / `run_*.sh` trio is the legacy `seeds_sampled` path) | `rq2_*` (+ legacy `rq3_dyfuzz_*`) log/checkpoint pairs; `experiments/RQ2/analyze.py` (paired per-function line coverage, LC %) + `report_tables.py` (runs/levels/paired/strata/resources/denominators + figures, `--latex`); Qwen-only scope and step-by-step reproduction in `experiments/RQ2/rq2.md` |
+| RQ3 | Semantic-driven mutation ablation (`nl`, `np`, `nsf`, `ncf`) | `bash experiments/RQ3/run_rq3_ablation_campaign.sh <NL\|NP\|NSF\|NCF>` (one arm per call; `run_rq3_ltime_campaign.sh <NP\|NSF\|NCF>` also ran the `-ltime 60` batch — **archive only, not analyzed**, `--budget` removed; the Full arm is not run — it reuses the RQ2 RespFuzzer runs) | `rq3_*_mode-<m>` pairs; `experiments/RQ3/analyze.py` (per-function paired Δ vs Full, gain %) + `report_tables.py` (main table (csv+tex) / runs / strata / resources + main figure, LC %) — both default to **all 3 models, count batch only**; scope, equivalence argument and reproduction steps in `experiments/RQ3/rq3.md` |
 | RQ4 | Real-world vulnerability discovery (log mining → replay → filter → validate) | `experiments/RQ4/*.py` (see `experiments/RQ4/exp.md`) | four confirmed findings: `experiments/RQ4/vul_<n>_<lib>.py` |
 
 Each RQ2/RQ3 run writes one `.log` + `*_checkpoint.json` pair named

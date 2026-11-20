@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -235,10 +236,10 @@ def test_descriptive_table_reports_every_mode(tmp_path, capsys):
 
 
 
-def test_budget_count_filter_skips_time_batch(tmp_path):
-    """ut-RQ3-analyze-D：count 批在装载期择一——time 批被 ``--budget=count``
-    过滤，不再与 count 批同键竞争；无预算字段的 legacy 件照常保留。"""
-    # Full 组：t60 件文件名更晚（模拟 RQ2 目录里后跑的 -ltime campaign），须被过滤
+def test_ltime_batch_is_archived_not_loaded(tmp_path, monkeypatch):
+    """ut-RQ3-analyze-D：分析范围固定 count 批——``-ltime`` 件（rank=2）只作存档，
+    装载期直接跳过：不与 count 件竞争、不写进 Notes，也不提供 ``--budget`` 开关。"""
+    # Full 组：t60 件文件名更晚（模拟 RQ2 目录里后跑的 -ltime campaign）→ 不装载
     _write_ckpt(
         tmp_path, mode="Full", library="nltk", run_index=1, gain=1.0,
         request_budget=10, stamp="20260101T070000",
@@ -247,7 +248,7 @@ def test_budget_count_filter_skips_time_batch(tmp_path):
         tmp_path, mode="Full", library="nltk", run_index=1, gain=9.0,
         time_budget=60, stamp="20260101T090000",
     )
-    # NL 组：RQ3 自己的入口（无预算字段，rank=1）同样不被 t60 件挤掉
+    # NL 组：count 件保留，t60 件同样不进（原 time 模式的 NL 例外已随开关移除）
     _write_ckpt(
         tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
         stamp="20260101T060000",
@@ -256,48 +257,27 @@ def test_budget_count_filter_skips_time_batch(tmp_path):
         tmp_path, mode="NL", library="nltk", run_index=1, gain=0.7,
         time_budget=60, stamp="20260101T100000",
     )
+    # NP 组：只有 t60 件 → 整键缺席，而不是被当成 count 数据
+    _write_ckpt(
+        tmp_path, mode="NP", library="nltk", run_index=1, gain=5.0,
+        time_budget=60, stamp="20260101T110000",
+    )
 
-    inv = rq3a.load_inventory(tmp_path)  # 默认 budget="count"
+    inv = rq3a.load_inventory(tmp_path)
 
     assert inv.runs[("full", "nltk")][1].gains[FUNCS[0]] == pytest.approx(1.0)
     assert inv.runs[("nl", "nltk")][1].gains[FUNCS[0]] == pytest.approx(0.5)
+    assert ("np", "nltk") not in inv.runs
     notes = "\n".join(inv.notes)
-    assert "--budget=count 过滤" in notes
-    assert "time 批" in notes
-    # 择一之后每键只剩一个 run，不会把两次运行当成两次重复
+    assert "--budget" not in notes  # ltime 批静默跳过，不刷 Notes
+    assert "time 批" not in notes
+    # 每键只剩一个 run，不会把两次运行当成两次重复
     assert sorted(inv.runs[("full", "nltk")]) == [1]
-
-
-def test_budget_time_filter_and_nl_exception(tmp_path):
-    """ut-RQ3-analyze-D2：``--budget=time`` 只取 time 批；NL 臂例外——
-    time 战役跳过 NL（无 LLM 循环、时间预算惰性），沿用 count 批数据。"""
-    _write_ckpt(
-        tmp_path, mode="Full", library="nltk", run_index=1, gain=1.0,
-        request_budget=10, stamp="20260101T070000",
-    )
-    _write_ckpt(
-        tmp_path, mode="Full", library="nltk", run_index=1, gain=9.0,
-        time_budget=60, stamp="20260101T090000",
-    )
-    _write_ckpt(
-        tmp_path, mode="NL", library="nltk", run_index=1, gain=0.5,
-        stamp="20260101T060000",
-    )
-    _write_ckpt(
-        tmp_path, mode="NL", library="nltk", run_index=1, gain=0.7,
-        time_budget=60, stamp="20260101T100000",
-    )
-
-    inv = rq3a.load_inventory(tmp_path, budget="time")
-
-    # Full：取 t60 件（gain 9.0），count 件被过滤
-    assert inv.runs[("full", "nltk")][1].gains[FUNCS[0]] == pytest.approx(9.0)
-    # NL 例外：time 批被跳过，沿用 count 批（gain 0.5）
-    assert inv.runs[("nl", "nltk")][1].gains[FUNCS[0]] == pytest.approx(0.5)
-    notes = "\n".join(inv.notes)
-    assert "--budget=time 过滤" in notes
     assert sorted(inv.runs[("nl", "nltk")]) == [1]
-
+    # CLI 已彻底移除 --budget：残余命令行参数直接报错退出
+    monkeypatch.setattr(sys, "argv", ["analyze.py", "--budget", "time"])
+    with pytest.raises(SystemExit):
+        rq3a.main()
 
 def test_load_inventory_merges_multiple_dirs(tmp_path, capsys):
     """ut-RQ3-analyze-E：多目录装载——Full 臂在 RQ2 目录、消融臂在本目录，能配对。"""

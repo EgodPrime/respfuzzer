@@ -51,12 +51,15 @@ seed_count 不符（运行未完成）、日志轨迹不完整的运行一律跳
 某库在某对比较下没有任何共同 run_index 时整行缺席并说明；函数交集小于任一
 运行的函数全集时在 Notes 提示配对丢失。
 
-用法::
+用法（分析范围固定为 **count 批**：``-ltime 60`` 产物只作存档，不装载、也不进 Notes；
+缺省 **三个模型各出一段**）::
 
-    uv run python experiments/RQ3/analyze.py
+    uv run python experiments/RQ3/analyze.py                          # Qwen / Llama / gpt-oss 各一段
+    uv run python experiments/RQ3/analyze.py --model Qwen3.6-35B-A3B  # 只看一个模型
     uv run python experiments/RQ3/analyze.py --mode nl
     uv run python experiments/RQ3/analyze.py --bootstrap hierarchical
     uv run python experiments/RQ3/analyze.py --boot 2000 --seed 7
+    uv run python experiments/RQ3/analyze.py --model none             # 不过滤（三模型互顶，仅自查）
 """
 
 from __future__ import annotations
@@ -74,6 +77,14 @@ from pathlib import Path
 import numpy as np
 
 LOG_DIR = Path(__file__).resolve().parent
+#: 缺省装载目录：消融臂（本目录）+ **复用的 Full 臂**（RQ2 产物，同配置/-lrequest 10
+#: 预算/同 capped100 种子/同 run_index→seed 派生，等价性见 rq3.md）。只装本目录会得到
+#: Full=0、表 2 空白，所以缺省两个目录一起装。
+DEFAULT_LOG_DIRS = (LOG_DIR, LOG_DIR.parent / "RQ2")
+#: 分析覆盖的三个模型——count 批三者都齐全，缺省 ``--model each`` 各出一段；
+#: 三模型批同目录同名规则，指定单个模型即过滤，``none`` 关闭过滤会按 run_index 互顶
+MODELS = ("Qwen3.6-35B-A3B", "Llama-3.1-8B-Instruct", "gpt-oss-120b")
+MODEL_DEFAULT = MODELS[0]
 
 #: 消融配置识别：checkpoint 顶层 ``mode``（recorder 写入 ``mode or "Full"``，
 #: Full 组文件名不带 ``_mode-`` 段，但 checkpoint 里恒有该字段）。
@@ -113,6 +124,14 @@ class RunData:
     gains: dict[str, float]  # func_path -> gain%（相对该次运行初始覆盖）
     duration_s: float
 
+    seed_count: int = 0
+    llm_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    model: str = ""
+    source: str = ""  # checkpoint 文件名，供 runs 表溯源
+    seed: int = 0  # metadata.seed：同 run_index ⇒ 同种子（CRN 凭据）
 
 @dataclass
 class PendingRun:
@@ -162,7 +181,7 @@ def per_func_from_log(log_path: Path) -> dict[str, int] | None:
     return out or None
 
 def load_checkpoint(
-    path: Path, inv: Inventory, budget: str = "count", model: str | None = None
+    path: Path, inv: Inventory, model: str | None = None
 ) -> None:
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
@@ -170,17 +189,15 @@ def load_checkpoint(
         inv.notes.append(f"skip {path.name}: 无法读取 ({e})")
         return
     name = path.name
-
+    mname = ((d.get("decode_config") or {}).get("llm") or {}).get("model_name") or ""
     if d.get("status") != "completed":
         inv.notes.append(f"skip {name}: status={d.get('status')}")
         return
     # 模型过滤【多模型同目录】：只留指定 decode_config.llm.model_name 的运行，
     # 避免同目录混放的其他模型批进入配对（计数进 model_skipped，装载后汇总打印）。
-    if model is not None:
-        mname = ((d.get("decode_config") or {}).get("llm") or {}).get("model_name")
-        if mname != model:
-            inv.model_skipped += 1
-            return
+    if model is not None and mname != model:
+        inv.model_skipped += 1
+        return
 
     md = d.get("metadata") or {}
     run_index = md.get("run_index")
@@ -197,16 +214,10 @@ def load_checkpoint(
             f"(mode={d.get('mode')!r}, library={d.get('library')!r})"
         )
         return
-    # 预算批过滤【预算口径规则】：count 只要固定次数批（-ltime 批与固定次数不可比）；
-    # time 只要 -ltime 批——唯 NL 臂例外：time 战役跳过 NL（分支无 LLM 循环、时间预算
-    # 惰性），沿用 count 批数据（两批在 NL 下语义等价）。
+    # 预算口径【分析固定为 count 批】：``-ltime S`` 批（rank=2）的单种子请求数随机器
+    # 速度浮动，与固定次数不可比 → 只作存档，不装载、也不写进 Notes（无 --budget 开关）。
     brank, _bval = _budget_rank(md)
-    keep = (brank != 2) if (budget == "count" or mode == "nl") else (brank == 2)
-    if not keep:
-        inv.notes.append(
-            f"skip {name}: --budget={budget} 过滤（预算口径 rank={brank}"
-            f"，{'time 批' if brank == 2 else 'count/无预算批'}）"
-        )
+    if brank == 2:
         return
 
     res = d.get("results") or {}
@@ -253,6 +264,14 @@ def load_checkpoint(
         final=float(final),
         gains=gains,
         duration_s=float(d.get("duration_seconds") or 0),
+        seed_count=int(seed_count),
+        llm_calls=int(res.get("llm_calls") or 0),
+        input_tokens=int(res.get("input_tokens") or 0),
+        output_tokens=int(res.get("output_tokens") or 0),
+        total_tokens=int(res.get("total_tokens") or 0),
+        model=mname,
+        source=name,
+        seed=int(md.get("seed") or 0),
     )
     # 预算口径归类：RQ2 目录里可能同时有 RQ2 自己的 -ltime campaign 产物，
     # 与 RQ3「每种子固定 LLM 请求次数」不可比，同键重复时按 rank 择一
@@ -272,14 +291,13 @@ def load_checkpoint(
 
 def load_inventory(
     log_dir: Path | str | Sequence[Path | str] | None = None,
-    budget: str = "count",
     model: str | None = None,
 ) -> Inventory:
     """装载 checkpoint。``log_dir`` 可以是单个目录，也可以是**多个目录**——复用场景下
     消融臂在 ``experiments/RQ3``、Full 臂在 ``experiments/RQ2``，两个目录一起传即可配对。"""
     inv = Inventory()
     if log_dir is None:
-        bases = [Path(LOG_DIR)]
+        bases = [Path(p) for p in DEFAULT_LOG_DIRS]
     elif isinstance(log_dir, (str, Path)):
         bases = [Path(log_dir)]
     else:
@@ -294,7 +312,7 @@ def load_inventory(
                 "尚无 checkpoint（" + "、".join(str(b / pattern) for b in bases) + "），分析无数据"
             )
         for p in paths:
-            load_checkpoint(Path(p), inv, budget=budget, model=model)
+            load_checkpoint(Path(p), inv, model=model)
     _finalize_duplicates(inv)
     return inv
 
@@ -306,7 +324,7 @@ def _budget_rank(md: dict) -> tuple[int, float | None]:
       RQ3 入口的旗标/回退 config（``llm_fuzz_per_seed``，与 ``-lrequest 10`` 同值）；
     * ``1``：无预算字段（legacy/仅日志产物，视作计数口径）；
     * ``2``：只有 ``time_budget``（``-ltime S``：单种子请求数随机器速度浮动，
-      与固定次数不可比 → 默认 count 模式下让位给 0/1；``--budget time`` 模式下反过来只取 2）。
+      与固定次数不可比 → 本分析固定只留 0/1（rank=2 的 ltime 批直接不装载）。
     """
     if md.get("request_budget") is not None:
         return 0, float(md["request_budget"])
@@ -761,56 +779,61 @@ def main() -> int:
     )
     ap.add_argument(
         "--log-dir", nargs="+", default=None,
-        help="checkpoint/log 目录，可传多个（Full 臂复用 RQ2 时：--log-dir . ../../RQ2）；"
-        f"缺省 {LOG_DIR}",
+        help="checkpoint/log 目录，可传多个（Full 臂复用 RQ2，缺省已包含）；"
+        f"缺省 {' '.join(str(p) for p in DEFAULT_LOG_DIRS)}",
     )
     ap.add_argument(
-        "--budget", choices=["count", "time"], default="count",
-        help="选预算批：count=每种子固定 LLM 请求次数（默认，RQ3 口径）；"
-        "time=-ltime 60 批（RQ3 ltime 战役 + RQ2 RespFuzzer t60 Full；"
-        "NL 臂无 LLM 循环、时间预算惰性 → 沿用 count 批数据）",
-    )
-    ap.add_argument(
-        "--model", default=None,
-        help="按 checkpoint decode_config.llm.model_name 过滤（同目录混放多模型批时必传，"
-        "如 Qwen3.6-35B-A3B / Llama-3.1-8B-Instruct）；缺省不过滤",
+        "--model",
+        default="each",
+        help="each（缺省）= 三个模型各出一段："
+        + " / ".join(MODELS)
+        + "；指定模型名只看一个；none=不过滤（三模型同键互顶，仅自查）",
     )
     args = ap.parse_args()
-    log_dirs = [Path(p) for p in args.log_dir] if args.log_dir else [Path(LOG_DIR)]
+    log_dirs = (
+        [Path(p) for p in args.log_dir] if args.log_dir else list(DEFAULT_LOG_DIRS)
+    )
 
-    inv = load_inventory(log_dirs, budget=args.budget, model=args.model)
+    model_arg = str(args.model).strip().lower()
+    if model_arg == "each":
+        models: list[str | None] = list(MODELS)  # 缺省：三个模型各一段
+    elif model_arg in ("all", "none", ""):
+        models = [None]  # 不过滤（三模型同键互顶，仅自查）
+    else:
+        models = [str(args.model)]
     hierarchical = args.bootstrap == "hierarchical"
 
     print(
         f"# RQ3 消融逐函数配对分析 — {'、'.join(str(d) for d in log_dirs)}"
-        f"（预算批: {args.budget}）\n"
+        "（count 批：-ltime 产物只存档、不装载）\n"
     )
-    counts: dict[str, int] = {}
-    for (mode, _lib), runs in inv.runs.items():
-        counts[mode] = counts.get(mode, 0) + len(runs)
-    print(
-        "加载运行数: "
-        + ", ".join(
-            f"{GROUP_LABEL[g]}={counts.get(g, 0)}" for g in GROUP_ORDER
-        )
-        + "（仅 status=completed 且有 run_index 配对键）\n"
-    )
-    if inv.model_skipped:
+    for model in models:
+        inv = load_inventory(log_dirs, model=model)
+        if len(models) > 1:
+            print(f"## 模型 {model}\n")
+        counts: dict[str, int] = {}
+        for (mode, _lib), runs in inv.runs.items():
+            counts[mode] = counts.get(mode, 0) + len(runs)
         print(
-            f"[model] 按 --model={args.model} 过滤，跳过 "
-            f"{inv.model_skipped} 个非目标模型 checkpoint\n"
+            "加载运行数: "
+            + ", ".join(f"{GROUP_LABEL[g]}={counts.get(g, 0)}" for g in GROUP_ORDER)
+            + "（仅 status=completed 且有 run_index 配对键）\n"
         )
+        if inv.model_skipped:
+            print(
+                f"[model] 按 --model={model} 过滤，跳过 "
+                f"{inv.model_skipped} 个非目标模型 checkpoint\n"
+            )
+        table_descriptive(inv, args.mode)
+        table_paired(inv, args.boot, args.seed, hierarchical, args.mode)
 
-    table_descriptive(inv, args.mode)
-    table_paired(inv, args.boot, args.seed, hierarchical, args.mode)
-
-    if inv.notes:
-        print(f"## Notes（跳过/缺席明细，共 {len(inv.notes)} 条）\n")
-        for note in inv.notes[:30]:
-            print(f"- {note}")
-        if len(inv.notes) > 30:
-            print(f"- …另有 {len(inv.notes) - 30} 条")
-        print()
+        if inv.notes:
+            print(f"## Notes（跳过/缺席明细，共 {len(inv.notes)} 条）\n")
+            for note in inv.notes[:30]:
+                print(f"- {note}")
+            if len(inv.notes) > 30:
+                print(f"- …另有 {len(inv.notes) - 30} 条")
+            print()
     return 0
 
 
