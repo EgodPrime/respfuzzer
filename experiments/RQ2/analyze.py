@@ -21,40 +21,55 @@
   * 总体两行（与 RQ1 的 -overall-micro / -overall-macro 一致）：库为层、
     层内独立重采样——micro 按函数数加权（函数等权），macro 库等权。
 
-函数级指标 = 相对覆盖增益::
+函数级指标 = 行覆盖率 LC（line coverage，%）::
 
-    gain(f) = (cov(f) − init_run) / init_run × 100      # init 为该次运行的
-                                                         # 初始种子覆盖，单位百分点
+    LC(f) = cov(f) / D_lib × 100
 
-其中 cov(f) 为 fuzz 完函数 f 后的累积覆盖（bits）：miniFuzz4All 取 checkpoint
-的 ``events``（逐函数 seed_fuzzed 轨迹）；DyFuzz/RespFuzzer 的 events 为空，
-从同名 ``.log`` 解析 ``Current coverage after fuzzing <func>: N bits``。
+其中 cov(f) 为 fuzz 完函数 f 后的累积覆盖（bits）：RespFuzzer 与 miniFuzz4All 都
+取 checkpoint 里 ``event == "seed_fuzzed"`` 的逐函数轨迹——RespFuzzer 的 events
+还混记 mutant_executed / seed_finished / invalid_llm_output 等事件（实测一次 run
+1228 条事件里只有 100 条 seed_fuzzed），**必须按 event 过滤**，否则会被误判成
+「运行未完成」而整组跳过；DyFuzz 的 events 为空，从同名 ``.log`` 解析
+``Current coverage after fuzzing <func>: N bits``。
+
+其中 D_lib = ``coverage_denominators.json`` 的 ``package_statements``：目标库
+**安装包目录下全部 .py** 的 coverage.py 语句数（静态解析）——与 dcov 插桩同宽
+（``LoaderWrapper``+``add_library`` 只给 ``is_relative_to(sources)`` 的模块插桩），
+故 LC 恒 ≤ 100%。
+
+**模型维（本 RQ2 只采用 Qwen3.6-35B-A3B）**：RespFuzzer 另有 Llama-3.1-8B-Instruct
+与 gpt-oss-120b 两批产物，miniFuzz4All 只有 Qwen 一批，DyFuzz 不调 LLM（其
+checkpoint 里的 model_name 只是运行配置的残留字段）。``--model`` 默认锁定
+``Qwen3.6-35B-A3B``，使三组在同一模型 / 同一端点下严格配对；``--model all``
+关闭过滤，仅供自查（会把 RespFuzzer 三个模型混在一起，配对即失真）。
 
 每个 pair × budget × 库一行（后接 micro / macro 汇总行）：
 
-  * Δ：两组配对函数增益差（A − B）的等权均值，单位 pp；
+  * Δ：两组配对函数 LC 差（A − B）的等权均值，单位 pp；两组同种子集出发，Δ 即覆盖增量差；
   * 95% CI：配对 bootstrap 百分位区间（默认 B=10000，rng_seed=42 可复现）；
   * p：函数级配对**符号翻转**（sign-flip）随机化检验的双侧 p 值——以聚合后
     的逐函数配对差值为统计量（cluster / hierarchical 同口径），对每个函数的
     差值随机取 ±（要求差值在 H0 下近似对称）；
   * 显著性 sig：CI 不含 0 且 p < 0.05 记 `*`，否则 `n.s.`；
-  * Cohen's h：2·arcsin√p_A − 2·arcsin√p_B，p = clip(gain/100, 0, 1)——
+  * Cohen's h：2·arcsin√p_A − 2·arcsin√p_B，p = LC/100 ∈ [0, 1]（LC 本身即包覆盖比例）——
     比例型效应量，**点估计与 bootstrap CI 同源**（每次重采样同时重算两组均值
     再算 h，与 RQ1 的 h CI 口径一致），|h|<0.5 small / 0.5–0.8 medium /
     ≥0.8 large；
   * Cohen's d：配对差值均值 / 标准差（dz，pp 尺度，补充参考）。
 
-配对缺失的处理（不静默）：缺 run_index 配对键（如早期 legacy 产物）、事件数与
-seed_count 不符（运行未完成）、日志轨迹不完整的运行一律跳过并列入文末 Notes；
+配对缺失的处理（不静默）：缺 run_index 配对键（如早期 legacy 产物）、``seed_fuzzed``
+事件数与 seed_count 不符（运行未完成）、日志轨迹不完整的运行一律跳过并列入文末
+Notes；被 ``--model`` 滤掉的产物按 (组, 模型) 汇总成一条 Notes，不逐条刷屏；
 某库在某对比较下没有任何共同 run_index 时整行缺席并说明；函数交集小于任一
 运行的函数全集时在 Notes 提示配对丢失。
 
 用法::
-
     uv run python experiments/RQ2/analyze.py
     uv run python experiments/RQ2/analyze.py --budget count
     uv run python experiments/RQ2/analyze.py --bootstrap hierarchical
     uv run python experiments/RQ2/analyze.py --boot 2000 --seed 7
+    uv run python experiments/RQ2/analyze.py --model Llama-3.1-8B-Instruct
+    uv run python experiments/RQ2/analyze.py --model all      # 关闭模型过滤（自查）
 """
 
 from __future__ import annotations
@@ -91,7 +106,32 @@ RUN_GLOBS = {
     "dyfuzz": "rq*_dyfuzz_*_checkpoint.json",
     "respfuzzer": "rq*_respfuzzer_*_checkpoint.json",
 }
+
+#: 本 RQ2 只采用这一批模型结果：miniFuzz4All 只有 Qwen 批产物（另两个模型未跑），
+#: RespFuzzer 三模型都有，DyFuzz 无 LLM。``--model all`` 关闭过滤（仅供自查）。
+MODEL_DEFAULT = "Qwen3.6-35B-A3B"
+#: checkpoint 与 .log 的同 stem 关系（见 common.pairing）
+CHECKPOINT_SUFFIX = "_checkpoint.json"
 COV_LINE = re.compile(r"Current coverage after fuzzing (.+?): (\d+) bits")
+
+#: LC 分母 D_lib = 各库**整包** coverage.py 语句数（与 dcov 位图同宽），
+#: 数据在 coverage_denominators.json；缺失即失败，不猜口径。
+DENOM_PATH = LOG_DIR / "coverage_denominators.json"
+
+
+def load_denominators() -> dict[str, int]:
+    """读取各库 LC 分母 ``package_statements``；文件/字段缺失立即报错。"""
+    try:
+        data = json.loads(DENOM_PATH.read_text(encoding="utf-8"))
+        return {k: int(v["package_statements"]) for k, v in data["libs"].items()}
+    except (OSError, json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
+        raise SystemExit(
+            f"无法读取 LC 分母 {DENOM_PATH}: {e}\n"
+            "该文件由整包语句数统计生成，见 experiments/RQ2/rq2.md"
+        ) from e
+
+
+DENOMS = load_denominators()
 
 B_DEFAULT = 10_000
 BOOT_SEED_DEFAULT = 42
@@ -104,12 +144,23 @@ N_COLS = 15
 
 @dataclass
 class RunData:
-    """一次完成运行的逐函数增益。"""
+    """一次完成运行的逐函数行覆盖率 LC。"""
 
     init: float
     final: float
-    gains: dict[str, float]  # func_path -> gain%（相对该次运行初始覆盖）
+    lc: dict[str, float]  # func_path -> LC% = cov/D_lib×100（D_lib 见 DENOMS）
+    denom: int  # 本次运行所在库的 LC 分母（整包语句数）
     duration_s: float
+
+    seed_count: int = 0
+    llm_calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    api_calls: int = 0  # DyFuzz：实际测试执行次数（results.total_api_calls）
+    model: str = ""
+    source: str = ""  # checkpoint 文件名，供 runs 表溯源
+    seed: int = 0  # metadata.seed：同 run_index ⇒ 同种子（CRN 凭据）
 
 
 @dataclass
@@ -119,6 +170,8 @@ class Inventory:
         default_factory=dict
     )
     notes: list[str] = field(default_factory=list)
+    #: 被 --model 滤掉的产物计数：(group, model) → 件数，汇总成一条 Notes
+    model_skips: dict[tuple[str, str], int] = field(default_factory=dict)
 
 
 def budget_key(md: dict) -> tuple[str, str] | None:
@@ -152,7 +205,23 @@ def per_func_from_log(log_path: Path) -> dict[str, int] | None:
     return out or None
 
 
-def load_checkpoint(path: Path, group: str, inv: Inventory) -> None:
+def run_model(d: dict) -> str:
+    """checkpoint → 生效模型名；不调 LLM 的组返回 ``no-llm``。
+
+    取 ``decode_config.llm.model_name``，回退 ``config.llm.model_name``（301/301
+    件实测两者一致）。``results.llm_calls == 0`` 说明本组未调 LLM（DyFuzz），
+    其 model_name 只是运行配置残留，不能当模型维用。
+    """
+    if not (d.get("results") or {}).get("llm_calls"):
+        return "no-llm"
+    dc = (d.get("decode_config") or {}).get("llm") or {}
+    cfg = (d.get("config") or {}).get("llm") or {}
+    return str(dc.get("model_name") or cfg.get("model_name") or "unknown")
+
+
+def load_checkpoint(
+    path: Path, group: str, inv: Inventory, model_filter: str | None = MODEL_DEFAULT
+) -> None:
     try:
         d = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
@@ -162,6 +231,13 @@ def load_checkpoint(path: Path, group: str, inv: Inventory) -> None:
 
     if d.get("status") != "completed":
         inv.notes.append(f"skip {name}: status={d.get('status')}")
+        return
+    # 模型过滤：锁定 Qwen 批；``no-llm``（DyFuzz，不调 LLM）恒放行，
+    # 它没有模型维，配对靠同 run_index ⇒ 同 seed 的 CRN 成立。
+    model = run_model(d)
+    if model_filter is not None and model not in (model_filter, "no-llm"):
+        skip_key = (group, model)
+        inv.model_skips[skip_key] = inv.model_skips.get(skip_key, 0) + 1
         return
 
     md = d.get("metadata") or {}
@@ -190,16 +266,30 @@ def load_checkpoint(path: Path, group: str, inv: Inventory) -> None:
     # 逐函数轨迹：events 优先（miniFuzz4All），空则回退日志解析（DyFuzz 等）
     cov_by_func: dict[str, float]
     events = d.get("events") or []
+    # 只有 event == "seed_fuzzed" 才是逐函数完成点。RespFuzzer 的 events 混记
+    # mutant_executed / seed_finished / invalid_llm_output 等（实测一次 run 1228
+    # 条事件里 100 条 seed_fuzzed）；早期 fuzz4all 产物没有 event 字段、其 events
+    # 全是 seed_fuzzed，故缺字段时原样采用。
+    traced = [e for e in events if e.get("event", "seed_fuzzed") == "seed_fuzzed"]
     if events:
-        if len(events) != seed_count:
+        if len(traced) != seed_count:
             inv.notes.append(
-                f"skip {name}: events {len(events)} != seed_count {seed_count}（运行未完成）"
+                f"skip {name}: seed_fuzzed {len(traced)} != seed_count "
+                f"{seed_count}（events 共 {len(events)} 条，运行未完成）"
             )
             return
-        cov_by_func = {e["func_name"]: float(e["coverage"]) for e in events}
+        cov_by_func = {e["func_name"]: float(e["coverage"]) for e in traced}
     else:
-        log_name = d.get("log") or path.with_suffix(".log").name
-        parsed = per_func_from_log(path.with_name(log_name))
+        # DyFuzz 无 events → 解析 .log：优先同 stem（改名后仍成立），
+        # checkpoint 的 log 字段只作回退
+        if path.name.endswith(CHECKPOINT_SUFFIX):
+            stem = path.name[: -len(CHECKPOINT_SUFFIX)]
+        else:
+            stem = path.stem
+        log_path = path.with_name(stem + ".log")
+        if not log_path.is_file() and d.get("log"):
+            log_path = path.with_name(str(d["log"]))
+        parsed = per_func_from_log(log_path)
         if not parsed or len(parsed) != seed_count:
             inv.notes.append(
                 f"skip {name}: 日志逐函数轨迹不完整 "
@@ -208,18 +298,32 @@ def load_checkpoint(path: Path, group: str, inv: Inventory) -> None:
             return
         cov_by_func = {k: float(v) for k, v in parsed.items()}
 
-    gains = {f: (c - init) / init * 100.0 for f, c in cov_by_func.items()}
+    denom = DENOMS.get(lib)
+    if not denom:
+        inv.notes.append(f"skip {name}: coverage_denominators.json 缺 {lib} 的分母")
+        return
+    lc = {f: c / denom * 100.0 for f, c in cov_by_func.items()}
     run = RunData(
         init=float(init),
         final=float(final),
-        gains=gains,
+        lc=lc,
+        denom=denom,
         duration_s=float(d.get("duration_seconds") or 0),
+        seed_count=int(seed_count),
+        llm_calls=int(res.get("llm_calls") or 0),
+        input_tokens=int(res.get("input_tokens") or 0),
+        output_tokens=int(res.get("output_tokens") or 0),
+        total_tokens=int(res.get("total_tokens") or 0),
+        api_calls=int(res.get("total_api_calls") or 0),
+        model=model,
+        seed=int(md.get("seed") or 0),
+        source=name,
     )
     key = (bk[0], bk[1], lib, group)
     inv.runs.setdefault(key, {})[int(run_index)] = run
 
 
-def load_inventory() -> Inventory:
+def load_inventory(model: str | None = MODEL_DEFAULT) -> Inventory:
     inv = Inventory()
     for group, pattern in RUN_GLOBS.items():
         paths = sorted(glob.glob(str(LOG_DIR / pattern)))
@@ -228,7 +332,15 @@ def load_inventory() -> Inventory:
                 "RespFuzzer 组尚无 checkpoint（rq*_respfuzzer_*），相关比较缺席"
             )
         for p in paths:
-            load_checkpoint(Path(p), group, inv)
+            load_checkpoint(Path(p), group, inv, model)
+    if inv.model_skips:
+        inv.notes.append(
+            "按 --model 滤除："
+            + "；".join(
+                f"{GROUP_LABEL.get(g, g)}/{m} {n} 件"
+                for (g, m), n in sorted(inv.model_skips.items())
+            )
+        )
     return inv
 
 
@@ -390,7 +502,7 @@ def pair_row(
     # 函数全集取所有配对运行的交集，保证严格逐函数配对（对齐 RQ1 的全集校验）
     funcs: set[str] | None = None
     for r in common:
-        fset = set(a_runs[r].gains) & set(b_runs[r].gains)
+        fset = set(a_runs[r].lc) & set(b_runs[r].lc)
         funcs = fset if funcs is None else (funcs & fset)
     funcs = funcs or set()
     label = f"{GROUP_LABEL[a_group]}/{GROUP_LABEL[b_group]} {budget_label(budget, value)} {lib}"
@@ -398,7 +510,7 @@ def pair_row(
         inv.notes.append(f"pair {label}: 配对运行无共同函数")
         return None
     max_own = max(
-        max(len(a_runs[r].gains), len(b_runs[r].gains)) for r in common
+        max(len(a_runs[r].lc), len(b_runs[r].lc)) for r in common
     )
     if len(funcs) < max_own:
         inv.notes.append(
@@ -409,10 +521,10 @@ def pair_row(
     # (n_funcs, n_runs) 矩阵：函数字典序对齐，runs 顺序 = common（两组一致）
     sorted_funcs = sorted(funcs)
     a_mat = np.array(
-        [[a_runs[r].gains[f] for r in common] for f in sorted_funcs]
+        [[a_runs[r].lc[f] for r in common] for f in sorted_funcs]
     )
     b_mat = np.array(
-        [[b_runs[r].gains[f] for r in common] for f in sorted_funcs]
+        [[b_runs[r].lc[f] for r in common] for f in sorted_funcs]
     )
 
     # 点估计：与重采样同口径——cluster 聚合后均值；hierarchical 同为
@@ -457,30 +569,31 @@ def pair_row(
 
 
 def table_descriptive(inv: Inventory, only: str | None = None) -> None:
-    """表 1：各组最终覆盖与相对增益的描述统计（按次运行为样本）。"""
+    """表 1：各组初始/最终行覆盖率 LC 与覆盖增量的描述统计（按次运行为样本）。"""
     print("## 表 1 · 描述统计（每次运行为样本）\n")
     print(
-        "| budget | lib | group | n runs | final cov (bits, mean±sd) | "
-        "gain % (mean±sd) |"
+        "| budget | lib | group | n runs | LC_init % (mean±sd) | "
+        "LC_final % (mean±sd) | Δ pp (mean±sd) |"
     )
-    print("|---|---|---|---|---|---|")
+    print("|---|---|---|---|---|---|---|")
     for budget, value in iter_budget_values(inv, only):
         for lib in LIBS:
             for group in GROUP_ORDER:
                 runs = inv.runs.get((budget, value, lib, group))
                 if not runs:
                     continue
-                finals = np.array([r.final for r in runs.values()])
-                gains = np.array(
-                    [(r.final - r.init) / r.init * 100.0 for r in runs.values()]
-                )
+                inits = np.array([r.init / r.denom * 100.0 for r in runs.values()])
+                finals = np.array([r.final / r.denom * 100.0 for r in runs.values()])
+                delta = finals - inits
+                isd = inits.std(ddof=1) if len(runs) > 1 else 0.0
                 fsd = finals.std(ddof=1) if len(runs) > 1 else 0.0
-                gsd = gains.std(ddof=1) if len(runs) > 1 else 0.0
+                dsd = delta.std(ddof=1) if len(runs) > 1 else 0.0
                 print(
                     f"| {budget_label(budget, value)} | {lib} "
                     f"| {GROUP_LABEL[group]} | {len(runs)} "
-                    f"| {finals.mean():.0f}±{fsd:.0f} "
-                    f"| {gains.mean():+.2f}±{gsd:.2f} |"
+                    f"| {inits.mean():.2f}±{isd:.2f} "
+                    f"| {finals.mean():.2f}±{fsd:.2f} "
+                    f"| {delta.mean():+.3f}±{dsd:.3f} |"
                 )
     print()
 
@@ -496,12 +609,12 @@ def table_paired(
     stage = "函数+重复两阶段" if hierarchical else "函数级（cluster）"
     print("## 表 2 · 两两逐函数配对分析\n")
     print(
-        "Δ = (gain_A − gain_B) 的逐函数等权均值（gain = (cov − init)/init×100，pp）；"
+        "Δ = (LC_A − LC_B) 的逐函数等权均值（LC = cov/D_lib×100，D_lib = 整包语句数，pp）；"
         f"CI = 配对 bootstrap 95%（{stage}，两组共用函数/重复索引，"
         f"B={boot}, rng_seed={seed}，每行独立 RNG 流可复现）；"
         "p = 配对符号翻转检验（双侧，聚合后逐函数差值）；"
         "sig：CI 不含 0 且 p<0.05 记 `*`；"
-        "h = Cohen's h（p=clip(gain/100,0,1)，CI 与点估计同源 bootstrap；"
+        "h = Cohen's h（p = LC/100 ∈ [0,1]，CI 与点估计同源 bootstrap；"
         "<0.5 small / 0.5–0.8 medium / ≥0.8 large）；"
         "d = 配对差值 Cohen's dz（pp 尺度）；"
         "micro = 函数等权（按函数数加权）、macro = 库等权"
@@ -509,7 +622,7 @@ def table_paired(
     )
     header = [
         "pair (A−B)", "budget", "lib", "n func", "n run",
-        "gain_A %", "gain_B %", "Δ pp", "Δ 95% CI", "p", "sig",
+        "LC_A %", "LC_B %", "Δ pp", "Δ 95% CI", "p", "sig",
         "Cohen's h", "h 95% CI", "h 幅度", "Cohen's d",
     ]
     print("| " + " | ".join(header) + " |")
@@ -550,12 +663,12 @@ def emit_pair_row(label: str, r: dict) -> None:
         f"{r['n_runs']} ({','.join(map(str, r['run_indices']))})",
         f"{r['a_mean']:+.2f}",
         f"{r['b_mean']:+.2f}",
-        f"{r['diff']:+.2f}",
-        f"[{lo:+.2f}, {hi:+.2f}]",
+        f"{r['diff']:+.3f}",
+        f"[{lo:+.3f}, {hi:+.3f}]",
         fmt_p(r["p"]),
         "*" if r["sig"] else "n.s.",
-        f"{r['h']:+.3f}",
-        f"[{hlo:+.3f}, {hhi:+.3f}]",
+        f"{r['h']:+.4f}",
+        f"[{hlo:+.4f}, {hhi:+.4f}]",
         h_magnitude(r["h"]),
         f"{r['d']:+.2f}" if np.isfinite(r["d"]) else "n/a",
     ]
@@ -613,12 +726,12 @@ def emit_overall_rows(
             "-",
             f"{a_point:+.2f}",
             f"{b_point:+.2f}",
-            f"{a_point - b_point:+.2f}",
-            f"[{lo:+.2f}, {hi:+.2f}]",
+            f"{a_point - b_point:+.3f}",
+            f"[{lo:+.3f}, {hi:+.3f}]",
             fmt_p(p),
             "*" if sig else "n.s.",
-            f"{h:+.3f}",
-            f"[{h_lo:+.3f}, {h_hi:+.3f}]",
+            f"{h:+.4f}",
+            f"[{h_lo:+.4f}, {h_hi:+.4f}]",
             h_magnitude(h),
             "-",
         ]
@@ -651,11 +764,16 @@ def main() -> int:
         "--log-dir", default=str(LOG_DIR),
         help="checkpoint/log 目录（默认本脚本所在目录）",
     )
+    ap.add_argument(
+        "--model", default=MODEL_DEFAULT,
+        help=f"只分析该模型的产物（默认 {MODEL_DEFAULT}）；all = 不过滤（自查用）",
+    )
     args = ap.parse_args()
 
     LOG_DIR = Path(args.log_dir)
 
-    inv = load_inventory()
+    model = None if args.model in ("all", "none", "") else args.model
+    inv = load_inventory(model)
     hierarchical = args.bootstrap == "hierarchical"
 
     print(f"# RQ2 两两逐函数配对分析 — {LOG_DIR}\n")
@@ -665,7 +783,12 @@ def main() -> int:
     print(
         "加载运行数: "
         + ", ".join(f"{GROUP_LABEL[g]}={counts.get(g, 0)}" for g in GROUP_ORDER)
-        + "（仅 status=completed 且有 run_index 配对键）\n"
+        + f"（model={model or 'all，未过滤'}；仅 status=completed 且有 run_index 配对键）\n"
+    )
+
+    print(
+        f"LC 分母 D_lib：coverage_denominators.json 的 package_statements"
+        f"（整包语句数，{len(DENOMS)} 库：{'/'.join(sorted(DENOMS))}）\n"
     )
 
     table_descriptive(inv, args.budget)
