@@ -6,7 +6,7 @@
 ``prepare_run_seed(seed, run_index, section="fuzz")`` 派生同一随机种子（common
 random numbers），各配置又从同一批种子出发，因此每个函数在配置间天然成对。
 
-**NSF（无语义过滤）已从消融设计移除**：语义有效性弱化为「函数调用成功」、
+**NSF（无语义过滤）已从消融设计移除**：判据已统一为「包含有效调用」、
 异常也计入模糊测试信号后，语义过滤不构成独立可消融维度 → 模式解析拒绝 NSF
 （入口直接报错），历史 ``mode-nsf`` 产物装载期静默跳过（存档不分析，同
 ``-ltime`` 批规则，不进 Notes）。
@@ -210,7 +210,7 @@ def load_checkpoint(
         # 口径不同，不参与配对分析。
         inv.notes.append(f"skip {name}: 无 run_index 配对键（legacy/非配对产物）")
         return
-    # NSF 消融组已从设计移除（语义有效性弱化为调用成功 + 异常计入信号后，
+    # NSF 消融组已从设计移除（判据已统一为「包含有效调用」+ 异常计入信号后，
     # 语义过滤不再构成独立维度）→ 历史 mode-nsf 产物只作存档，静默跳过
     # （同 -ltime 批规则：不竞争、不进 Notes）。
     raw_mode = str(d.get("mode") or md.get("mode") or "").strip().lower()

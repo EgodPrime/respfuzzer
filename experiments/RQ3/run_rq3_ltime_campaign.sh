@@ -36,7 +36,7 @@ PROGRESS="$DATA_DIR/campaign_progress_ltime_${MODEL_TAG}.tsv"
 MODE="${1:-}"
 case "$MODE" in
     NP|NCF) ;;
-    NSF) echo "NSF 已从消融设计移除（语义有效性弱化为调用成功 + 异常计入信号后无独立维度），不再跑批"; exit 1 ;;
+    NSF) echo "NSF 已从消融设计移除（判据已统一为「包含有效调用」+ 异常计入信号后无独立维度），不再跑批"; exit 1 ;;
     *) echo "usage: $0 <NP|NCF>   (NL/Full 不在此战役：见脚本头注)"; exit 1 ;;
 esac
 

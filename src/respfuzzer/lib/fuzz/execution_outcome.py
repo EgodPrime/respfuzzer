@@ -1,6 +1,6 @@
 """变体执行结果（含运行时异常）在 worker 与父进程之间的传递类型。
 
-运行时异常必须参与算法2 的语义奖励计算：若异常只被静默捕获（`exec(seed.function_call)`
+运行时异常必须参与「是否包含有效调用」的判定：若异常只被静默捕获（`exec(seed.function_call)`
 外的 `except Exception: pass`），运行时异常就无法进入奖励通路。
 本模块提供：
 
@@ -11,7 +11,7 @@
   （供后续「函数调用成功覆盖率」等分析使用，不影响奖励计算）。
 
 奖励计算统一由 :meth:`respfuzzer.lib.fuzz.llm_mutator.LLMMutator.reward_for_outcome`
-完成：只要出现运行时异常，就按语义无效处理（奖励降到 0，且不再计算覆盖率增益）。
+完成：只要出现运行时异常，就视同未包含有效调用（奖励降到 0，且不再计算覆盖率增益）。
 """
 
 from dataclasses import dataclass

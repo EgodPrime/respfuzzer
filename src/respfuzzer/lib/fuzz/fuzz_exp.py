@@ -39,7 +39,7 @@ def continue_safe_execute(recv: Queue, send: Queue, process_index: int) -> None:
       - "exit" : 退出子进程。
 
     每条指令执行完毕后，通过 send 回传一个 ExecutionOutcome（执行期抛出的运行时异常
-  会被记录其中并交回父进程，参与算法2 的语义奖励计算）。
+  会被记录其中并交回父进程，用于判定变体是否包含有效调用）。
     """
     os.setpgid(0, 0)  # 设置进程组ID，便于后续杀死子进程
     fake_stdout = io.StringIO()
@@ -225,7 +225,7 @@ def fuzz_single_seed(
             outcome=outcome.describe(),
         )
         if outcome.has_runtime_error:
-            # 运行时异常按语义无效计奖：奖励降到 0，且不再计算覆盖率增益
+            # 运行时异常视同未包含有效调用：奖励降到 0，且不再计算覆盖率增益
             Mutator.update_reward(mutation_type, Mutator.reward_for_outcome(outcome))
             logger.info(
                 f"LLM Mutant {mutant.id} of seed {seed.id} raised a runtime error: "

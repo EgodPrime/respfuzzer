@@ -1,11 +1,11 @@
 """单元测试：无效的 LLM 输出也占用算法2 的变异预算。
 
-改动前 ``random_llm_mutate()`` 会在同一个预算槽内重试语义检查（最多 3 次），
+改动前 ``random_llm_mutate()`` 会在同一个预算槽内重试有效调用检查（最多 3 次），
 且 ``llm_mutate()`` 成功后仍循环调用 LLM 三次，因此「一个预算槽」最多可产生
 9 次 LLM 请求、且无效输出不消耗预算。本文件固定改动后的口径：
 
 - 一次 ``llm_mutate()`` 成功即返回（一次预算槽 ≈ 一次 LLM 请求）；
-- 语义无效的 LLM 输出消耗一个预算槽并返回 ``None``，不再重试；
+- 未通过「包含有效调用」判定的 LLM 输出消耗一个预算槽并返回 ``None``，不再重试；
 - LLM 调用失败（超时/异常）按 ``LLM_MUTATE_ATTEMPTS`` 次有界重试，属基础设施
   容错，不额外消耗预算槽。
 """
@@ -21,7 +21,7 @@ from respfuzzer.lib.fuzz.llm_mutator import (
 from respfuzzer.models import Seed
 
 VALID_CODE = "import math\nresult = math.ceil(1.5)"
-# 语法有效、但只调用了同库的另一个函数：语义检查应以 no_target_call 拒绝
+# 语法有效、但只调用了同库的另一个函数：有效调用检查应以 no_target_call 拒绝
 NO_TARGET_CALL_CODE = "import math\nresult = math.floor(1.5)"
 SYNTAX_ERROR_CODE = "import math\nresult = math.ceil("
 
@@ -123,11 +123,11 @@ def test_valid_output_returns_mutant_and_keeps_reward(install_stub):
     assert mutation_type == 0
     assert mutant.function_call == VALID_CODE
     assert stub.calls == 1
-    assert mutator.mu[0] == 0.5, "语义有效不改变期望奖励（等后续覆盖率反馈）"
+    assert mutator.mu[0] == 0.5, "包含有效调用不改变期望奖励（等后续覆盖率反馈）"
 
 
 # 注：W/O-S.M.（NSF 消融组）的 no_check_semantic 旁路测试已随 NSF 设计移除——
-# 语义有效性弱化为「调用成功」、异常计入信号后，语义过滤不再是独立消融维度，
+# 判据已是「包含有效调用」+ 异常计入信号后，语义过滤不再是独立消融维度，
 # random_llm_mutate 不再提供跳过检查的开关。
 
 def test_invocation_failure_returns_none_and_consumes_slot(install_stub):

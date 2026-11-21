@@ -3,7 +3,7 @@
 论文对该函数的描述是：生成的变体 ``v`` 必须既能通过 Python 内建函数 ``compile``，
 又包含对目标函数的有效调用。
 
-本模块据此把语义有效性拆成两个层次：
+本模块据此把「包含有效调用」的判定拆成两个层次：
 
 1. **语法检查（``ast.parse``）**：只捕获解析阶段的 ``SyntaxError``。
 2. **编译检查（``compile``）**：在语法检查之上额外执行符号表分析与字节码生成，
@@ -46,7 +46,7 @@ REASON_NO_TARGET_CALL = "no_target_call"
 
 @dataclass
 class CheckResult:
-    """语义有效性检查的结果。
+    """「包含有效调用」判定的结果。
 
     Attributes:
         ok: 变体是否通过检查（即算法2 中 ``IsValidSemantic(v) == true``）

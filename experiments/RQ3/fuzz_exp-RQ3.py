@@ -50,8 +50,8 @@ def _parse_mode(mode: str) -> tuple[bool, bool, bool]:
     | "NP,NCF"    | False  | True         | True            | Yes     | No        | No           |
     | "NL,NP,NCF" | True   | True         | True            | No      | No        | No           |
 
-    **NSF（W/O-S.M. 无语义过滤）已从消融设计中移除**：语义有效性已弱化为
-    「函数调用成功」、异常也计入模糊测试信号后，语义过滤不再构成独立维度，
+    **NSF（W/O-S.M. 无语义过滤）已从消融设计中移除**：判据已统一为
+    「包含有效调用」、异常也计入模糊测试信号后，语义过滤不再构成独立维度，
     无可消融对象 → 传入任何含 NSF 的 mode 直接报错（防误跑，历史 mode-nsf
     产物由分析层存档跳过）。
     """
@@ -61,7 +61,7 @@ def _parse_mode(mode: str) -> tuple[bool, bool, bool]:
     parts = {p.strip().upper() for p in mode.split(",") if p.strip()}
     if "NSF" in parts:
         raise ValueError(
-            "NSF 模式已移除（语义有效性弱化为调用成功 + 异常计入信号后，"
+            "NSF 模式已移除（判据已统一为「包含有效调用」+ 异常计入信号，"
             "语义过滤不构成独立消融维度）；有效模式：NL / NP / NCF 及其组合"
         )
     no_llm = "NL" in parts

@@ -87,8 +87,8 @@ def test_calculate_reward_values():
     assert mutator.calculate_reward(False, 1.0) == 1.0
 
 
-def test_runtime_error_is_semantic_negative_feedback():
-    """有运行时异常时按语义无效处理：奖励 0，且覆盖率增益不再计入。"""
+def test_runtime_error_treated_as_no_valid_call():
+    """有运行时异常时视同未包含有效调用：奖励 0，且覆盖率增益不再计入。"""
     mutator = LLMMutator(_seed())
     outcome = classify_exception(_capture(lambda: exec("raise ValueError('boom')")))
     assert mutator.reward_for_outcome(outcome) == 0.0

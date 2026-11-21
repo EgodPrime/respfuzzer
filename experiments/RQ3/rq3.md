@@ -2,7 +2,7 @@
 
 ## 实验说明
 
-对 RespFuzzer 的**语义驱动变异**做消融：关掉其中一个能力后看行覆盖率 LC 掉多少。三个消融臂都与 **Full 臂**（完整 RespFuzzer）在同 `(库, run_index)` 上逐函数配对；Full 臂**不重跑**，直接复用 RQ2 已跑完的 RespFuzzer 结果。**NSF（无语义过滤）已从消融设计中移除**：语义有效性弱化为「调用成功」、异常也计入模糊测试信号后，语义过滤不再构成独立可消融维度（该旁路开关已从 `llm_mutator` / 消融入口删除，历史 NSF 产物仅存档）。
+对 RespFuzzer 的**语义驱动变异**做消融：关掉其中一个能力后看行覆盖率 LC 掉多少。三个消融臂都与 **Full 臂**（完整 RespFuzzer）在同 `(库, run_index)` 上逐函数配对；Full 臂**不重跑**，直接复用 RQ2 已跑完的 RespFuzzer 结果。**NSF（无语义过滤）已从消融设计中移除**：判据已统一为「包含有效调用」、异常也计入模糊测试信号后，语义过滤不再构成独立可消融维度（该旁路开关已从 `llm_mutator` / 消融入口删除，历史 NSF 产物仅存档）。
 
 | 维度 | 取值 |
 |---|---|
@@ -17,7 +17,7 @@
 
 | Mode | 效果 |
 |---|---|
-| `Full` | LLM 变异 + 参数变异 + 覆盖反馈全开（= RQ2 RespFuzzer 配置，故复用；语义有效性 = 调用成功，异常计入信号） |
+| `Full` | LLM 变异 + 参数变异 + 覆盖反馈全开（= RQ2 RespFuzzer 配置，故复用；判据 = 包含有效调用，异常计入信号） |
 | `NL` | No LLM-based mutation |
 | `NP` | No traditional parameter mutation |
 | `NCF` | No coverage feedback |
@@ -206,5 +206,5 @@
 - **分层标签只部分命中 capped100 函数**：nltk 67 / numpy 80 / pandas 78 / scipy 100 / sklearn 95 / spacy 76，未命中统一进 `unknown` 层，命中率由脚本逐库打印
 - **1 件 failed checkpoint**：`rq3_respfuzzer_experiments_20261106T205419_checkpoint.json`（status=failed），不进分析；孤儿 `.log` 0（该 failed 件属历史 NSF 批）
 - **分析范围固定 count 批**：`-ltime 60` 批（NP/NCF 每模型 60 run、三模型共 180 run）、历史 NSF 批（每模型 60 run、三模型共 180 run）与 RQ2 目录里的 t60 产物只作存档——装载期直接跳过，不参与统计也不进 Notes；`--budget` 开关已移除，不存在「time 批分析结果」。跨预算口径的 count vs ltime 稳健性对照如需重做，须先恢复该开关（历史产物与当时的分析输出仍留存在 `run_data/analysis_*_ltime_*.txt` 与 ltime track 中）
-- **NSF 消融已从设计移除**：语义有效性弱化为「调用成功」+ 异常计入模糊测试信号后，语义过滤不构成独立可消融维度——`llm_mutator.random_llm_mutate` 的 `no_check_semantic` 旁路已删除，入口 `--mode NSF` 直接报错退出，装载期静默跳过历史 `mode-nsf` 180 件产物；如需恢复该对照，须回滚上述两处实现（NSF 组的历史结果见各 `rq3_*_track.md` 存档）
+- **NSF 消融已从设计移除**：判据已统一为「包含有效调用」+ 异常计入模糊测试信号后，语义过滤不构成独立可消融维度——`llm_mutator.random_llm_mutate` 的 `no_check_semantic` 旁路已删除，入口 `--mode NSF` 直接报错退出，装载期静默跳过历史 `mode-nsf` 180 件产物；如需恢复该对照，须回滚上述两处实现（NSF 组的历史结果见各 `rq3_*_track.md` 存档）
 - **模型过滤是必需的**：三模型批同目录同名规则，靠 `checkpoint.decode_config.llm.model_name` 区分；`analyze.py` / `report_tables.py` 缺省 `--model each`——**一次输出三模型**（analyze 每模型一段、report_tables 每模型一套文件），`--model <模型名>` 只看一个，`--model none` 关闭过滤只用于自查（run_index 会互相顶替，统计失真）

@@ -1,7 +1,7 @@
 """
 单种子变异预算：``-lrequest`` / ``-ltime``（与 miniFuzz4All 同语义）。
 
-RespFuzzer 是基于 LLM 的 fuzzer：一次预算槽 ≈ 一次 LLM 请求（语义无效的
+RespFuzzer 是基于 LLM 的 fuzzer：一次预算槽 ≈ 一次 LLM 请求（未包含有效调用的
 输出同样消耗一个槽，见 ``tests/fuzz/test_mutation_budget.py``）。两个预算
 同时生效、先耗尽者停；只给 ``-ltime`` 时不限次数（时间内尽可能多变异）；
 两个都不给时报错退出（强制 CLI，与 DyFuzz 一致，无 config 兜底）。
