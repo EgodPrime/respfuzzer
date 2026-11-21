@@ -787,7 +787,8 @@ def figure_bylib(
                     elinewidth=1.5, capsize=3.5, capthick=1.3, zorder=3,
                     label=analyze.GROUP_LABEL[group],
                 )
-            ax.set_yticks([0, 1], ["Fuzz4All", "DyFuzz"], fontsize=8.5)
+            ax.set_yticks([0, 1], [analyze.GROUP_LABEL["fuzz4all"],
+                                   analyze.GROUP_LABEL["dyfuzz"]], fontsize=8.5)
             ax.set_ylim(1.6, -0.6)
             ax.set_title(lib, fontsize=10, loc="left")
             if pts:

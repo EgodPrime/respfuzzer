@@ -1,7 +1,7 @@
 """
 Parse RQ3 experiment logs and generate a Markdown comparison table.
 
-Rows: 3 fuzzers (DyFuzz / Fuzz4All / RespFuzzer)
+Rows: 3 fuzzers (DyFuzz / miniFuzz4All / RespFuzzer)
 Cols: 12 libraries (coverage %) + Average + #Time
 
 Multiple log files per (fuzzer, library) are automatically averaged.
@@ -119,7 +119,7 @@ def extract_final_coverage_and_time(log_path: str):
 #: 日志文件名里的 fuzzer 段 → 报表显示名
 FUZZER_DISPLAY = {
     "dyfuzz": "DyFuzz",
-    "fuzz4all": "Fuzz4All",
+    "fuzz4all": "miniFuzz4All",
     "respfuzzer": "RespFuzzer",
 }
 
@@ -282,7 +282,7 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
                         time_data: dict[str, dict[str, int]]) -> str:
     """
     Generate a Markdown pipe table:
-        rows: DyFuzz | Fuzz4All | RespFuzzer
+        rows: DyFuzz | miniFuzz4All | RespFuzzer
         cols: 12 library names + Average + #Time
     """
     fuzzers = FUZZER_ORDER
@@ -324,7 +324,7 @@ def gen_markdown_table(coverage_data: dict[str, dict[str, float]],
 
 
 #: 报表行序（表 V 的三个 fuzzer）
-FUZZER_ORDER = ["DyFuzz", "Fuzz4All", "RespFuzzer"]
+FUZZER_ORDER = ["DyFuzz", "miniFuzz4All", "RespFuzzer"]
 
 #: 效应量对照组：其余 fuzzer 的均值差与 Cliff's δ 都相对它计算
 REFERENCE_FUZZER = "RespFuzzer"

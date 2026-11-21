@@ -265,7 +265,7 @@ The mutated code should call the target function and meet the mutation instructi
 
 ---
 
-## 3. Fuzz4All 基线 prompt（RQ2 对比臂，verbatim 抄自上游 fuzz4all commit 0bf42fe）
+## 3. miniFuzz4All 基线 prompt（RQ2 对比臂，verbatim 抄自上游 fuzz4all commit 0bf42fe）
 
 来源：`experiments/RQ2/miniFuzz4All/f4a_mutator.py`
 

@@ -91,7 +91,7 @@ LOG_DIR = Path(__file__).resolve().parent
 BUDGETS = ["count", "time"]
 LIBS = ["nltk", "numpy", "pandas", "scipy", "sklearn", "spacy"]
 GROUP_ORDER = ["fuzz4all", "dyfuzz", "respfuzzer"]
-GROUP_LABEL = {"fuzz4all": "Fuzz4All", "dyfuzz": "DyFuzz", "respfuzzer": "RespFuzzer"}
+GROUP_LABEL = {"fuzz4all": "miniFuzz4All", "dyfuzz": "DyFuzz", "respfuzzer": "RespFuzzer"}
 #: 两两比较（A − B）
 PAIRS = [
     ("fuzz4all", "dyfuzz"),

@@ -147,7 +147,7 @@ RespFuzzer 与 miniFuzz4All 共用同一 LLM 端点（彼此必须串行），Dy
   ```
 - 输入：`experiments/RQ2/rq*_{checkpoint,log}`（仅 `status=completed` 且带 `run_index` 配对键）
 - 预期输出：表 1 描述统计（每 budget × lib × 组一行）+ 表 2 两两逐函数配对（3 pair × 2 档 × (6 库 + micro + macro) = **48 行**，列 `pair|budget|lib|n func|n run|LC_A|LC_B|Δ|Δ 95% CI|p|sig|Cohen's h|h CI|h 幅度|Cohen's d`）
-- 预期装载数：`Fuzz4All=60, DyFuzz=60, RespFuzzer=60`，Notes 只剩一条 `按 --model 滤除：…` 汇总；**不应再出现 RespFuzzer 被跳过的条目**（历史缺陷：装载层曾按 `len(events) != seed_count` 判完成，而 RespFuzzer 的 events 混记 `mutant_executed` 等 7 类事件，导致 180 run 全被判为未完成）
+- 预期装载数：`miniFuzz4All=60, DyFuzz=60, RespFuzzer=60`，Notes 只剩一条 `按 --model 滤除：…` 汇总；**不应再出现 RespFuzzer 被跳过的条目**（历史缺陷：装载层曾按 `len(events) != seed_count` 判完成，而 RespFuzzer 的 events 混记 `mutant_executed` 等 7 类事件，导致 180 run 全被判为未完成）
 - 逐函数轨迹口径：只认 `event == "seed_fuzzed"`（RespFuzzer / miniFuzz4All），DyFuzz 回退解析日志
 
 ### 步骤 6：汇报表与图
@@ -178,8 +178,8 @@ RespFuzzer 与 miniFuzz4All 共用同一 LLM 端点（彼此必须串行），Dy
 - 预期一致性：`rq2_paired_*.csv` 与步骤 5 表 2 **逐值可对拍**（pair 顺序与 RNG 流 `[42, pair_i, budget_i, lib_i, k]` 完全一致；实测 48/48 行在各自小数位舍入内一致（overall 行标签互译 `micro (6 libs)` ↔ `overall-micro` 后 0 差异：LC 2 位 / Δ 与 CI 3 位 / h 4 位））
 - `--latex` 追加同名 `.tex`（裸 `tabular`，不含浮动体/caption）
 - 读表注意：
-  - **45/48 行 `sig=*`**：`n.s.` 3 行都在 `-ltime 60s`——`Fuzz4All−RespFuzzer` micro/macro（Δ=−0.072 pp，|Δ|<0.1 pp，总体打平：sign-flip n.s.，bootstrap CI [−0.136, −0.004] 恰不含 0，属 borderline）与 `DyFuzz−RespFuzzer` nltk（Δ=−0.002 pp，CI 含 0）；600 函数配对下 0.1 pp 的差也能显著，强弱一律看 `|Δ|` 与效应量：LC 压缩了绝对尺度（本批 |h| = 0.000–0.055，全属 small/可忽略），跨组比较可参考不受压缩影响的 `cohens_dz`（本批约 0.08–11.2）
-  - **逐库并非全胜**（`diff_pp`，正 = 前者优于 RespFuzzer）：`DyFuzz−RespFuzzer`——`-lrequest 10` RespFuzzer 领先 5 库、**nltk 由 DyFuzz 领先**（+0.219*）；`-ltime 60s` RespFuzzer 领先 5 库、**nltk 打平**（−0.002，n.s.）。`Fuzz4All−RespFuzzer`——两档的 numpy / scipy / sklearn 都由 RespFuzzer 领先，但 **nltk、pandas 两档都由 Fuzz4All 领先**（`-lrequest 10` +0.134 / +0.380；`-ltime 60s` +0.473 / +0.423），`-ltime 60s` **spacy 也由 Fuzz4All 领先**（+0.761）→ 结论必须按 (库, 预算档) 逐格陈述，别写"全面优于"；总体 micro：`-lrequest 10` RespFuzzer 显著领先 Fuzz4All / DyFuzz（−0.210 / −0.365 pp），`-ltime 60s` 与 Fuzz4All 打平（−0.072，n.s.）并显著领先 DyFuzz（−0.751）
+  - **45/48 行 `sig=*`**：`n.s.` 3 行都在 `-ltime 60s`——`miniFuzz4All−RespFuzzer` micro/macro（Δ=−0.072 pp，|Δ|<0.1 pp，总体打平：sign-flip n.s.，bootstrap CI [−0.136, −0.004] 恰不含 0，属 borderline）与 `DyFuzz−RespFuzzer` nltk（Δ=−0.002 pp，CI 含 0）；600 函数配对下 0.1 pp 的差也能显著，强弱一律看 `|Δ|` 与效应量：LC 压缩了绝对尺度（本批 |h| = 0.000–0.055，全属 small/可忽略），跨组比较可参考不受压缩影响的 `cohens_dz`（本批约 0.08–11.2）
+  - **逐库并非全胜**（`diff_pp`，正 = 前者优于 RespFuzzer）：`DyFuzz−RespFuzzer`——`-lrequest 10` RespFuzzer 领先 5 库、**nltk 由 DyFuzz 领先**（+0.219*）；`-ltime 60s` RespFuzzer 领先 5 库、**nltk 打平**（−0.002，n.s.）。`miniFuzz4All−RespFuzzer`——两档的 numpy / scipy / sklearn 都由 RespFuzzer 领先，但 **nltk、pandas 两档都由 miniFuzz4All 领先**（`-lrequest 10` +0.134 / +0.380；`-ltime 60s` +0.473 / +0.423），`-ltime 60s` **spacy 也由 miniFuzz4All 领先**（+0.761）→ 结论必须按 (库, 预算档) 逐格陈述，别写"全面优于"；总体 micro：`-lrequest 10` RespFuzzer 显著领先 miniFuzz4All / DyFuzz（−0.210 / −0.365 pp），`-ltime 60s` 与 miniFuzz4All 打平（−0.072，n.s.）并显著领先 DyFuzz（−0.751）
   - **LC 与旧 gain 口径的差异**：LC 排的是**最终**累积覆盖，配对两组的种子阶段覆盖并不总相等，要排除种子阶段差异就看表 1 的 Δpp（覆盖增量）。注：`-ltime 60s` 数据已于 2026-11-19 整档重跑（`rq2_respfuzzer_ltime_re_track.md`），早期"4/48 格符号翻转"清单基于旧批 + 旧 gain 口径，已作废不再引用
   - 六库每库都是 100 函数，故 `overall-micro` 与 `overall-macro` 的**点值相同、CI 不同**（micro 池化 600 函数重采样，macro 为 6 库重采样分布等权平均），两行都保留
   - **coverage-time 图**（`rq2_cvertime_*_req10`）：x = 相对时间（三组同轴可比，t0 = 初始种子覆盖算完），线为 5-run 均值、带为同一时刻 5 条 run 的 min–max，run 结束后保持其 final 值；各组总时长不同是预算执行节奏的结果（`-lrequest 10` 下 RespFuzzer 收尾最快、DyFuzz 最慢），DyFuzz 的配额按"跨组语义"读
@@ -217,7 +217,7 @@ RespFuzzer 与 miniFuzz4All 共用同一 LLM 端点（彼此必须串行），Dy
 
 **已知缺件与例外（报告 Notes 会如实列出，不静默）**
 
-- miniFuzz4All 仅 `Qwen3.6-35B-A3B` 一批；`Llama-3.1-8B-Instruct` / `gpt-oss-120b` 未跑 → 那两模型的 `rq2_paired` 只有 `DyFuzz−RespFuzzer` 一对，涉及 Fuzz4All 的行缺席并给出"无共同 run_index"说明
+- miniFuzz4All 仅 `Qwen3.6-35B-A3B` 一批；`Llama-3.1-8B-Instruct` / `gpt-oss-120b` 未跑 → 那两模型的 `rq2_paired` 只有 `DyFuzz−RespFuzzer` 一对，涉及 miniFuzz4All 的行缺席并给出"无共同 run_index"说明
 - miniFuzz4All 侧只有 1 个非 Qwen 件 `rq3_fuzz4all_nltk_20261030T120256`（10-30 早期预跑）：`gpt-oss-120b`、无 `run_index`、无 `library` 字段、`-ltime 10` 与 `request_budget=2` 混记、日志仅 2 KB → 既无配对键，也被 `--model` 滤除
 - 6 个孤儿 `.log`（未写出 checkpoint）——见步骤 4
 - 分层标签只部分命中 capped100 函数：nltk 67 / numpy 80 / pandas 78 / scipy 100 / sklearn 95 / spacy 76（未命中集中在 `*.demo` 一类嵌套/演示函数），`strata` 表统一记入 `unknown` 层，命中率由脚本按库打印

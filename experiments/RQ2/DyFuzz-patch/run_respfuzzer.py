@@ -211,7 +211,7 @@ from respfuzzer.utils.experiment_recorder import record_result, start_run, reset
 from respfuzzer.utils.run_seed import prepare_run_seed
 
 _RQ3_DIR = _Path(__file__).resolve().parent.parent  # experiments/RQ3
-# DyFuzz 与 RespFuzzer / Fuzz4All 取同一个 run_index → 同一个种子；
+# DyFuzz 与 RespFuzzer / miniFuzz4All 取同一个 run_index → 同一个种子；
 # DyFuzz 的参数变异（apifuzzer.random）与另外两个 fuzzer 一样由该种子播种。
 _run_seed = prepare_run_seed(
     _cli.get("--seed"), _cli.get("--run-index"), section="dyfuzz"
