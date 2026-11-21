@@ -8,7 +8,7 @@
 #   * NL 臂跳过——其分支无 LLM 循环（只单次执行 seed），时间预算惰性、
 #     跑了也等价 count 批；
 #   * Full 臂不跑——复用 RQ2 RespFuzzer -ltime 60 的 30 个 run
-#     （同配置/同 capped100 种子/同 run_index 派生，见 exp.md 复用规则）。
+#     （同配置/同 capped100 种子/同 run_index 派生，见 rq3.md 复用规则）。
 #
 # 预算旗标：-ltime 60（每 seed 60s 变异时间）经 normalize_budget_args 归一。
 #

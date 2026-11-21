@@ -4,7 +4,7 @@
 # measured libraries x 5 repetitions.
 #
 # Full arm is NOT run here — it reuses RQ2 RespFuzzer results (same config,
-# same capped100 seeds, same run_index seed derivation; see exp.md).
+# same capped100 seeds, same run_index seed derivation; see rq3.md).
 # Budget: fuzz_exp-RQ3.py reads config [fuzz] llm_fuzz_per_seed (=10),
 # aligned with RQ2's -lrequest 10. No budget flags on this entry.
 #

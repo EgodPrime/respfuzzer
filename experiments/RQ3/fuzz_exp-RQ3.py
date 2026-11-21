@@ -72,7 +72,7 @@ def _parse_mode(mode: str) -> tuple[bool, bool, bool]:
 def _resolve_budget(request_budget: int | None, time_budget: float | None) -> Budget:
     """CLI 预算 → Budget：给了任一旗标就按旗标（-lrequest/-ltime，与 RQ2 同口径）；
     两者都缺省时回退 ``config [fuzz] llm_fuzz_per_seed``（RQ3 count 批的旧入口行为，
-    config 值 = 10，与 -lrequest 10 同值，见 exp.md 预算口径规则）。"""
+    config 值 = 10，与 -lrequest 10 同值，见 rq3.md 预算口径规则）。"""
     if request_budget is None and time_budget is None:
         request_budget = get_config("fuzz").get("llm_fuzz_per_seed")
     return resolve_budget(request_budget, time_budget)
