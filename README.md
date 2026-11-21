@@ -9,14 +9,12 @@
    - src/respfuzzer/lib/library_visitor.py
    - src/respfuzzer/lib/agentic_function_resolver.py
  - Semantic-Driven Mutation
+   - src/respfuzzer/lib/fuzz/semantic_check.py
    - src/respfuzzer/lib/fuzz/instrument.py
-   - src/respfuzzer/lib/mutator.py
-   - src/respfuzzer/lib/llm_mutator.py
+   - src/respfuzzer/lib/fuzz/mutator.py
+   - src/respfuzzer/lib/fuzz/llm_mutator.py
    - src/respfuzzer/lib/fuzz/fuzz_function.py
-   - src/respfuzzer/lib/fuzz/fuzz_library.py
-   - src/lib.rs
-   - src/chain_rng.rs
-   - src/mutator.rs
+   - src/respfuzzer/lib/fuzz/fuzz_exp.py
 
 ## Installation
 
@@ -109,19 +107,19 @@ The framework uses `config.toml` for configuration. Key settings include:
 
 ### Extract Functions from a Library
 ```bash
-reflective_seeder extract_functions numpy
+extract numpy
 ```
 
 The extracted functions are written to `data/<library>_functions.json` (JSON, one entry per function). All other persistent artifacts are JSON as well — e.g. `data/<mode>/<library>_seeds_<model>_rs<N>.json` and the accompanying `*_seeds_meta_*.json` ledgers. The codebase no longer uses SQLite or PostgreSQL for storage.
 
 ### Generate Function Calls
 ```bash
-reflective_seeder generate_seeds numpy
+solve numpy
 ```
 
 ### Start Fuzzing
 ```bash
-fuzz fuzz_library numpy
+fuzz fuzz_library numpy -lrequest 10
 ```
 
 ## Libraries Under Test
@@ -189,4 +187,5 @@ see the checklist in `need_zip.md` for its exact contents) and uploaded to
 Google Drive:
 <https://drive.google.com/file/d/1b4Z17Wm732QQ2M8kQ2JBt3JDCT1GgZPX/view?usp=drive_link>.
 The archive contains only git-ignored data/results plus its own `README.md`
-(the repository itself carries all code and documentation).
+(the repository itself carries all code and documentation); `data/results` above
+means the git-ignored `data/` and results directories, not a `data/results` path.

@@ -1,6 +1,6 @@
 """
 Provides a small, deterministic RNG and a set of mutation helpers
-ported from the original Rust implementation in this repository.
+ported from a standalone Rust prototype that is not part of this repository.
 """
 
 import struct
