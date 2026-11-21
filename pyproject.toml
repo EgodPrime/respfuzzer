@@ -49,7 +49,7 @@ default = true
 
 [project.scripts]
 db_tools = "respfuzzer.cmd.db_tools:main"
-extract = "respfuzzer.lib.library_visitor:extract_functions_from_library"
+extract = "respfuzzer.lib.library_visitor:main"
 solve = "respfuzzer.lib.agentic_function_resolver:main"
 fuzz = "respfuzzer.cmd.fuzz:main"
 replay_mutation = "respfuzzer.cmd.replay_mutation:main"

@@ -1,3 +1,4 @@
+import argparse
 import importlib
 import json
 import os
@@ -275,6 +276,7 @@ def extract_functions_from_library(library_name: str) -> None:
     if before != after:
         logger.info(
             f"Deduplicated {before} -> {after} functions "
+
             f"(removed {before - after} duplicates)"
         )
 
@@ -285,3 +287,16 @@ def extract_functions_from_library(library_name: str) -> None:
         open(DATA_DIR / f"{library_name}_functions.json", "w"),
         indent=2,
     )
+
+
+def main() -> None:
+    """CLI 入口：``extract <library>``（console script ``extract``）。"""
+
+    parser = argparse.ArgumentParser(description="RespFuzzer function extraction")
+    parser.add_argument("library", help="Library name to extract (e.g., numpy)")
+    args = parser.parse_args()
+    extract_functions_from_library(args.library)
+
+
+if __name__ == "__main__":
+    main()

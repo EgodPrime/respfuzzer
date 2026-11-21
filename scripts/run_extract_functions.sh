@@ -8,6 +8,6 @@ source $config_file
 # Extract function information for each library
 for library in "${libraries[@]}"
 do
-    echo "reflective_seeder extract_functions $library"
-    uv run reflective_seeder extract_functions "$library"
+    echo "extract $library"
+    uv run extract "$library"
 done
