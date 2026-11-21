@@ -57,3 +57,6 @@ experiments/**/results_*/
 campaign_progress_*.tsv
 
 experiments/function_solutions/
+
+# packaged artifact (zip built from git-ignored data, see need_zip.md)
+artifact.zip
