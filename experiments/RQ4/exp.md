@@ -1,68 +1,21 @@
-# RQ4 experiment
+# RQ4 Experiment
 
-> Note: we use {RESPFUZZER} to denote the root directory of the RespFuzzer repo.
+RQ4 reports the real-world vulnerabilities discovered by RespFuzzer
+campaigns. Crash candidates are mined from the RQ1–RQ3 fuzzing logs and
+validated end to end. All scripts live in `experiments/RQ4/` and write their
+intermediates as JSON next to the scripts:
 
-## Dataset Setup
+1. `summary_from_logs.py <log dir>` — scans fuzzing logs for crash/timeout
+   records (`Mutant N execution timeout … Last random state`) and writes
+   `crash_summary.json`;
+2. `simple_replay.py` — replays each crash and synthesises a PoC with the LLM
+   → `replay_results.json`;
+3. `filter.py` — an LLM judge removes false positives, keeping genuine
+   crashes and potential security issues → `filtered_replay_results.json`;
+4. `final_validate.py` — re-executes every filtered candidate for final
+   confirmation.
 
-In our paper, we use the same seeds as RQ3 for RQ4. Thus, please first follow the instructions in `experiments/RQ3/exp.md` to get the `<library>_seeds_sampled.json` file.
-
-## Safe tips
-Before running the experiments, please make sure you have created a separate directory to store all the fuzzing garbage files to avoid messing up your project structure. For example:
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/
-mkdir -p run_data
-```
-
-## Run RespFuzzer with different mutation strategies
-
-All experiments use the unified `fuzz_exp-RQ4.py` entry point. Each ablation is controlled by a `--mode` flag:
-
-| Mode  | Effect                            |
-|-------|-----------------------------------|
-| `NL`  | No LLM-based mutation             |
-| `NP`  | No traditional parameter mutation |
-| `NSF` | No semantic filtering             |
-| `NCF` | No coverage feedback              |
-
-### Full Configuration (RespFuzzer default mutation)
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/run_data
-bash ../run.sh
-```
-
-### Without LLM-based Mutation
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/run_data
-bash ../run.sh NL
-```
-
-### Without Traditional Parameter Mutation
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/run_data
-bash ../run.sh NP
-```
-
-### Without Semantic Filtering
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/run_data
-bash ../run.sh NSF
-```
-
-### Without Coverage Feedback
-
-```bash
-cd {RESPFUZZER}/experiments/RQ4/run_data
-bash ../run.sh NCF
-```
-
-## How to get the similar table data as in our paper
-
-```bash
-# edit the script to set the correct log file paths
-uv run report.py
-```
+The confirmed findings are the four vulnerabilities `vul_1_nltk.py`,
+`vul_2_nltk.py`, `vul_3_scipy.py` and `vul_4_torch.py`. Each file is a
+standalone reproduction script for one reported issue: run it with `uv run` to
+reproduce the faulty behaviour on the unpatched library version.

@@ -27,16 +27,33 @@ experiments/**/RQ*.jpg
 experiments/**/RQ*.pdf
 experiments/RQ4/*.json
 experiments/**/*.db
-experiments/RQ5/codeql*
-experiments/RQ5/SecurityEval
-experiments/RQ5/*.log
 data
 *_data
 htmlcov
 .ruff_cache
 .pytest_cache
 .python-version
+.pi
+runs
+experiments/**/*.json
+experiments/**/*.log
+!experiments/RQ3/respfuzzer_seeds.json
 
 RQ*_data*
 **/*.log
 .hermes
+docs/
+
+AGETNS.md
+
+# 4 个 RQ 统一命名的 .log 与 *_checkpoint.json 需随仓库发布
+# （覆盖上面的 **/*.log 与 experiments/RQ4/*.json；其余 json / 深层日志仍忽略）
+# !experiments/RQ[1-4]/*.log
+# !experiments/RQ[1-4]/*_checkpoint.json
+
+# 实验生成物：track 跟踪文档、分析输出表、进度表（各 RQ 同类产物都不入库）
+rq*track*.md
+experiments/**/results_*/
+campaign_progress_*.tsv
+
+experiments/function_solutions/

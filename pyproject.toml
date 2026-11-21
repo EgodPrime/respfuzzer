@@ -1,18 +1,20 @@
 [project]
 name = "respfuzzer"
 version = "0.2.0"
-description = "Reflective Seed Generation and Semantic-Guided Mutation for Python Library Fuzzing"
+description = "Reflective Seed Generation and Semantic-Driven Mutation for Python Library Fuzzing"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "autoflake>=2.3.3",
-    "bandit>=1.9.4",
     "coverage>=7.11.0",
     "dill>=0.4.1",
     "fire>=0.7.1",
     "langchain>=1.2.18",
     "langchain-openai>=1.2.1",
+    "llama-index>=0.14.25",
+    "llama-index-embeddings-openai-like>=0.4.0",
     "loguru>=0.7.3",
+    "matplotlib>=3.11.2",
     "openai>=1.109.1",
     "psutil>=7.1.0",
     "pydantic>=2.11.9",
@@ -31,6 +33,8 @@ dev = [
 addopts = "--cov=src --cov-report=html:htmlcov --cov-report=term-missing -q"
 # 改变用例的查找路径规则，当前目录的testcase文件夹
 testpaths = ["tests"]
+# 测试需要 import 仓库根下的 experiments.*（RQ1 引擎）与 src 下的 respfuzzer.*
+pythonpath = [".", "src"]
 # 模块名的规则，配置测试搜索的模块文件名称
 python_files = ["test_*.py"]
 # 类名的规则，配置测试搜索的测试类名
@@ -45,6 +49,8 @@ default = true
 
 [project.scripts]
 db_tools = "respfuzzer.cmd.db_tools:main"
-reflective_seeder = "respfuzzer.cmd.reflective_seeder:main"
+extract = "respfuzzer.lib.library_visitor:extract_functions_from_library"
+solve = "respfuzzer.lib.agentic_function_resolver:main"
 fuzz = "respfuzzer.cmd.fuzz:main"
 replay_mutation = "respfuzzer.cmd.replay_mutation:main"
+# 旧的 experiments/RQ1 引擎已废弃；RQ2/RQ3 入口用 `python experiments/RQ*/…py`

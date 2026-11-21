@@ -1,6 +1,5 @@
 import os
 import signal
-import time
 from multiprocessing.connection import Connection
 from typing import Callable
 
@@ -13,6 +12,7 @@ from respfuzzer.lib.fuzz.mutator import (
 )
 from respfuzzer.utils.config import get_config
 from respfuzzer.utils.redis_util import get_redis_client
+from respfuzzer.utils.run_seed import resolve_run_seed, stable_random_state
 
 c_conn: Connection = None
 fuzz_config = get_config("fuzz")
@@ -121,7 +121,10 @@ def replay_fuzz(func: Callable, *args, **kwargs) -> None:
 def fuzz_function(func: Callable, data_fuzz_per_seed: int, *args, **kwargs) -> None:
     full_name = ".".join(dill.source._namespace(func))
     pid = os.getpid()
-    set_random_state(int(time.time()))
+    # 参数变异 RNG 的初始状态由**运行种子 + 函数名**派生：同一 run seed 下
+    # 同一个函数得到同一初始状态，「相同随机种子的配对比较」才在参数变异链路上成立
+    # （原实现按墙钟播种，跨实验组不可配对、也不可复现）。
+    set_random_state(stable_random_state(resolve_run_seed(section="fuzz"), full_name))
     logger.debug(f"RespFuzzer start fuzz {full_name}")
 
     param_list = convert_to_param_list(*args, **kwargs)

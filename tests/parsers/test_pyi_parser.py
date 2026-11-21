@@ -1,6 +1,10 @@
 from unittest.mock import Mock, patch
 
-from respfuzzer.lib.parsers.pyi_parser import _find_all_pyi_files, _parse_pyi_file
+from respfuzzer.lib.parsers.pyi_parser import (
+    _find_all_pyi_files,
+    _parse_pyi_file,
+    parse_pyi_files,
+)
 
 
 def test_parse_pyi_file():
@@ -23,13 +27,17 @@ def another_func(c: List[int]) -> None:...
     # Test the function
     pyi_cache = {}
     with patch("builtins.open", mock_open):
-        _parse_pyi_file("/path/to/test.pyi", pyi_cache)
+        _parse_pyi_file(
+            "/path/to/test.pyi", pyi_cache, root_path="/path/to", library_name="lib"
+        )
 
-    assert "test_func" in pyi_cache
-    assert "another_func" in pyi_cache
+    # 缓存键为完全限定名 <库名>.<模块路径>.<函数名>，不再是裸函数名
+    assert "lib.test.test_func" in pyi_cache
+    assert "lib.test.another_func" in pyi_cache
+    assert "test_func" not in pyi_cache
 
     # Check test_func
-    test_func = pyi_cache["test_func"]
+    test_func = pyi_cache["lib.test.test_func"]
     assert test_func["name"] == "test_func"
     assert test_func["source"] == "def test_func(a: int, b: str) -> bool:..."
     assert len(test_func["args"]) == 2
@@ -40,7 +48,7 @@ def another_func(c: List[int]) -> None:...
     assert test_func["ret_type_str"] == "bool"
 
     # Check another_func
-    another_func = pyi_cache["another_func"]
+    another_func = pyi_cache["lib.test.another_func"]
     assert another_func["name"] == "another_func"
     assert another_func["source"] == "def another_func(c: List[int]) -> None:..."
     assert len(another_func["args"]) == 1
@@ -68,11 +76,13 @@ def plain(x):...
 
     pyi_cache = {}
     with patch("builtins.open", mock_open):
-        _parse_pyi_file("/some/path/test.pyi", pyi_cache)
+        _parse_pyi_file(
+            "/some/path/test.pyi", pyi_cache, root_path="/some/path", library_name="lib"
+        )
 
-    # pos_only should be parsed
-    assert "pos_only" in pyi_cache
-    info = pyi_cache["pos_only"]
+    # pos_only should be parsed（限定键）
+    assert "lib.test.pos_only" in pyi_cache
+    info = pyi_cache["lib.test.pos_only"]
     assert info["ret_type_str"] == "int"
     # Check parameter kinds
     kinds = [a.pos_type for a in info["args"]]
@@ -85,8 +95,8 @@ def plain(x):...
     assert _ParameterKind.VAR_KEYWORD.name in kinds
 
     # plain should also be present and have unknown return
-    assert "plain" in pyi_cache
-    assert pyi_cache["plain"]["ret_type_str"] == "unknown"
+    assert "lib.test.plain" in pyi_cache
+    assert pyi_cache["lib.test.plain"]["ret_type_str"] == "unknown"
 
 
 def test_find_all_pyi_files_walk_and_visited(monkeypatch):
@@ -117,20 +127,28 @@ def test_find_all_pyi_files_walk_and_visited(monkeypatch):
     monkeypatch.setattr("builtins.open", fake_open)
 
     visited_files = set()
-    pyi_cache = {}
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
+    _find_all_pyi_files("/root", visited_files)
 
-    # Expect functions a1,a2,b1 parsed
-    assert "a1" in pyi_cache
-    assert "a2" in pyi_cache
-    assert "b1" in pyi_cache
     # visited_files should contain full paths
     assert any(p.endswith("a.pyi") for p in visited_files)
     assert any(p.endswith("b.pyi") for p in visited_files)
 
+    # 解析走 parse_pyi_files：root_path + library_name 必传，产出限定键
+    pyi_cache: dict = {}
+    for fp in sorted(visited_files):
+        pyi_cache.update(parse_pyi_files(fp, "/root", "mylib"))
+
+    # Expect functions a1,a2,b1 parsed under qualified keys
+    assert "mylib.a.a1" in pyi_cache
+    assert "mylib.a.a2" in pyi_cache
+    assert "mylib.subdir.a.a1" in pyi_cache
+    assert "mylib.subdir.b.b1" in pyi_cache
+    # 不再有未限定（裸名）键
+    assert "a1" not in pyi_cache and "b1" not in pyi_cache
+
 
 def test_find_all_pyi_files_skips_already_visited(monkeypatch):
-    """Ensure that files already in visited_files are skipped on subsequent runs."""
+    """重复收集幂等：同一路径只入集合一次（set 去重），重复调用不新增文件。"""
 
     # Setup walk to return same files under two calls
     def fake_walk(path):
@@ -153,11 +171,15 @@ def test_find_all_pyi_files_skips_already_visited(monkeypatch):
     monkeypatch.setattr("builtins.open", fake_open)
 
     visited_files = set()
-    pyi_cache = {}
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
-    before_count = len(pyi_cache)
+    _find_all_pyi_files("/root", visited_files)
+    before_count = len(visited_files)
 
-    # Call again; because visited_files is reused, it should skip re-parsing
-    _find_all_pyi_files("/root", visited_files, pyi_cache)
-    after_count = len(pyi_cache)
-    assert before_count == after_count
+    # 再次收集：同一路径不会重复入集合
+    _find_all_pyi_files("/root", visited_files)
+    assert len(visited_files) == before_count
+
+    # 每个文件只解析一次，键仍为限定名
+    pyi_cache: dict = {}
+    for fp in sorted(visited_files):
+        pyi_cache.update(parse_pyi_files(fp, "/root", "mylib"))
+    assert set(pyi_cache) == {"mylib.a.a1", "mylib.subdir.a.a1"}

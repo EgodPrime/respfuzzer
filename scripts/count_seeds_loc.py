@@ -18,16 +18,17 @@ import os
 import argparse
 
 
-def get_libraries_sloc_by_files(lib_name, func_paths):
+def get_associated_files(lib_name, func_paths):
     """
-    获取 API 所在的模块文件，去重后统计这些文件的总行数。
+    定位 API 所在的模块文件：去重、限定在该库目录下的 .py 文件。
+    加载库失败时返回 []（并打印原因）。
     """
     try:
         main_lib = importlib.import_module(lib_name)
         lib_root = os.path.normpath(os.path.dirname(inspect.getfile(main_lib)))
     except Exception as e:
         print(f"无法加载库 {lib_name}: {e}")
-        return 0, 0
+        return []
 
     associated_files = set()
 
@@ -51,6 +52,15 @@ def get_libraries_sloc_by_files(lib_name, func_paths):
             # print(f"无法定位 API 文件 {path}: {e}")
             continue
 
+    return sorted(associated_files)
+
+
+def get_libraries_sloc_by_files(lib_name, func_paths):
+    """
+    获取 API 所在的模块文件，去重后统计这些文件的总行数。
+    """
+    associated_files = get_associated_files(lib_name, func_paths)
+
     # 统计这些文件的 LOC (去空行和注释)
     total_loc = 0
     for file_path in associated_files:
@@ -71,7 +81,10 @@ def get_function_paths(function_file):
     try:
         with open(function_file, "r") as f:
             data = json.load(f)  # list[dict[str,str]]
-            return data[0]["library_name"], [item["func_name"] for item in data]
+            # 优先 func_path（点分路径），缺了才退回 func_name（裸名）
+            first = data[0]
+            key = "func_path" if "func_path" in first else "func_name"
+            return first["library_name"], [item[key] for item in data]
     except Exception as e:
         print(f"无法读取函数文件 {function_file}: {e}")
         return None, []
