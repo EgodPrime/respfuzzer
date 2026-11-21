@@ -253,7 +253,7 @@ class LLMMutator:
         - 包含有效调用 → 返回 ``(mutant, mutation_type)``，调用方继续执行参数变异
           与覆盖率反馈；
         - 未包含有效调用（编译失败 / 未调用目标函数）→ 该算子奖励计为 0 并返回 ``None``，
-          调用方跳过本槽的执行，对应算法2 中 ``IsValidSemantic(v)`` 为假时的
+          调用方跳过本槽的执行，对应算法2 中 ``HasValidCall(v)`` 为假时的
           ``continue``；
         - LLM 调用在 ``llm_mutate`` 内部重试后仍失败 → 记录错误并返回 ``None``；
           该重试属基础设施容错，不额外消耗预算槽。

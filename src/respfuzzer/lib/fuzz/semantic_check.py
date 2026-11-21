@@ -1,4 +1,4 @@
-"""算法2 中 `IsValidSemantic`（见 ``docs/latex_v7/sections/our-approach.tex``）的实现。
+"""算法2 中 `HasValidCall`（即本模块的 ``has_valid_call``）的实现。
 
 论文对该函数的描述是：生成的变体 ``v`` 必须既能通过 Python 内建函数 ``compile``，
 又包含对目标函数的有效调用。
@@ -49,7 +49,7 @@ class CheckResult:
     """「包含有效调用」判定的结果。
 
     Attributes:
-        ok: 变体是否通过检查（即算法2 中 ``IsValidSemantic(v) == true``）
+        ok: 变体是否通过检查（即算法2 中 ``HasValidCall(v) == true``）
         reason: 未通过的原因，取值为 ``REASON_*`` 常量之一
         error_line: 语法/编译错误的行号（如果可得）
         detail: 人类可读的补充信息（错误消息等）
@@ -183,7 +183,7 @@ def _calls_target(tree: ast.AST, target: str, aliases: dict[str, str]) -> bool:
 
 
 def has_valid_call(mutant: Mutant) -> CheckResult:
-    """检查 LLM 变体是否同时通过编译检查与目标调用存在性检查（算法2 的 ``IsValidSemantic``）。
+    """检查 LLM 变体是否同时通过编译检查与目标调用存在性检查（算法2 的 ``HasValidCall``）。
 
     Args:
         mutant: 待检查的变体，使用其 ``function_call``（代码）与 ``func_name``
@@ -197,7 +197,7 @@ def has_valid_call(mutant: Mutant) -> CheckResult:
 
 
 def is_valid_call(code: str, function: Function) -> CheckResult:
-    """算法2 ``IsValidSemantic`` 的 ``(code, function)`` 签名入口（静态门控）。
+    """算法2 ``HasValidCall`` 的 ``(code, function)`` 签名入口（静态门控）。
 
     与 ``has_valid_call(mutant)`` 共用同一检查核心：``compile`` 通过 + 代码中
     存在对 ``function.func_path``（限定路径）的有效调用。供种子生成侧（如

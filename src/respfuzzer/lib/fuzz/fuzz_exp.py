@@ -154,9 +154,9 @@ def fuzz_single_seed(
         mutation = Mutator.random_llm_mutate()
         if mutation is None:
             # 无效的 LLM 输出（或调用失败）同样消耗本槽预算：跳过执行，
-            # 对应算法2 中 IsValidSemantic(v) 为假时的 continue
+            # 对应算法2 中 HasValidCall(v) 为假时的 continue
             logger.warning(
-                f"Skipped LLM budget slot for seed {seed.id}: no semantically valid variant"
+                f"Skipped LLM budget slot for seed {seed.id}: no valid call in variant"
             )
             # 该槽的跳过事实落盘为结构化事件
             record_event(

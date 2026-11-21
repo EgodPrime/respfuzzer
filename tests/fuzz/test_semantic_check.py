@@ -1,4 +1,4 @@
-"""算法2 `IsValidSemantic` 实现（`semantic_check.has_valid_call`）的单元测试。"""
+"""算法2 `HasValidCall` 实现（`semantic_check.has_valid_call`）的单元测试。"""
 
 import ast
 

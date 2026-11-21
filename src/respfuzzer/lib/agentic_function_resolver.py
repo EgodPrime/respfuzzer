@@ -528,7 +528,7 @@ class Reasoner:
 
 
 class Judger:
-    """确定性静态门控（算法2 的 ``IsValidSemantic``），取代原基于 LLM 的判定。
+    """确定性静态门控（算法2 的 ``HasValidCall``），取代原基于 LLM 的判定。
 
     同一 ``(code, function)`` 恒定结论、零 LLM 调用；未通过时给出结构化
     ``reason`` 回填自省历史，指导 attempter 下一轮修正。
