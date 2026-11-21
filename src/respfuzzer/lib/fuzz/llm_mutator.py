@@ -157,8 +157,8 @@ def llm_mutate(seed: Seed, mutation_type: int, rng: int = 0) -> Mutant | None:
 class LLMMutator:
     """基于指数平滑奖励的 softmax 采样：为每一个种子优化变异算子的选择。
 
-    采用语义负反馈（编译失败、未调用目标函数、运行时异常）和覆盖率正反馈
-    （覆盖率增长）两种信号：
+    奖励由两类信号决定：语义有效（编译通过、目标调用存在）与否（编译失败、
+    未调用目标函数、运行时异常），以及覆盖率是否增长：
     - 当 LLM 变异产生语法/语义错误或执行期抛出运行时异常时，降低对应变异算子的
       期望奖励 mu（奖励 0）；
     - 当传统变异产生覆盖率增长时，提高对应变异算子的期望奖励 mu（奖励可达 1）；
@@ -233,7 +233,7 @@ class LLMMutator:
         """
         根据一次变体执行的结果计算变异算子奖励（算法2 的 r_s / r_c 折算）。
 
-        运行时异常作为语义负面反馈：出现运行时异常时按语义无效处理，
+        出现运行时异常时按语义无效处理：
         奖励降到 0，且不再计算覆盖率增益。
 
         Arguments:
@@ -251,7 +251,7 @@ class LLMMutator:
 
         - 语义有效 → 返回 ``(mutant, mutation_type)``，调用方继续执行参数变异
           与覆盖率反馈；
-        - 语义无效（编译失败 / 未调用目标函数）→ 施加语义负反馈并返回 ``None``，
+        - 语义无效（编译失败 / 未调用目标函数）→ 该算子奖励计为 0 并返回 ``None``，
           调用方跳过本槽的执行，对应算法2 中 ``IsValidSemantic(v)`` 为假时的
           ``continue``；
         - LLM 调用在 ``llm_mutate`` 内部重试后仍失败 → 记录错误并返回 ``None``；
@@ -285,7 +285,7 @@ class LLMMutator:
         check = has_valid_call(res)
         if not check.ok:
             # 无效的 LLM 输出同样占用一个变异预算槽：不再重试，
-            # 直接施加语义负反馈并跳过该槽的执行。
+            # 直接计 0 奖励并跳过该槽的执行。
             self.update_reward(mutation_type, self.calculate_reward(True, 0.0))
             logger.warning(
                 f"Semantic check failed ({check.reason}: {check.detail}) for mutation "

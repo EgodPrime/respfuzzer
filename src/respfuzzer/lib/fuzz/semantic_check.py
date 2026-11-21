@@ -208,7 +208,7 @@ def is_valid_call(code: str, function: Function) -> CheckResult:
         CheckResult: ``ok`` 为 True 表示通过；否则 ``reason`` 取
         ``REASON_SYNTAX_ERROR`` / ``REASON_COMPILE_ERROR`` /
         ``REASON_NO_TARGET_CALL`` 之一（``detail``/``error_line`` 附细节），
-        可直接回填自省历史作为负面反馈。
+        可直接回填自省历史供下一轮修正。
     """
     return _check_valid_call(code, function.func_path)
 

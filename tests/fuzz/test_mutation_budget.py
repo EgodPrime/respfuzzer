@@ -98,12 +98,12 @@ def test_invocation_failure_then_success(install_stub):
 
 
 def test_invalid_output_consumes_budget_without_retry(install_stub):
-    """无效输出：只调用一次 LLM、返回 None、施加语义负反馈。"""
+    """无效输出：只调用一次 LLM、返回 None、该算子奖励计为 0。"""
     stub, seed = install_stub([NO_TARGET_CALL_CODE])
     mutator = _fixed_mutator(seed)
     assert mutator.random_llm_mutate() is None
     assert stub.calls == 1, "无效输出不再在同一预算槽内重试"
-    assert mutator.mu[0] < 0.5, "无效输出应作为语义负面反馈降低该算子的期望奖励"
+    assert mutator.mu[0] < 0.5, "无效输出应计 0 奖励以降低该算子的期望奖励"
 
 
 def test_syntax_error_also_consumes_budget(install_stub):

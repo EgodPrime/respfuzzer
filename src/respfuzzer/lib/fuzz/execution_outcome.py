@@ -1,7 +1,7 @@
 """变体执行结果（含运行时异常）在 worker 与父进程之间的传递类型。
 
-语义执行错误应向变异器提供负面反馈：若异常只被静默捕获（`exec(seed.function_call)`
-外的 `except Exception: pass`），运行时异常就无法参与算法2 的语义奖励计算。
+运行时异常必须参与算法2 的语义奖励计算：若异常只被静默捕获（`exec(seed.function_call)`
+外的 `except Exception: pass`），运行时异常就无法进入奖励通路。
 本模块提供：
 
 - :class:`ExecutionOutcome`：worker 执行一个变体后的结果，可被

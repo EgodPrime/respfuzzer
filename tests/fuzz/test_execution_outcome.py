@@ -103,7 +103,7 @@ def test_no_runtime_error_keeps_coverage_reward():
 
 
 def test_runtime_error_lowers_mutation_type_expectation():
-    """负面反馈确实会降低该变异算子的期望奖励。"""
+    """运行时异常确实会降低该变异算子的期望奖励。"""
     mutator = LLMMutator(_seed())
     before = mutator.mu[0]
     outcome = classify_exception(_capture(lambda: exec("raise ValueError('boom')")))
