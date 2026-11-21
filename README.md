@@ -184,5 +184,9 @@ LLM calls, token counts) and per-seed events. RQ1 instead writes seed sets
 
 The generated result tables (`experiments/**/results_*/`, including the
 per-run CSVs behind every reported number) are not committed to git; they are
-packaged with the full logs and uploaded to an external archive — download
-link: _TODO (fill in after upload)_.
+packaged with the full logs as the **artifact archive** (`artifact.zip`,
+see the checklist in `need_zip.md` for its exact contents) and uploaded to
+Google Drive:
+<https://drive.google.com/file/d/1b4Z17Wm732QQ2M8kQ2JBt3JDCT1GgZPX/view?usp=drive_link>.
+The archive contains only git-ignored data/results plus its own `README.md`
+(the repository itself carries all code and documentation).

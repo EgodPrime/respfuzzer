@@ -189,7 +189,8 @@ uv run experiments/RQ3/analyze.py ... 同理（count 批）；步骤见 rq1/rq2/
 ```
 
 - [x] zip 内含 `README.md`（RQ 编号、capped100=600 链路、孤儿 log 清单、分析产物来源、运行步骤）✓ 2026-11-21 实测
-- [ ] 仓库侧齐备：`rq1/rq2/rq3.md`、need_zip.md 随仓库 ✓；**`prompts.md`、`vul_links.md` 仍 untracked 待提交**（不阻塞 zip——二者本就不入包，但零重叠原则下须随仓库分发，提交前勿删）
+- [x] 仓库侧齐备：`rq1/rq2/rq3.md`、need_zip.md、`prompts.md`、`vul_links.md` 均已 git 跟踪 ✓（prompts.md @ d7c7c60，vul_links.md @ 7b3f98e）
+- [x] 对外分发链接已回填：Google Drive `https://drive.google.com/file/d/1b4Z17Wm732QQ2M8kQ2JBt3JDCT1GgZPX/view?usp=drive_link`，写入仓库 `README.md`（替换原 `_TODO (fill in after upload)_` 占位）
 - [x] 包内不含任何代码：`.py/.sh` 计数 = 0 ✓（vul_*.py 随仓库）
 - [x] 包内无 track 文档：`*track*.md` 计数 = 0 ✓（13 份留在仓库）
 - [x] 包内无环境锁：`pyproject.toml`/`uv.lock`/`Dockerfile`/`config.toml.default` 计数 = 0 ✓
